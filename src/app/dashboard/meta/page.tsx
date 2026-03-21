@@ -303,7 +303,7 @@ export default function MetaAdsPage() {
       {/* Topbar */}
       <div style={{ padding: '20px 40px', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: '#fff', zIndex: 50 }}>
         <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'Barlow, sans-serif', color: '#000' }}>{orgName} — Meta Ads</h1>
+          <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'var(--font-barlow), Barlow, sans-serif', color: '#000' }}>{orgName} — Meta Ads</h1>
           <p style={{ fontSize: '0.875rem', color: '#666', marginTop: 2, fontFamily: 'Barlow, sans-serif' }}>
             {fmtDate(range.start)} – {fmtDate(range.end)} · vs previous {dayCount} days
           </p>
