@@ -14,6 +14,7 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) { setError('Configuration error: Supabase URL missing'); setLoading(false); return }
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: `${location.origin}/dashboard/revenue` },
