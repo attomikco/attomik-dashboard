@@ -524,7 +524,7 @@ export default function AnalyticsPage() {
       {/* Sticky topbar */}
       <div style={{ padding: '20px 40px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: C.paper, zIndex: 50 }}>
         <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'var(--font-barlow), Barlow, sans-serif', color: C.ink }}>Analytics</h1>
+          <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'var(--font-barlow), Barlow, sans-serif', color: C.ink }}>{orgName} — Analytics</h1>
           <p style={{ fontSize: '0.875rem', color: C.muted, marginTop: 2, fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>
             {fmtDate(range.start)} – {fmtDate(range.end)} · vs previous {dayCount} days
           </p>

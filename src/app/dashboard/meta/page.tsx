@@ -296,15 +296,16 @@ export default function MetaAdsPage() {
   const activeCampaigns = Object.values(campaigns).filter(c => c.isActive).length
 
   const fmtDate = (s: string) => new Date(s + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const dayCount = Math.round((new Date(range.end).getTime() - new Date(range.start).getTime()) / 864e5) + 1
 
   return (
     <div>
       {/* Topbar */}
       <div style={{ padding: '20px 40px', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: '#fff', zIndex: 50 }}>
         <div>
-          <h1 style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'Barlow, sans-serif' }}>Meta Ads</h1>
-          <p style={{ fontSize: '0.8rem', color: '#666', marginTop: 2, fontFamily: 'Barlow, sans-serif' }}>
-            {fmtDate(range.start)} – {fmtDate(range.end)} · {activeCampaigns} active campaign{activeCampaigns !== 1 ? 's' : ''}
+          <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'Barlow, sans-serif', color: '#000' }}>{orgName} — Meta Ads</h1>
+          <p style={{ fontSize: '0.875rem', color: '#666', marginTop: 2, fontFamily: 'Barlow, sans-serif' }}>
+            {fmtDate(range.start)} – {fmtDate(range.end)} · vs previous {dayCount} days
           </p>
         </div>
         <DateRangePicker value={range} onChange={r => setRange(r)} />
