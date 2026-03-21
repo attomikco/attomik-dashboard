@@ -363,26 +363,35 @@ export default function MetaAdsPage() {
             </div>
 
             {/* KPI Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 28 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
               {[
-                { label: 'Total Spend',  value: fmt$(totals.spend),          cur: totals.spend,           prev: prevMetaData.spend ?? 0,                invertColors: true },
-                { label: 'Impressions',  value: fmtN(totals.impressions),    cur: totals.impressions,     prev: prevMetaData.impressions ?? 0 },
-                { label: 'Reach',        value: fmtN(totals.reach),          cur: totals.reach,           prev: prevMetaData.reach ?? 0 },
-                { label: 'Clicks',       value: fmtN(totals.clicks),         cur: totals.clicks,          prev: prevMetaData.clicks ?? 0 },
-                { label: 'CTR',          value: fmtPct(totalCtr),            cur: totalCtr,               prev: prevMetaData.ctr ?? 0 },
-                { label: 'CPC',          value: fmt2(totalCpc),              cur: totalCpc,               prev: prevMetaData.cpc ?? 0,                       invertColors: true },
-                { label: 'CPM',          value: fmt2(totalCpm),              cur: totalCpm,               prev: (prevMetaData.impressions ?? 0) > 0 ? ((prevMetaData.spend ?? 0) / prevMetaData.impressions) * 1000 : 0,                       invertColors: true },
-                { label: 'Purchases',    value: fmtN(totals.conversions),    cur: totals.conversions,     prev: prevMetaData.conversions ?? 0 },
-                { label: 'Conv. Value',  value: fmt$(totals.conversionValue),cur: totals.conversionValue, prev: prevMetaData.conversionValue ?? 0 },
-                { label: 'ROAS',         value: fmtX(totalRoas),             cur: totalRoas,              prev: prevMetaData.roas ?? 0 },
+                { label: 'Total Spend',  value: fmt$(totals.spend),           cur: totals.spend,           prev: prevMetaData.spend ?? 0,        invertColors: true },
+                { label: 'Impressions',  value: fmtN(totals.impressions),     cur: totals.impressions,     prev: prevMetaData.impressions ?? 0 },
+                { label: 'Reach',        value: fmtN(totals.reach),           cur: totals.reach,           prev: prevMetaData.reach ?? 0 },
+                { label: 'Clicks',       value: fmtN(totals.clicks),          cur: totals.clicks,          prev: prevMetaData.clicks ?? 0 },
+                { label: 'CTR',          value: fmtPct(totalCtr),             cur: totalCtr,               prev: prevMetaData.ctr ?? 0 },
+                { label: 'CPC',          value: fmt2(totalCpc),               cur: totalCpc,               prev: prevMetaData.cpc ?? 0,          invertColors: true },
+                { label: 'CPM',          value: fmt2(totalCpm),               cur: totalCpm,               prev: (prevMetaData.impressions ?? 0) > 0 ? ((prevMetaData.spend ?? 0) / prevMetaData.impressions) * 1000 : 0, invertColors: true },
+                { label: 'Purchases',    value: fmtN(totals.conversions),     cur: totals.conversions,     prev: prevMetaData.conversions ?? 0 },
+                { label: 'Conv. Value',  value: fmt$(totals.conversionValue), cur: totals.conversionValue, prev: prevMetaData.conversionValue ?? 0 },
+                { label: 'ROAS',         value: fmtX(totalRoas),              cur: totalRoas,              prev: prevMetaData.roas ?? 0 },
                 { label: 'Active Camps', value: `${activeCampaigns} / ${Object.keys(campaigns).length}`, cur: 0, prev: 0 },
-              ].map(k => (
-                <div key={k.label} style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 10, padding: '16px 18px' }}>
-                  <div style={{ fontSize: '0.72rem', fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, fontFamily: 'Barlow, sans-serif' }}>{k.label}</div>
-                  <div style={{ fontSize: '1.3rem', fontWeight: 800, letterSpacing: '-0.02em', fontFamily: 'Barlow, sans-serif', color: '#000' }}>{k.value}</div>
-                  <PctPill cur={k.cur} prev={k.prev} invertColors={k.invertColors} />
-                </div>
-              ))}
+              ].map(k => {
+                const change = k.prev > 0 ? pct(k.cur, k.prev) : undefined
+                const up = change !== undefined ? change >= 0 : null
+                const isGood = up === null ? null : (k.invertColors ? !up : up)
+                return (
+                  <div key={k.label} style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 10, padding: 24 }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12, fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>{k.label}</div>
+                    <div style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', color: '#000', lineHeight: 1.1, marginBottom: 8 }}>{k.value}</div>
+                    {change !== undefined && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.875rem', fontWeight: 700, fontFamily: 'var(--font-barlow), Barlow, sans-serif', padding: '4px 10px', borderRadius: 6, background: isGood ? '#e6fff5' : '#fee2e2', color: isGood ? '#007a48' : '#b91c1c' }}>
+                        {up ? '↑' : '↓'} {Math.abs(change).toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
             </div>
 
             {/* Charts */}
