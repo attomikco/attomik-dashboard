@@ -14,7 +14,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Only superadmins can invite members' }, { status: 403 })
     }
 
-    const { email, org_id, role } = await request.json()
+    const { email, org_id, role, full_name } = await request.json()
     if (!email || !org_id || !role) {
       return NextResponse.json({ error: 'email, org_id and role are required' }, { status: 400 })
     }
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 
       // Link existing user to this org
       await serviceClient.from('profiles')
-        .update({ org_id, role })
+        .update({ org_id, role, ...(full_name ? { full_name } : {}) })
         .eq('id', existingUser.id)
 
       return NextResponse.json({
@@ -54,6 +54,14 @@ export async function POST(request: Request) {
       invited_by: user.id,
       status: 'pending',
     })
+
+    // Pre-create profile with name so it shows immediately
+    if (full_name) {
+      const { data: newUser } = await serviceClient.auth.admin.createUser({ email, email_confirm: false })
+      if (newUser?.user) {
+        await serviceClient.from('profiles').upsert({ id: newUser.user.id, full_name, org_id, role })
+      }
+    }
 
     if (inviteError) throw inviteError
 

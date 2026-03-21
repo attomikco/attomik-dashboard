@@ -40,8 +40,25 @@ export default function ProjectsPage() {
     setCreating(true)
     setError('')
     const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '-')
-    const { error } = await supabase.from('organizations').insert({ name, slug: cleanSlug })
+    const { data: newOrg, error } = await supabase
+      .from('organizations').insert({ name, slug: cleanSlug }).select().single()
     if (error) { setError(error.message); setCreating(false); return }
+
+    // Auto-assign current user as admin of new project
+    if (newOrg) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: existingProfile } = await supabase.from('profiles').select('full_name, is_superadmin').eq('id', user.id).single()
+        await supabase.from('profiles').upsert({
+          id: user.id,
+          org_id: newOrg.id,
+          role: 'admin',
+          full_name: existingProfile?.full_name ?? user.email,
+          is_superadmin: existingProfile?.is_superadmin ?? false,
+        }, { onConflict: 'id' })
+      }
+    }
+
     setName(''); setSlug(''); setShowForm(false); setCreating(false)
     fetchOrgs()
   }

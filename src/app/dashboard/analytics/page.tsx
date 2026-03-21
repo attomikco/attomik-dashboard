@@ -11,6 +11,7 @@ import MoMSummaryTable from '@/components/MoMSummaryTable'
 import PacingChart from '@/components/PacingChart'
 import DayOfWeekHeatmap from '@/components/DayOfWeekHeatmap'
 import CacTrendChart from '@/components/CacTrendChart'
+import AIInsights from '@/components/AIInsights'
 
 function pct(current: number, prev: number) {
   if (prev === 0) return current > 0 ? 100 : 0
@@ -46,7 +47,7 @@ const C = {
   success: '#00cc78',
 }
 
-function KpiCard({ label, value, change, invertColors }: { label: string; value: string; change?: number; invertColors?: boolean }) {
+function KpiCard({ label, value, change, invertColors, subtitle }: { label: string; value: string; change?: number; invertColors?: boolean; subtitle?: string }) {
   const up = change === undefined ? null : change >= 0
   const isGood = up === null ? null : (invertColors ? !up : up)
   return (
@@ -54,9 +55,12 @@ function KpiCard({ label, value, change, invertColors }: { label: string; value:
       <div style={{ fontSize: '0.8rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
         {label}
       </div>
-      <div style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', color: C.ink, lineHeight: 1.1, marginBottom: 12 }}>
+      <div style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', color: C.ink, lineHeight: 1.1, marginBottom: 8 }}>
         {value}
       </div>
+      {subtitle && (
+        <div style={{ fontSize: '0.8rem', color: C.muted, marginBottom: 8, fontFamily: 'Barlow, sans-serif' }}>{subtitle}</div>
+      )}
       {change !== undefined && (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.875rem', fontWeight: 700, fontFamily: 'Barlow, sans-serif', padding: '4px 10px', borderRadius: 6, background: isGood ? '#e6fff5' : '#fee2e2', color: isGood ? '#007a48' : '#b91c1c' }}>
           {up ? '↑' : '↓'} {Math.abs(change).toFixed(1)}%
@@ -81,16 +85,28 @@ function SectionHeader({ title, color = C.accent, platform }: { title: string; c
   )
 }
 
-function MetricRow({ items }: { items: { label: string; value: string; sub?: string }[] }) {
+function MetricRow({ items }: { items: { label: string; value: string; sub?: string; invertColors?: boolean }[] }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${items.length}, 1fr)`, gap: 1, background: C.border, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
-      {items.map((item, i) => (
-        <div key={i} style={{ background: C.paper, padding: '20px 24px' }}>
-          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>{item.label}</div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.03em', color: C.ink }}>{item.value}</div>
-          {item.sub && <div style={{ fontSize: '0.8rem', color: '#999', marginTop: 4, fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>{item.sub}</div>}
-        </div>
-      ))}
+      {items.map((item, i) => {
+        const isUp = item.sub?.startsWith('↑')
+        const isDown = item.sub?.startsWith('↓')
+        const hasChange = isUp || isDown
+        const isGood = hasChange ? (item.invertColors ? isDown : isUp) : null
+        const subColor = isGood === true ? '#007a48' : isGood === false ? '#b91c1c' : '#999'
+        const subBg = isGood === true ? '#e6fff5' : isGood === false ? '#fee2e2' : 'transparent'
+        return (
+          <div key={i} style={{ background: C.paper, padding: '20px 24px' }}>
+            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>{item.label}</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.03em', color: C.ink }}>{item.value}</div>
+            {item.sub && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', marginTop: 6, padding: '2px 8px', borderRadius: 4, background: subBg, fontSize: '0.8rem', fontWeight: 600, color: subColor, fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>
+                {item.sub}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -150,6 +166,8 @@ export default function AnalyticsPage() {
   const [dowData, setDowData] = useState<any[]>([])
   const [cacData, setCacData] = useState<any[]>([])
   const [channels, setChannels] = useState<Record<string, boolean>>({})
+  const [orgName, setOrgName] = useState<string>('your store')
+  const [estEOM, setEstEOM] = useState<number | null>(null)
   const supabase = createClient()
 
   useEffect(() => { fetchData() }, [range])
@@ -161,7 +179,8 @@ export default function AnalyticsPage() {
 
     // Fetch org config (channels + timezone)
     const { data: orgData } = await supabase
-      .from('organizations').select('channels, timezone').eq('id', orgId).single()
+      .from('organizations').select('channels, timezone, name').eq('id', orgId).single()
+    if (orgData?.name) setOrgName(orgData.name)
     const orgTimezone = orgData?.timezone ?? 'America/New_York'
     const ch = orgData?.channels ?? {}
     // If channels column is null/empty object (never configured), show all
@@ -370,12 +389,28 @@ export default function AnalyticsPage() {
     const maxDay = Math.max(totalDays, prevTotalDays, 28)
 
     let cumCur = 0, cumPrev = 0
-    setPacingData(Array.from({ length: maxDay }, (_, i) => {
+    const pacingArr = Array.from({ length: maxDay }, (_, i) => {
       const day = i + 1
       cumCur  += curDayRevs[day]  || 0
       cumPrev += prevDayRevs[day] || 0
-      return { day, current: day <= totalDays ? cumCur : null, previous: day <= prevTotalDays ? cumPrev : null }
-    }))
+      return { day, current: day <= totalDays ? cumCur : null, previous: day <= prevTotalDays ? cumPrev : null, projection: null as number | null }
+    })
+
+    // Add projection: daily run rate from current period × remaining days
+    const currentTotal = cumCur
+    const dailyRate = totalDays > 0 ? currentTotal / totalDays : 0
+    const remainingDays = maxDay - totalDays
+    if (dailyRate > 0 && remainingDays > 0) {
+      // Projection starts at the last actual data point
+      pacingArr[totalDays - 1].projection = currentTotal
+      for (let i = totalDays; i < maxDay; i++) {
+        pacingArr[i].projection = currentTotal + dailyRate * (i - totalDays + 1)
+      }
+    }
+    const estEOM = dailyRate > 0 ? currentTotal + dailyRate * remainingDays : null
+
+    setPacingData(pacingArr)
+    setEstEOM(estEOM)
 
     const dowMap: Record<number, { revenue: number; orders: number; weeks: Set<string> }> = {}
     for (let i = 0; i < 7; i++) dowMap[i] = { revenue: 0, orders: 0, weeks: new Set() }
@@ -399,18 +434,19 @@ export default function AnalyticsPage() {
     allSp.forEach(s => { const key = s.date.slice(0,7); if (monthMap[key]) monthMap[key].spend += Number(s.spend) })
     const sortedMonths = Object.keys(monthMap).sort()
     // Use same CAC formula as KPI card: new = never ordered in any prior month
-    const seenCustomers = new Set<string>()
-    setCacData(sortedMonths.map((key, i) => {
-      const thisMonthCusts = monthMap[key].customers
-      const newCusts = [...thisMonthCusts].filter(e => !seenCustomers.has(e)).length
-      // Add this month's customers to seen AFTER calculating new ones
-      thisMonthCusts.forEach(e => seenCustomers.add(e))
+    // Only show last 6 months relative to selected range end
+    const rangeEndMonth = range.end.slice(0, 7)
+    const last6Months = sortedMonths.filter(k => k <= rangeEndMonth).slice(-6)
+
+    setCacData(last6Months.map((key) => {
       const [year, month] = key.split('-')
+      const orders = monthMap[key].orders
+      const spend = monthMap[key].spend
       return {
         period: new Date(Number(year), Number(month)-1, 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-        cac: monthMap[key].orders > 0 ? monthMap[key].spend / monthMap[key].orders : 0,
-        newCustomers: monthMap[key].orders,
-        spend: monthMap[key].spend,
+        cac: orders > 0 ? spend / orders : 0,
+        orders,
+        spend,
       }
     }).filter(d => d.spend > 0))
 
@@ -503,6 +539,28 @@ export default function AnalyticsPage() {
           <div style={{ color: C.muted, textAlign: 'center', padding: '80px 0', fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontSize: '1rem' }}>No data yet. Upload a CSV to get started.</div>
         ) : (<>
 
+          {/* ── AI INSIGHTS ── */}
+          <AIInsights
+            period={`${fmtDate(range.start)} – ${fmtDate(range.end)}`}
+            preset={range.label ?? 'custom'}
+            orgName={orgName}
+            metrics={{
+              totalRev: fmt$(d.totalRevC), totalRevP: fmt$(d.totalRevP), totalRevChg: pct(d.totalRevC, d.totalRevP).toFixed(1),
+              totalSp: fmt$(d.totalSpC), totalSpChg: pct(d.totalSpC, d.totalSpP).toFixed(1),
+              roas: d.roasC.toFixed(2), roasP: d.roasP.toFixed(2),
+              orders: d.ordC, ordersChg: pct(d.ordC, d.ordP).toFixed(1),
+              aov: fmt$(d.aovC), aovChg: pct(d.aovC, d.aovP).toFixed(1),
+              cac: fmt$(d.cacC), cacChg: pct(d.cacC, d.cacP).toFixed(1),
+              newCust: d.newCustC, retCust: d.retCustC,
+              retRate: d.shRcrC.toFixed(1),
+              shopifyGross: d.showShopify ? fmt$(d.shGrossC) : null,
+              shopifyNet: d.showShopify ? fmt$(d.shNetC) : null,
+              discountRate: d.shDiscRateC.toFixed(1),
+              metaSp: d.showMeta ? fmt$(d.metaSpC) : null,
+              metaConv: d.metaConvC,
+            }}
+          />
+
           {/* ── OVERVIEW KPIs ── */}
           <SectionHeader title="Overview" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
@@ -518,7 +576,7 @@ export default function AnalyticsPage() {
 
           {/* ── CHARTS ROW 1 ── */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-            <ChartCard title="Revenue & ROAS" subtitle="Revenue bars · ROAS dashed line">
+            <ChartCard title="Revenue & ROAS" subtitle="Revenue bars (dark) · ROAS line (bright)">
               <RevenueRoasChart data={revenueRoasData} />
             </ChartCard>
             <ChartCard title="Revenue Pacing" subtitle="Cumulative vs previous period">
@@ -538,7 +596,7 @@ export default function AnalyticsPage() {
 
           {/* ── CHARTS ROW 3 ── */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-            <ChartCard title="Sales by Channel" subtitle="Shopify (green) · Amazon (orange)">
+            <ChartCard title="Sales by Channel" subtitle={[d.showShopify ? "Shopify (green)" : "", d.showAmazon ? "Amazon (darker green)" : ""].filter(Boolean).join(" · ")}>
               <SalesByChannelChart data={channelData} />
             </ChartCard>
             <ChartCard title="CAC Trend" subtitle="Cost per new customer · bars = new customers">
@@ -569,7 +627,7 @@ export default function AnalyticsPage() {
               { label: 'Total Orders',        current: d.ordC,        previous: d.ordP,        format: 'number' as const,   sparkline: d.weekOrders },
               { label: 'New Customers',       current: d.newCustC,    previous: d.newCustP,    format: 'number' as const,     sparkline: d.weekNewCusts },
               { label: 'Returning Customers', current: d.retCustC,    previous: 0,             format: 'number' as const,     sparkline: d.weekRetCusts },
-              { label: 'Return Rate',         current: d.shRcrC,      previous: d.shRcrP,      format: 'percent' as const,    invertColors: true, sparkline: d.weekRetRate },
+              { label: 'Return Rate',         current: d.shRcrC,      previous: d.shRcrP,      format: 'percent' as const,    sparkline: d.weekRetRate },
               ...(d.showShopify ? [
                 { label: 'Shopify',          current: -1,            previous: 0,             format: 'currency' as const },
                 { label: 'Gross Sales',      current: d.shGrossC,    previous: d.shGrossP,    format: 'currency' as const },
@@ -600,9 +658,9 @@ export default function AnalyticsPage() {
           {/* ── CUSTOMER REVENUE ── */}
           <SectionHeader title="Customer Revenue" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
-            <KpiCard label="New Customer Rev."       value={fmt$(d.newRevC)} />
-            <KpiCard label="Returning Customer Rev." value={fmt$(d.retRevC)} />
-            <KpiCard label="Return Rate"             value={fmtPct(d.shRcrC)} change={pct(d.shRcrC, d.shRcrP)} invertColors />
+            <KpiCard label="New Customer Rev."       value={fmt$(d.newRevC)} subtitle={d.totalRevC > 0 ? `${((d.newRevC/d.totalRevC)*100).toFixed(1)}% of total` : ''} />
+            <KpiCard label="Returning Customer Rev." value={fmt$(d.retRevC)} subtitle={d.totalRevC > 0 ? `${((d.retRevC/d.totalRevC)*100).toFixed(1)}% of total` : ''} />
+            <KpiCard label="Return Rate"             value={fmtPct(d.shRcrC)} change={pct(d.shRcrC, d.shRcrP)} />
             <KpiCard label="CAC"                     value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors />
           </div>
 
@@ -616,7 +674,6 @@ export default function AnalyticsPage() {
             { label: 'Returns',          value: d.shReturnsC,  prevValue: d.shReturnsP,  negative: true },
             { label: 'Net sales',        value: d.shNetC,      prevValue: d.shNetP },
             { label: 'Shipping charges', value: d.shShippingC, prevValue: d.shShippingP },
-            { label: 'Return fees',      value: 0 },
             { label: 'Taxes',            value: d.shTaxC,      prevValue: d.shTaxP },
             { label: 'Total sales',      value: d.shTotalC,    prevValue: d.shTotalP },
           ]} />
@@ -648,8 +705,8 @@ export default function AnalyticsPage() {
           {d.showAds && <SectionHeader title="Ad Spend" color="#000" />}
           {d.showAds && <>
           <MetricRow items={[
-            { label: 'Total Spend', value: fmt$(d.totalSpC),  sub: chg(d.totalSpC, d.totalSpP) },
-            { label: 'Meta Spend',  value: fmt$(d.metaSpC),   sub: chg(d.metaSpC, d.metaSpP) },
+            { label: 'Total Spend', value: fmt$(d.totalSpC),  sub: chg(d.totalSpC, d.totalSpP), invertColors: true },
+            { label: 'Meta Spend',  value: fmt$(d.metaSpC),   sub: chg(d.metaSpC, d.metaSpP), invertColors: true },
             { label: 'Meta ROAS',   value: d.metaRoasC > 0 ? fmtX(d.metaRoasC) : '—', sub: d.metaRoasP > 0 ? chg(d.metaRoasC, d.metaRoasP) : '' },
             { label: 'Impressions', value: fmtN(d.metaImprC) },
             { label: 'Clicks',      value: fmtN(d.metaClkC) },

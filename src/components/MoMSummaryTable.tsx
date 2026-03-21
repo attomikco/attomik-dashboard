@@ -9,10 +9,10 @@ interface MetricSummaryRow {
   sparkline?: number[]
 }
 
-function fmt(n: number, type: MetricSummaryRow['format']): string {
+function fmt(n: number, type: MetricSummaryRow['format'], forceK?: boolean): string {
   if (type === 'currency') {
     if (n >= 1_000_000) return `$${(n/1_000_000).toFixed(2)}M`
-    if (n >= 1_000) return `$${(n/1_000).toFixed(2)}k`
+    if (n >= 1_000 || forceK) return `$${(n/1_000).toFixed(2)}k`
     return `$${n.toFixed(2)}`
   }
   if (type === 'number') return n >= 1_000 ? `${(n/1_000).toFixed(1)}k` : n.toLocaleString()
@@ -96,10 +96,10 @@ export default function MoMSummaryTable({ rows, currentLabel, previousLabel }: P
                   {row.label}
                 </td>
                 <td style={{ padding: '13px 24px', textAlign: 'right', fontFamily: 'DM Mono, monospace', fontSize: '0.875rem', fontWeight: 600 }}>
-                  {fmt(row.current, row.format)}
+                  {fmt(row.current, row.format, row.format === 'currency' && (row.current >= 1000 || row.previous >= 1000))}
                 </td>
                 <td style={{ padding: '13px 24px', textAlign: 'right', fontFamily: 'DM Mono, monospace', fontSize: '0.875rem', color: '#999' }}>
-                  {fmt(row.previous, row.format)}
+                  {fmt(row.previous, row.format, row.format === 'currency' && (row.current >= 1000 || row.previous >= 1000))}
                 </td>
                 <td style={{ padding: '13px 24px', textAlign: 'right' }}>
                   <span style={{

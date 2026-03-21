@@ -5,8 +5,8 @@ import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { UserPlus, Trash2, ArrowLeft, Building2, CheckCircle, AlertCircle } from 'lucide-react'
 
-interface Member { id: string; full_name: string | null; role: string; created_at: string }
-interface Org { id: string; name: string; slug: string; created_at: string; shopify_domain: string | null; meta_ad_account_id: string | null; channels: Record<string, boolean>; timezone: string | null }
+interface Member { id: string; full_name: string | null; role: string; created_at: string; is_superadmin?: boolean }
+interface Org { id: string; name: string; slug: string; created_at: string; shopify_domain: string | null; meta_ad_account_id: string | null; channels: Record<string, boolean>; timezone: string | null; logo_url: string | null; header_url: string | null }
 interface PendingInvite { id: string; email: string; role: string; created_at: string; status: string }
 
 const CHANNELS = [
@@ -46,6 +46,10 @@ function SettingsTab({ org, onSaved, supabase }: { org: Org; onSaved: () => void
   const [timezone, setTimezone] = useState(org.timezone ?? 'America/New_York')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [logoUrl, setLogoUrl] = useState(org.logo_url ?? '')
+  const [headerUrl, setHeaderUrl] = useState(org.header_url ?? '')
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [uploadingHeader, setUploadingHeader] = useState(false)
 
   const handleSave = async () => {
     setSaving(true)
@@ -54,6 +58,22 @@ function SettingsTab({ org, onSaved, supabase }: { org: Org; onSaved: () => void
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
     onSaved()
+  }
+
+  const uploadImage = async (file: File, type: 'logo' | 'header') => {
+    const setter = type === 'logo' ? setUploadingLogo : setUploadingHeader
+    setter(true)
+    const ext = file.name.split('.').pop()
+    const path = `${org.id}/${type}.${ext}`
+    const { error } = await supabase.storage.from('org-assets').upload(path, file, { upsert: true })
+    if (!error) {
+      const { data } = supabase.storage.from('org-assets').getPublicUrl(path)
+      const url = data.publicUrl
+      if (type === 'logo') { setLogoUrl(url); await supabase.from('organizations').update({ logo_url: url }).eq('id', org.id) }
+      else { setHeaderUrl(url); await supabase.from('organizations').update({ header_url: url }).eq('id', org.id) }
+      onSaved()
+    }
+    setter(false)
   }
 
   const input: React.CSSProperties = { padding: '10px 12px', border: '1px solid #e0e0e0', borderRadius: 6, fontFamily: 'Barlow, sans-serif', fontSize: '0.9375rem', outline: 'none', background: '#fff', color: '#000', width: '100%' }
@@ -97,6 +117,42 @@ function SettingsTab({ org, onSaved, supabase }: { org: Org; onSaved: () => void
         </div>
       </div>
 
+      <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 10, padding: 24 }}>
+        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 20, fontFamily: 'Barlow, sans-serif' }}>Branding</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+          {/* Logo */}
+          <div>
+            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#666', display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Barlow, sans-serif' }}>Square Logo</label>
+            <div style={{ position: 'relative' }}>
+              <div style={{ width: 80, height: 80, borderRadius: 12, border: '2px dashed #e0e0e0', background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 10, cursor: 'pointer' }}
+                onClick={() => document.getElementById('logo-upload')?.click()}>
+                {logoUrl ? <img src={logoUrl} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: '0.72rem', color: '#999', fontFamily: 'Barlow, sans-serif', textAlign: 'center', padding: 8 }}>Click to upload</span>}
+              </div>
+              <input id="logo-upload" type="file" accept="image/*" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && uploadImage(e.target.files[0], 'logo')} />
+              <button onClick={() => document.getElementById('logo-upload')?.click()} disabled={uploadingLogo} style={{ padding: '6px 14px', background: '#000', color: '#fff', border: 'none', borderRadius: 6, fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}>
+                {uploadingLogo ? 'Uploading…' : logoUrl ? 'Replace' : 'Upload logo'}
+              </button>
+              <p style={{ fontSize: '0.72rem', color: '#999', marginTop: 6, fontFamily: 'Barlow, sans-serif' }}>PNG or JPG, square recommended</p>
+            </div>
+          </div>
+          {/* Header */}
+          <div>
+            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#666', display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Barlow, sans-serif' }}>Header Image</label>
+            <div style={{ position: 'relative' }}>
+              <div style={{ width: '100%', height: 80, borderRadius: 12, border: '2px dashed #e0e0e0', background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 10, cursor: 'pointer' }}
+                onClick={() => document.getElementById('header-upload')?.click()}>
+                {headerUrl ? <img src={headerUrl} alt="Header" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: '0.72rem', color: '#999', fontFamily: 'Barlow, sans-serif' }}>Click to upload</span>}
+              </div>
+              <input id="header-upload" type="file" accept="image/*" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && uploadImage(e.target.files[0], 'header')} />
+              <button onClick={() => document.getElementById('header-upload')?.click()} disabled={uploadingHeader} style={{ padding: '6px 14px', background: '#000', color: '#fff', border: 'none', borderRadius: 6, fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}>
+                {uploadingHeader ? 'Uploading…' : headerUrl ? 'Replace' : 'Upload header'}
+              </button>
+              <p style={{ fontSize: '0.72rem', color: '#999', marginTop: 6, fontFamily: 'Barlow, sans-serif' }}>Wide image, 1200×300px recommended</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <button onClick={handleSave} disabled={saving} style={{ padding: '10px 24px', background: saving ? '#ccc' : '#00ff97', color: '#000', fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.9375rem', border: 'none', borderRadius: 6, cursor: saving ? 'not-allowed' : 'pointer', transition: '0.15s' }}>
           {saving ? 'Saving…' : 'Save settings'}
@@ -124,6 +180,7 @@ export default function ProjectDetailPage() {
   const [savingChannels, setSavingChannels] = useState(false)
   const [channelsSaved, setChannelsSaved] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteName, setInviteName] = useState('')
   const [inviteRole, setInviteRole] = useState('viewer')
   const [inviting, setInviting] = useState(false)
   const [inviteStatus, setInviteStatus] = useState<'idle' | 'success' | 'error'>('idle')
@@ -137,8 +194,11 @@ export default function ProjectDetailPage() {
     const { data: orgData } = await supabase.from('organizations').select('*').eq('id', id).single()
     setOrg(orgData)
     setChannels(orgData?.channels ?? {})
-    const { data: profileData } = await supabase.from('profiles').select('id, full_name, role, created_at').eq('org_id', id)
-    setMembers(profileData ?? [])
+    const { data: profileData } = await supabase.from('profiles').select('id, full_name, role, created_at, is_superadmin').eq('org_id', id)
+    const { data: superadmins } = await supabase.from('profiles').select('id, full_name, role, created_at, is_superadmin').eq('is_superadmin', true)
+    // Merge: org members + superadmins, deduplicated
+    const allMembers = [...(profileData ?? []), ...(superadmins ?? [])].filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i)
+    setMembers(allMembers)
     const { data: inviteData } = await supabase.from('invites').select('*').eq('org_id', id).eq('status', 'pending').order('created_at', { ascending: false })
     setInvites(inviteData ?? [])
     setLoading(false)
@@ -160,13 +220,14 @@ export default function ProjectDetailPage() {
       const res = await fetch('/api/invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: inviteEmail, org_id: id, role: inviteRole }),
+        body: JSON.stringify({ email: inviteEmail, org_id: id, role: inviteRole, full_name: inviteName }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Invite failed')
       setInviteMsg(data.message)
       setInviteStatus('success')
       setInviteEmail('')
+      setInviteName('')
       fetchData()
     } catch (err: any) {
       setInviteMsg(err.message)
@@ -275,7 +336,11 @@ export default function ProjectDetailPage() {
               )}
 
               <form onSubmit={handleInvite}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 10, alignItems: 'end', marginBottom: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 10, alignItems: 'end', marginBottom: 12 }}>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#666', display: 'block', marginBottom: 4, fontFamily: 'Barlow, sans-serif' }}>Full name</label>
+                    <input type="text" required placeholder="Jane Smith" value={inviteName} onChange={e => setInviteName(e.target.value)} style={{ ...input, width: '100%' }} onFocus={e => (e.target.style.borderColor = '#00ff97')} onBlur={e => (e.target.style.borderColor = '#e0e0e0')} />
+                  </div>
                   <div>
                     <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#666', display: 'block', marginBottom: 4, fontFamily: 'Barlow, sans-serif' }}>Email address</label>
                     <input type="email" required placeholder="client@company.com" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} style={{ ...input, width: '100%' }} onFocus={e => (e.target.style.borderColor = '#00ff97')} onBlur={e => (e.target.style.borderColor = '#e0e0e0')} />
@@ -323,7 +388,10 @@ export default function ProjectDetailPage() {
                             <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f2f2f2', display: 'grid', placeItems: 'center', fontSize: '0.75rem', fontWeight: 700, color: '#666', flexShrink: 0 }}>
                               {(m.full_name || 'U').slice(0, 2).toUpperCase()}
                             </div>
-                            <div style={{ fontSize: '0.875rem', fontWeight: 500, fontFamily: 'Barlow, sans-serif' }}>{m.full_name || 'Unnamed user'}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <div style={{ fontSize: '0.875rem', fontWeight: 500, fontFamily: 'Barlow, sans-serif' }}>{m.full_name || 'Unnamed user'}</div>
+                              {m.is_superadmin && <span style={{ fontSize: '0.65rem', fontWeight: 700, background: '#000', color: '#00ff97', padding: '2px 6px', borderRadius: 4, letterSpacing: '0.05em', fontFamily: 'Barlow, sans-serif' }}>ATTOMIK</span>}
+                            </div>
                           </div>
                         </td>
                         <td style={{ padding: '13px 24px' }}>

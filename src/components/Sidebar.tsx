@@ -6,13 +6,10 @@ import { createClient } from '@/lib/supabase/client'
 import { BarChart2, Users, Upload, Settings, LogOut, Building2, ChevronDown, FolderOpen, TrendingUp, Menu, X } from 'lucide-react'
 
 const navItems = [
-  { label: 'Projects',        href: '/dashboard/projects',  icon: FolderOpen },
-  { label: 'Analytics',       href: '/dashboard/analytics', icon: BarChart2 },
-  { label: 'Meta Ads',        href: '/dashboard/meta',      icon: TrendingUp },
-  { label: 'Revenue & Sales', href: '/dashboard/revenue',   icon: BarChart2 },
-  { label: 'Customers',       href: '/dashboard/customers', icon: Users },
-  { label: 'Import CSV',      href: '/dashboard/import',    icon: Upload },
-  { label: 'Settings',        href: '/dashboard/settings',  icon: Settings },
+  { label: 'Analytics',  href: '/dashboard/analytics', icon: BarChart2 },
+  { label: 'Meta Ads',   href: '/dashboard/meta',      icon: TrendingUp },
+  { label: 'Import CSV', href: '/dashboard/import',    icon: Upload },
+  { label: 'Settings',   href: '/dashboard/settings',  icon: Settings },
 ]
 
 interface Org { id: string; name: string; slug: string }
@@ -144,6 +141,23 @@ export default function Sidebar() {
           )
         })}
       </div>
+
+      {/* Superadmin section */}
+      {profile?.is_superadmin && (
+        <div style={{ padding: '8px 0', borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+          <div style={{ padding: '8px 24px 4px', fontSize: '0.65rem', fontWeight: 700, color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Admin</div>
+          {[{ label: 'Projects', href: '/dashboard/projects', icon: FolderOpen }].map(({ label, href, icon: Icon }) => {
+            const active = pathname === href || pathname.startsWith(href + '/')
+            return (
+              <button key={href} onClick={() => router.push(href)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 24px', background: active ? 'rgba(0,255,151,0.07)' : 'transparent', borderLeft: `2px solid ${active ? 'var(--accent)' : 'transparent'}`, border: 'none', borderLeftStyle: 'solid', borderLeftWidth: 2, borderLeftColor: active ? 'var(--accent)' : 'transparent', color: active ? 'var(--accent)' : 'rgba(255,255,255,0.4)', fontSize: '1rem', fontWeight: active ? 600 : 400, cursor: 'pointer', transition: 'all 0.15s', textAlign: 'left', whiteSpace: 'nowrap' }}>
+                <Icon size={16} style={{ flexShrink: 0, opacity: active ? 1 : 0.6 }} />
+                {label}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* Footer */}
       <div style={{ padding: '16px 20px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
