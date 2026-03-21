@@ -1,0 +1,598 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import DateRangePicker, { DateRange } from '@/components/DateRangePicker'
+import RevenueRoasChart from '@/components/RevenueRoasChart'
+import SpendVsSalesChart from '@/components/SpendVsSalesChart'
+import RoasChart from '@/components/RoasChart'
+import SalesByChannelChart from '@/components/SalesByChannelChart'
+import MoMSummaryTable from '@/components/MoMSummaryTable'
+import PacingChart from '@/components/PacingChart'
+import DayOfWeekHeatmap from '@/components/DayOfWeekHeatmap'
+import CacTrendChart from '@/components/CacTrendChart'
+
+function pct(current: number, prev: number) {
+  if (prev === 0) return current > 0 ? 100 : 0
+  return ((current - prev) / prev) * 100
+}
+function fmt$(n: number) {
+  if (n >= 1_000_000) return `$${(n/1_000_000).toFixed(2)}M`
+  if (n >= 1_000) return `$${(n/1_000).toFixed(2)}k`
+  return `$${n.toFixed(2)}`
+}
+function fmtN(n: number) { return n >= 1_000 ? `${(n/1_000).toFixed(1)}k` : n.toLocaleString() }
+function fmtX(n: number) { return `${n.toFixed(2)}x` }
+function fmtPct(n: number) { return `${n.toFixed(1)}%` }
+function chg(cur: number, prev: number) {
+  const p = pct(cur, prev)
+  return `${p >= 0 ? '↑' : '↓'} ${Math.abs(p).toFixed(1)}% vs prev`
+}
+function getPrevPeriod(start: string, end: string) {
+  const s = new Date(start).getTime()
+  const e = new Date(end).getTime()
+  const diff = e - s + 864e5
+  return { prevStart: new Date(s - diff).toISOString().split('T')[0], prevEnd: new Date(s - 1).toISOString().split('T')[0] }
+}
+
+// ── BRAND KIT TOKENS ──
+const C = {
+  ink:     '#000000',
+  paper:   '#ffffff',
+  cream:   '#f2f2f2',
+  accent:  '#00ff97',
+  muted:   '#666666',
+  border:  '#e0e0e0',
+  success: '#00cc78',
+}
+
+function KpiCard({ label, value, change, invertColors }: { label: string; value: string; change?: number; invertColors?: boolean }) {
+  const up = change === undefined ? null : change >= 0
+  const isGood = up === null ? null : (invertColors ? !up : up)
+  return (
+    <div style={{ background: C.paper, border: `1px solid ${C.border}`, borderRadius: 10, padding: 24 }}>
+      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', color: C.ink, lineHeight: 1.1, marginBottom: 12 }}>
+        {value}
+      </div>
+      {change !== undefined && (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.875rem', fontWeight: 700, fontFamily: 'Barlow, sans-serif', padding: '4px 10px', borderRadius: 6, background: isGood ? '#e6fff5' : '#fee2e2', color: isGood ? '#007a48' : '#b91c1c' }}>
+          {up ? '↑' : '↓'} {Math.abs(change).toFixed(1)}%
+        </span>
+      )}
+    </div>
+  )
+}
+
+function SectionHeader({ title, color = C.accent, platform }: { title: string; color?: string; platform?: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '40px 0 20px' }}>
+      <div style={{ width: 4, height: 28, background: color, borderRadius: 2, flexShrink: 0 }} />
+      <div style={{ fontSize: '1.3rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'var(--font-barlow), Barlow, sans-serif', color: C.ink }}>{title}</div>
+      {platform && (
+        <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '3px 10px', borderRadius: 6, background: C.cream, color: C.muted, fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>
+          {platform}
+        </span>
+      )}
+      <div style={{ flex: 1, height: 1, background: C.border }} />
+    </div>
+  )
+}
+
+function MetricRow({ items }: { items: { label: string; value: string; sub?: string }[] }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${items.length}, 1fr)`, gap: 1, background: C.border, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
+      {items.map((item, i) => (
+        <div key={i} style={{ background: C.paper, padding: '20px 24px' }}>
+          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>{item.label}</div>
+          <div style={{ fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.03em', color: C.ink }}>{item.value}</div>
+          {item.sub && <div style={{ fontSize: '0.8rem', color: '#999', marginTop: 4, fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>{item.sub}</div>}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function FinanceBreakdown({ rows }: { rows: { label: string; value: number; prevValue?: number; negative?: boolean }[] }) {
+  return (
+    <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
+      {rows.map((row, i) => {
+        const isTotal = row.label === 'Total sales' || row.label === 'Net sales'
+        const p = row.prevValue !== undefined ? pct(row.value, row.prevValue) : undefined
+        const up = p !== undefined ? p >= 0 : null
+        return (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 24px', borderBottom: i < rows.length - 1 ? `1px solid ${C.border}` : 'none', background: isTotal ? C.cream : C.paper }}>
+            <div style={{ fontSize: '0.95rem', fontWeight: isTotal ? 800 : 400, fontFamily: 'var(--font-barlow), Barlow, sans-serif', color: C.ink }}>{row.label}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              {p !== undefined && (
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: up ? '#e6fff5' : '#fee2e2', color: up ? '#007a48' : '#b91c1c', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>
+                  {up ? '↑' : '↓'} {Math.abs(p).toFixed(1)}%
+                </span>
+              )}
+              <div style={{ fontSize: '0.95rem', fontWeight: isTotal ? 800 : 500, fontFamily: 'var(--font-dm-mono), DM Mono, monospace', color: row.negative && row.value > 0 ? '#b91c1c' : C.ink, minWidth: 110, textAlign: 'right' }}>
+                {row.negative && row.value > 0 ? `-${fmt$(row.value)}` : fmt$(row.value)}
+              </div>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function ChartCard({ title, subtitle, children, dark }: { title: string; subtitle?: string; children: React.ReactNode; dark?: boolean }) {
+  return (
+    <div style={{ background: dark ? C.ink : C.paper, border: `1px solid ${dark ? C.ink : C.border}`, borderRadius: 10, padding: '24px 24px 20px' }}>
+      <div style={{ fontSize: '1rem', fontWeight: 800, fontFamily: 'var(--font-barlow), Barlow, sans-serif', letterSpacing: '-0.02em', marginBottom: 4, color: dark ? C.paper : C.ink }}>{title}</div>
+      {subtitle && <div style={{ fontSize: '0.875rem', color: dark ? 'rgba(255,255,255,0.45)' : C.muted, fontFamily: 'var(--font-barlow), Barlow, sans-serif', marginBottom: 20 }}>{subtitle}</div>}
+      {children}
+    </div>
+  )
+}
+
+const defaultRange: DateRange = {
+  start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+  end: new Date().toISOString().split('T')[0],
+  label: 'Month to date',
+}
+
+export default function AnalyticsPage() {
+  const [range, setRange] = useState<DateRange>(defaultRange)
+  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState<any>(null)
+  const [revenueRoasData, setRevenueRoasData] = useState<any[]>([])
+  const [spendSalesData, setSpendSalesData] = useState<any[]>([])
+  const [roasData, setRoasData] = useState<any[]>([])
+  const [channelData, setChannelData] = useState<any[]>([])
+  const [pacingData, setPacingData] = useState<any[]>([])
+  const [dowData, setDowData] = useState<any[]>([])
+  const [cacData, setCacData] = useState<any[]>([])
+  const [channels, setChannels] = useState<Record<string, boolean>>({})
+  const supabase = createClient()
+
+  useEffect(() => { fetchData() }, [range])
+
+  const fetchData = async () => {
+    setLoading(true)
+    const orgId = localStorage.getItem('activeOrgId')
+    if (!orgId) { setLoading(false); return }
+
+    // Fetch org config (channels + timezone)
+    const { data: orgData } = await supabase
+      .from('organizations').select('channels, timezone').eq('id', orgId).single()
+    const orgTimezone = orgData?.timezone ?? 'America/New_York'
+    const ch = orgData?.channels ?? {}
+    // If channels column is null/empty object (never configured), show all
+    // If it has keys (even all false), respect the individual values
+    const isConfigured = Object.keys(ch).length > 0
+    const showShopify = !isConfigured || ch.shopify  || false
+    const showAmazon  = !isConfigured || ch.amazon   || false
+    const showMeta    = !isConfigured || ch.meta     || false
+    const showGoogle  = !isConfigured || ch.google   || false
+    const showAds     = showMeta || showGoogle
+    setChannels(ch)
+
+    // Convert date strings to UTC using the org's timezone
+    // Convert a YYYY-MM-DD date to UTC ISO string treating it as midnight/end-of-day
+    // in the org's local timezone (e.g. 'America/Los_Angeles' = UTC-8 = T08:00:00Z)
+    const toUTC = (dateStr: string, endOfDay = false) => {
+      const time = endOfDay ? '23:59:59' : '00:00:00'
+      const utcMidnight = new Date(`${dateStr}T${time}Z`)
+      const fmt = new Intl.DateTimeFormat('en-US', {
+        timeZone: orgTimezone,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+      })
+      const parts = fmt.formatToParts(utcMidnight)
+      const p = Object.fromEntries(parts.filter(x => x.type !== 'literal').map(x => [x.type, x.value]))
+      const localAtUTCMidnight = new Date(`${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}`)
+      const targetLocal = new Date(`${dateStr}T${time}`)
+      const diffMs = targetLocal.getTime() - localAtUTCMidnight.getTime()
+      return new Date(utcMidnight.getTime() + diffMs).toISOString()
+    }
+
+    const thisStart = toUTC(range.start, false)
+    const thisEnd   = toUTC(range.end, true)
+    const { prevStart, prevEnd } = getPrevPeriod(range.start, range.end)
+    const prevStartISO = toUTC(prevStart, false)
+    const prevEndISO   = toUTC(prevEnd, true)
+    const sixMonthsAgo = new Date(new Date().getFullYear(), new Date().getMonth() - 5, 1).toISOString()
+
+    // Paginated fetch to bypass Supabase 1000 row default limit
+    const fetchAllOrders = async (gteDate: string, lteDate: string, cols: string) => {
+      const size = 1000
+      let from = 0, all: any[] = []
+      while (true) {
+        const { data } = await supabase.from('orders').select(cols)
+          .eq('org_id', orgId).gte('created_at', gteDate).lte('created_at', lteDate)
+          .range(from, from + size - 1)
+        if (!data || data.length === 0) break
+        all = all.concat(data)
+        if (data.length < size) break
+        from += size
+      }
+      return all
+    }
+
+    const orderCols = 'total_price,status,source,customer_email,created_at,units,subtotal,discount_amount,shipping_amount,tax_amount,refunded_amount'
+    const orderColsLight = 'total_price,source,customer_email,created_at,units'
+
+    const [cur, prev, curS, prevS, allOrdRaw, allSpRaw] = await Promise.all([
+      fetchAllOrders(thisStart, thisEnd, orderCols),
+      fetchAllOrders(prevStartISO, prevEndISO, orderCols),
+      supabase.from('ad_spend').select('spend,platform,impressions,clicks,conversions,date').eq('org_id', orgId).gte('date', range.start).lte('date', range.end).limit(5000),
+      supabase.from('ad_spend').select('spend,platform').eq('org_id', orgId).gte('date', prevStart).lte('date', prevEnd).limit(5000),
+      fetchAllOrders(sixMonthsAgo, new Date().toISOString(), orderColsLight),
+      supabase.from('ad_spend').select('spend,date').eq('org_id', orgId).gte('date', sixMonthsAgo.split('T')[0]).limit(5000),
+    ])
+
+    const cSpend = curS.data ?? [], pSpend = prevS.data ?? []
+    const allOrd = allOrdRaw ?? []
+    const allSp = allSpRaw?.data ?? []
+    const shopC = cur.filter(o => o.source === 'shopify'), shopP = prev.filter(o => o.source === 'shopify')
+    const amzC  = cur.filter(o => o.source === 'amazon'),  amzP  = prev.filter(o => o.source === 'amazon')
+
+    const totalRevC = cur.reduce((s, o) => s + Number(o.total_price), 0)
+    const totalRevP = prev.reduce((s, o) => s + Number(o.total_price), 0)
+    const totalSpC  = cSpend.reduce((s, o) => s + Number(o.spend), 0)
+    const totalSpP  = pSpend.reduce((s, o) => s + Number(o.spend), 0)
+    const roasC = totalSpC > 0 ? totalRevC / totalSpC : 0
+    const roasP = totalSpP > 0 ? totalRevP / totalSpP : 0
+    const ordC  = cur.reduce((s, o) => s + (Number(o.units) || 1), 0)
+    const ordP  = prev.reduce((s, o) => s + (Number(o.units) || 1), 0)
+    const aovC  = ordC > 0 ? totalRevC / ordC : 0
+    const aovP  = ordP > 0 ? totalRevP / ordP : 0
+    const prevEmails = new Set(prev.map(o => o.customer_email).filter(Boolean))
+    const curEmails  = [...new Set(cur.map(o => o.customer_email).filter(Boolean))]
+    const newCustC   = curEmails.filter(e => !prevEmails.has(e)).length
+    const newCustP   = [...new Set(prev.map(o => o.customer_email).filter(Boolean))].length
+    const cacC = ordC > 0 ? totalSpC / ordC : 0
+    const cacP = ordP > 0 ? totalSpP / ordP : 0
+    const retCustC   = curEmails.filter(e => prevEmails.has(e)).length
+    const totalCustC = curEmails.length
+    const rcrC = totalCustC > 0 ? (retCustC / totalCustC) * 100 : 0
+    const prevPrevEmails = new Set(cur.map(o => o.customer_email).filter(Boolean))
+    const retCustP = [...new Set(prev.map(o => o.customer_email).filter(Boolean))].filter(e => prevPrevEmails.has(e)).length
+    const rcrP = newCustP > 0 ? (retCustP / newCustP) * 100 : 0
+    const retRevC = cur.filter(o => o.customer_email && prevEmails.has(o.customer_email)).reduce((s, o) => s + Number(o.total_price), 0)
+    const newRevC  = cur.filter(o => o.customer_email && !prevEmails.has(o.customer_email)).reduce((s, o) => s + Number(o.total_price), 0)
+
+    const shGrossC    = shopC.reduce((s, o) => s + (Number(o.subtotal)||0) + (Number(o.discount_amount)||0), 0)
+    const shGrossP    = shopP.reduce((s, o) => s + (Number(o.subtotal)||0) + (Number(o.discount_amount)||0), 0)
+    const shDiscountC = shopC.reduce((s, o) => s + Number(o.discount_amount||0), 0)
+    const shDiscountP = shopP.reduce((s, o) => s + Number(o.discount_amount||0), 0)
+    const shReturnsC  = shopC.reduce((s, o) => s + Number(o.refunded_amount||0), 0)
+    const shReturnsP  = shopP.reduce((s, o) => s + Number(o.refunded_amount||0), 0)
+    const shNetC      = shopC.reduce((s, o) => s + Number(o.subtotal||o.total_price||0), 0)
+    const shNetP      = shopP.reduce((s, o) => s + Number(o.subtotal||o.total_price||0), 0)
+    const shShippingC = shopC.reduce((s, o) => s + Number(o.shipping_amount||0), 0)
+    const shShippingP = shopP.reduce((s, o) => s + Number(o.shipping_amount||0), 0)
+    const shTaxC      = shopC.reduce((s, o) => s + Number(o.tax_amount||0), 0)
+    const shTaxP      = shopP.reduce((s, o) => s + Number(o.tax_amount||0), 0)
+    const shTotalC    = shopC.reduce((s, o) => s + Number(o.total_price||0), 0)
+    const shTotalP    = shopP.reduce((s, o) => s + Number(o.total_price||0), 0)
+    const shOrdC      = shopC.filter(o => o.status !== 'refunded').length
+    const shOrdP      = shopP.filter(o => o.status !== 'refunded').length
+    const shCustC     = new Set(shopC.map(o => o.customer_email).filter(Boolean)).size
+    const shCustP     = new Set(shopP.map(o => o.customer_email).filter(Boolean)).size
+    const shAovC      = shOrdC > 0 ? shNetC / shOrdC : 0
+    const shAovP      = shOrdP > 0 ? shNetP / shOrdP : 0
+    const shPrevEmails = new Set(shopP.map(o => o.customer_email).filter(Boolean))
+    const shRetCustC  = new Set(shopC.filter(o => o.customer_email && shPrevEmails.has(o.customer_email)).map(o => o.customer_email)).size
+    const shCurEmails = new Set(shopC.map(o => o.customer_email).filter(Boolean))
+    const shRetCustP  = new Set(shopP.filter(o => o.customer_email && shCurEmails.has(o.customer_email)).map(o => o.customer_email)).size
+    const shRcrC = shCustC > 0 ? (shRetCustC / shCustC) * 100 : 0
+    const shRcrP = shCustP > 0 ? (shRetCustP / shCustP) * 100 : 0
+    const metaSpC    = cSpend.filter(o => o.platform === 'meta').reduce((s, o) => s + Number(o.spend), 0)
+    const metaSpP    = pSpend.filter(o => o.platform === 'meta').reduce((s, o) => s + Number(o.spend), 0)
+    const shRoasC    = metaSpC > 0 ? shNetC / metaSpC : 0
+    const shRoasP    = metaSpP > 0 ? shNetP / metaSpP : 0
+    const shDiscRateC = shGrossC > 0 ? (shDiscountC / shGrossC) * 100 : 0
+    const shDiscRateP = shGrossP > 0 ? (shDiscountP / shGrossP) * 100 : 0
+    const shRefRateC  = shOrdC > 0 ? (shopC.filter(o => o.status === 'refunded').length / shOrdC) * 100 : 0
+    const shRefRateP  = shOrdP > 0 ? (shopP.filter(o => o.status === 'refunded').length / shOrdP) * 100 : 0
+
+    const amzRevC  = amzC.reduce((s, o) => s + Number(o.total_price), 0)
+    const amzRevP  = amzP.reduce((s, o) => s + Number(o.total_price), 0)
+    const amzUnitC = amzC.reduce((s, o) => s + (Number(o.units)||0), 0)
+    const amzUnitP = amzP.reduce((s, o) => s + (Number(o.units)||0), 0)
+    const amzAovC  = amzUnitC > 0 ? amzRevC / amzUnitC : 0
+    const amzAovP  = amzUnitP > 0 ? amzRevP / amzUnitP : 0
+
+    const metaImprC = cSpend.filter(o => o.platform === 'meta').reduce((s, o) => s + Number(o.impressions), 0)
+    const metaClkC  = cSpend.filter(o => o.platform === 'meta').reduce((s, o) => s + Number(o.clicks), 0)
+    const metaConvC = cSpend.filter(o => o.platform === 'meta').reduce((s, o) => s + Number(o.conversions), 0)
+    const metaRoasC = metaSpC > 0 ? totalRevC / metaSpC : 0
+    const metaRoasP = metaSpP > 0 ? totalRevP / metaSpP : 0
+
+    const days: Record<string, any> = {}
+    for (let d = new Date(range.start); d <= new Date(range.end); d.setDate(d.getDate() + 1)) {
+      const k = d.toISOString().split('T')[0]
+      days[k] = { date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), revenue: 0, shopify: 0, amazon: 0, spend: 0, roas: 0 }
+    }
+    cur.forEach(o => {
+      const k = o.created_at.split('T')[0]
+      if (!days[k]) return
+      days[k].revenue += Number(o.total_price)
+      if (o.source === 'shopify') days[k].shopify += Number(o.total_price)
+      if (o.source === 'amazon')  days[k].amazon  += Number(o.total_price)
+    })
+    cSpend.forEach(s => { if (days[s.date]) days[s.date].spend += Number(s.spend) })
+    Object.values(days).forEach((d: any) => { d.roas = d.spend > 0 ? d.revenue / d.spend : 0 })
+    const dayArr = Object.values(days) as any[]
+
+    setRevenueRoasData(dayArr.map(d => ({ date: d.date, revenue: d.revenue, roas: d.roas })))
+    setSpendSalesData(dayArr.map(d => ({ date: d.date, revenue: d.revenue, spend: d.spend })))
+    setRoasData(dayArr.filter(d => d.roas > 0).map(d => ({ date: d.date, roas: d.roas })))
+    setChannelData(dayArr.map(d => ({ date: d.date, shopify: showShopify ? d.shopify : 0, amazon: showAmazon ? d.amazon : 0 })))
+
+    // Pacing: cumulative revenue by day index within the period
+    // Day 1 = first day of current period, Day 1 of prev = first day of prev period
+    const curStart = new Date(range.start)
+    const prevStartDate = new Date(prevStart)
+
+    const curDayRevs: Record<number, number> = {}
+    cur.forEach(o => {
+      const dayIdx = Math.floor((new Date(o.created_at).getTime() - curStart.getTime()) / 864e5) + 1
+      if (dayIdx >= 1) curDayRevs[dayIdx] = (curDayRevs[dayIdx] || 0) + Number(o.total_price)
+    })
+
+    const prevDayRevs: Record<number, number> = {}
+    prev.forEach(o => {
+      const dayIdx = Math.floor((new Date(o.created_at).getTime() - prevStartDate.getTime()) / 864e5) + 1
+      if (dayIdx >= 1) prevDayRevs[dayIdx] = (prevDayRevs[dayIdx] || 0) + Number(o.total_price)
+    })
+
+    const totalDays = Math.round((new Date(range.end).getTime() - curStart.getTime()) / 864e5) + 1
+    const prevTotalDays = Math.round((new Date(prevEnd).getTime() - prevStartDate.getTime()) / 864e5) + 1
+    const maxDay = Math.max(totalDays, prevTotalDays, 28)
+
+    let cumCur = 0, cumPrev = 0
+    setPacingData(Array.from({ length: maxDay }, (_, i) => {
+      const day = i + 1
+      cumCur  += curDayRevs[day]  || 0
+      cumPrev += prevDayRevs[day] || 0
+      return { day, current: day <= totalDays ? cumCur : null, previous: day <= prevTotalDays ? cumPrev : null }
+    }))
+
+    const dowMap: Record<number, { revenue: number; orders: number; weeks: Set<string> }> = {}
+    for (let i = 0; i < 7; i++) dowMap[i] = { revenue: 0, orders: 0, weeks: new Set() }
+    cur.forEach(o => {
+      const d = new Date(o.created_at)
+      dowMap[d.getDay()].revenue += Number(o.total_price)
+      dowMap[d.getDay()].orders  += Number(o.units) || 1
+      dowMap[d.getDay()].weeks.add(`${d.getFullYear()}-${Math.floor(d.getDate()/7)}`)
+    })
+    setDowData(Object.entries(dowMap).map(([dow, v]) => ({ dayOfWeek: Number(dow), revenue: v.revenue, orders: v.orders, weeks: Math.max(v.weeks.size, 1) })))
+
+    // allOrd and allSp already defined above
+    const monthMap: Record<string, { customers: Set<string>; spend: number; orders: number }> = {}
+    allOrd.forEach(o => {
+      const d = new Date(o.created_at)
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
+      if (!monthMap[key]) monthMap[key] = { customers: new Set(), spend: 0, orders: 0 }
+      monthMap[key].orders += 1
+      if (o.customer_email) monthMap[key].customers.add(o.customer_email)
+    })
+    allSp.forEach(s => { const key = s.date.slice(0,7); if (monthMap[key]) monthMap[key].spend += Number(s.spend) })
+    const sortedMonths = Object.keys(monthMap).sort()
+    // Use same CAC formula as KPI card: new = never ordered in any prior month
+    const seenCustomers = new Set<string>()
+    setCacData(sortedMonths.map((key, i) => {
+      const thisMonthCusts = monthMap[key].customers
+      const newCusts = [...thisMonthCusts].filter(e => !seenCustomers.has(e)).length
+      // Add this month's customers to seen AFTER calculating new ones
+      thisMonthCusts.forEach(e => seenCustomers.add(e))
+      const [year, month] = key.split('-')
+      return {
+        period: new Date(Number(year), Number(month)-1, 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        cac: monthMap[key].orders > 0 ? monthMap[key].spend / monthMap[key].orders : 0,
+        newCustomers: monthMap[key].orders,
+        spend: monthMap[key].spend,
+      }
+    }).filter(d => d.spend > 0))
+
+    const weekRevs: number[] = []
+    for (let w = 7; w >= 0; w--) {
+      const wStart = new Date(Date.now() - (w+1)*7*864e5)
+      const wEnd   = new Date(Date.now() - w*7*864e5)
+      weekRevs.push((allOrd).filter(o => new Date(o.created_at) >= wStart && new Date(o.created_at) < wEnd).reduce((s, o) => s + Number(o.total_price), 0))
+    }
+
+    setData({ showShopify, showAmazon, showMeta, showGoogle, showAds,
+      totalRevC, totalRevP, totalSpC, totalSpP, roasC, roasP,
+      ordC, ordP, aovC, aovP, cacC, cacP,
+      newCustC, newCustP, retCustC, totalCustC, rcrC, rcrP, retRevC, newRevC,
+      shGrossC, shGrossP, shDiscountC, shDiscountP, shReturnsC, shReturnsP,
+      shNetC, shNetP, shShippingC, shShippingP, shTaxC, shTaxP, shTotalC, shTotalP,
+      shOrdC, shOrdP, shCustC, shCustP, shAovC, shAovP,
+      shRetCustC, shRetCustP, shRcrC, shRcrP, shRoasC, shRoasP,
+      shDiscRateC, shDiscRateP, shRefRateC, shRefRateP,
+      amzRevC, amzRevP, amzUnitC, amzUnitP, amzDaysC: amzC.length, amzDaysP: amzP.length, amzAovC, amzAovP,
+      metaSpC, metaSpP, metaImprC, metaClkC, metaConvC, metaRoasC, metaRoasP,
+      weekRevs,
+    })
+    setLoading(false)
+  }
+
+  const d = data
+  const fmtDate = (s: string) => new Date(s + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const dayCount = Math.round((new Date(range.end).getTime() - new Date(range.start).getTime()) / 864e5) + 1
+  const prevLabel = `Prev ${dayCount} days`
+
+  return (
+    <div style={{ background: C.paper, minHeight: '100vh' }}>
+      {/* Sticky topbar */}
+      <div style={{ padding: '20px 40px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: C.paper, zIndex: 50 }}>
+        <div>
+          <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'var(--font-barlow), Barlow, sans-serif', color: C.ink }}>Analytics</h1>
+          <p style={{ fontSize: '0.875rem', color: C.muted, marginTop: 2, fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>
+            {fmtDate(range.start)} – {fmtDate(range.end)} · vs previous {dayCount} days
+          </p>
+        </div>
+        <DateRangePicker value={range} onChange={r => setRange(r)} />
+      </div>
+
+      <div style={{ padding: '32px 40px 80px' }}>
+        {loading ? (
+          <div style={{ color: C.muted, textAlign: 'center', padding: '80px 0', fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontSize: '1rem' }}>Loading analytics…</div>
+        ) : !d ? (
+          <div style={{ color: C.muted, textAlign: 'center', padding: '80px 0', fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontSize: '1rem' }}>No data yet. Upload a CSV to get started.</div>
+        ) : (<>
+
+          {/* ── OVERVIEW KPIs ── */}
+          <SectionHeader title="Overview" />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
+            <KpiCard label="Total Sales"    value={fmt$(d.totalRevC)} change={pct(d.totalRevC, d.totalRevP)} />
+            <KpiCard label="Total Ad Spend" value={fmt$(d.totalSpC)}  change={pct(d.totalSpC, d.totalSpP)} invertColors />
+            <KpiCard label="ROAS"           value={fmtX(d.roasC)}     change={pct(d.roasC, d.roasP)} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 32 }}>
+            <KpiCard label="Orders" value={fmtN(d.ordC)} change={pct(d.ordC, d.ordP)} />
+            <KpiCard label="CAC"    value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors />
+            <KpiCard label="AOV"    value={fmt$(d.aovC)} change={pct(d.aovC, d.aovP)} />
+          </div>
+
+          {/* ── CHARTS ROW 1 ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+            <ChartCard title="Revenue & ROAS" subtitle="Revenue bars · ROAS dashed line">
+              <RevenueRoasChart data={revenueRoasData} />
+            </ChartCard>
+            <ChartCard title="Revenue Pacing" subtitle="Cumulative vs previous period">
+              <PacingChart data={pacingData} currentLabel={range.label} previousLabel={prevLabel} />
+            </ChartCard>
+          </div>
+
+          {/* ── CHARTS ROW 2 ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+            <ChartCard title="Ad Spend vs Sales" subtitle="Spend bars · Revenue line">
+              <SpendVsSalesChart data={spendSalesData} />
+            </ChartCard>
+            <ChartCard title="ROAS Over Time" subtitle="Daily return on ad spend">
+              <RoasChart data={roasData} />
+            </ChartCard>
+          </div>
+
+          {/* ── CHARTS ROW 3 ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+            <ChartCard title="Sales by Channel" subtitle="Shopify (green) · Amazon (orange)">
+              <SalesByChannelChart data={channelData} />
+            </ChartCard>
+            <ChartCard title="CAC Trend" subtitle="Cost per new customer · bars = new customers">
+              <CacTrendChart data={cacData} />
+            </ChartCard>
+          </div>
+
+          {/* ── DAY OF WEEK ── */}
+          <div style={{ marginBottom: 32 }}>
+            <ChartCard title="Revenue by Day of Week" subtitle="Average daily revenue — darker = higher">
+              <DayOfWeekHeatmap data={dowData} />
+            </ChartCard>
+          </div>
+
+          {/* ── SCOREBOARD ── */}
+          <SectionHeader title="Scoreboard" />
+          <MoMSummaryTable
+            currentLabel={range.label}
+            previousLabel={prevLabel}
+            rows={[
+              { label: 'Revenue & Profitability', current: -1, previous: 0, format: 'currency' },
+              { label: 'Total Sales',         current: d.totalRevC,   previous: d.totalRevP,   format: 'currency',    sparkline: d.weekRevs },
+              ...(d.showAds ? [{ label: 'Total Ad Spend', current: d.totalSpC, previous: d.totalSpP, format: 'currency' as const, invertColors: true }] : []),
+              ...(d.showAds ? [{ label: 'ROAS', current: d.roasC, previous: d.roasP, format: 'multiplier' as const }] : []),
+              { label: 'AOV',                 current: d.aovC,        previous: d.aovP,        format: 'currency' },
+              ...(d.showAds ? [{ label: 'CAC', current: d.cacC, previous: d.cacP, format: 'currency' as const, invertColors: true }] : []),
+              { label: 'Orders & Customers',  current: -1, previous: 0, format: 'number' },
+              { label: 'Total Orders',        current: d.ordC,        previous: d.ordP,        format: 'number' },
+              { label: 'New Customers',       current: d.newCustC,    previous: d.newCustP,    format: 'number' },
+              { label: 'Returning Customers', current: d.retCustC,    previous: 0,             format: 'number' },
+              { label: 'Return Rate',         current: d.rcrC,        previous: d.rcrP,        format: 'percent' },
+              ...(d.showShopify ? [
+                { label: 'Shopify',       current: -1,           previous: 0,            format: 'currency' as const },
+                { label: 'Gross Sales',   current: d.shGrossC,   previous: d.shGrossP,   format: 'currency' as const },
+                { label: 'Net Sales',     current: d.shNetC,     previous: d.shNetP,     format: 'currency' as const },
+                { label: 'Discount Rate', current: d.shDiscRateC,previous: d.shDiscRateP,format: 'percent' as const, invertColors: true },
+                { label: 'Refund Rate',   current: d.shRefRateC, previous: d.shRefRateP, format: 'percent' as const, invertColors: true },
+              ] : []),
+              ...(d.showAmazon ? [
+                { label: 'Amazon',        current: -1,           previous: 0,            format: 'currency' as const },
+                { label: 'Gross Sales',   current: d.amzRevC,    previous: d.amzRevP,    format: 'currency' as const },
+                { label: 'Units Ordered', current: d.amzUnitC,   previous: d.amzUnitP,   format: 'number' as const },
+                { label: 'AOV',           current: d.amzAovC,    previous: d.amzAovP,    format: 'currency' as const },
+              ] : []),
+              ...(d.showMeta ? [
+                { label: 'Meta Ads',  current: -1,          previous: 0,           format: 'currency' as const },
+                { label: 'Spend',     current: d.metaSpC,   previous: d.metaSpP,   format: 'currency' as const, invertColors: true },
+                { label: 'ROAS',      current: d.metaRoasC, previous: d.metaRoasP, format: 'multiplier' as const },
+                { label: 'Purchases', current: d.metaConvC, previous: 0,           format: 'number' as const },
+              ] : []),
+            ]}
+          />
+
+          {/* ── CUSTOMER REVENUE ── */}
+          <SectionHeader title="Customer Revenue" />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
+            <KpiCard label="New Customer Rev."       value={fmt$(d.newRevC)} />
+            <KpiCard label="Returning Customer Rev." value={fmt$(d.retRevC)} />
+            <KpiCard label="Return Rate"             value={fmtPct(d.rcrC)}  change={pct(d.rcrC, d.rcrP)} />
+            <KpiCard label="CAC"                     value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors />
+          </div>
+
+          {/* ── SHOPIFY ── */}
+          {d.showShopify && <SectionHeader title="Shopify" color="#96bf48" platform="shopify" />}
+          {d.showShopify && <>
+          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'var(--font-barlow), Barlow, sans-serif', marginBottom: 8 }}>Finance</div>
+          <FinanceBreakdown rows={[
+            { label: 'Gross sales',      value: d.shGrossC,    prevValue: d.shGrossP },
+            { label: 'Discounts',        value: d.shDiscountC, prevValue: d.shDiscountP, negative: true },
+            { label: 'Returns',          value: d.shReturnsC,  prevValue: d.shReturnsP,  negative: true },
+            { label: 'Net sales',        value: d.shNetC,      prevValue: d.shNetP },
+            { label: 'Shipping charges', value: d.shShippingC, prevValue: d.shShippingP },
+            { label: 'Return fees',      value: 0 },
+            { label: 'Taxes',            value: d.shTaxC,      prevValue: d.shTaxP },
+            { label: 'Total sales',      value: d.shTotalC,    prevValue: d.shTotalP },
+          ]} />
+          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'var(--font-barlow), Barlow, sans-serif', marginBottom: 8, marginTop: 24 }}>Behavior</div>
+          <MetricRow items={[
+            { label: 'Orders',      value: fmtN(d.shOrdC),     sub: chg(d.shOrdC, d.shOrdP) },
+            { label: 'Customers',   value: fmtN(d.shCustC),    sub: chg(d.shCustC, d.shCustP) },
+            { label: 'Returning',   value: fmtN(d.shRetCustC), sub: chg(d.shRetCustC, d.shRetCustP) },
+            { label: 'Return Rate', value: fmtPct(d.shRcrC),   sub: chg(d.shRcrC, d.shRcrP) },
+            { label: 'AOV',         value: fmt$(d.shAovC),     sub: chg(d.shAovC, d.shAovP) },
+            { label: 'ROAS',        value: d.shRoasC > 0 ? fmtX(d.shRoasC) : '—', sub: d.shRoasP > 0 ? chg(d.shRoasC, d.shRoasP) : '' },
+          ]} />
+
+          </> }
+
+          {/* ── AMAZON ── */}
+          {d.showAmazon && <SectionHeader title="Amazon" color="#00cc78" platform="amazon" />}
+          {d.showAmazon && <>
+          <MetricRow items={[
+            { label: 'Gross Sales',   value: fmt$(d.amzRevC),  sub: chg(d.amzRevC, d.amzRevP) },
+            { label: 'Units Ordered', value: fmtN(d.amzUnitC), sub: chg(d.amzUnitC, d.amzUnitP) },
+            { label: 'Days Reported', value: fmtN(d.amzDaysC) },
+            { label: 'AOV',           value: fmt$(d.amzAovC),  sub: chg(d.amzAovC, d.amzAovP) },
+          ]} />
+
+          </> }
+
+          {/* ── AD SPEND ── */}
+          {d.showAds && <SectionHeader title="Ad Spend" color="#000" />}
+          {d.showAds && <>
+          <MetricRow items={[
+            { label: 'Total Spend', value: fmt$(d.totalSpC),  sub: chg(d.totalSpC, d.totalSpP) },
+            { label: 'Meta Spend',  value: fmt$(d.metaSpC),   sub: chg(d.metaSpC, d.metaSpP) },
+            { label: 'Meta ROAS',   value: d.metaRoasC > 0 ? fmtX(d.metaRoasC) : '—', sub: d.metaRoasP > 0 ? chg(d.metaRoasC, d.metaRoasP) : '' },
+            { label: 'Impressions', value: fmtN(d.metaImprC) },
+            { label: 'Clicks',      value: fmtN(d.metaClkC) },
+            { label: 'Purchases',   value: fmtN(d.metaConvC) },
+          ]} />
+          </> }
+
+        </>)}
+      </div>
+    </div>
+  )
+}
