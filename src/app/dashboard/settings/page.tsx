@@ -185,6 +185,7 @@ export default function SettingsPage() {
               </div>
             </div>
           ) : (
+            <>
             {org?.shopify_synced_at && (
               <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: 12 }}>
                 Last synced: {new Date(org.shopify_synced_at).toLocaleString()}
@@ -223,6 +224,7 @@ export default function SettingsPage() {
                 Disconnect
               </button>
             </div>
+            </>
           )}
 
           {syncResult && (
