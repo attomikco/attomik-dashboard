@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       for (const year of years) {
         const yearStart = `${year}-01-01T00:00:00Z`
         const yearEnd   = year === endYear ? new Date().toISOString() : `${year + 1}-01-01T00:00:00Z`
-        let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&created_at_min=${yearStart}&created_at_max=${yearEnd}&fields=id,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds`
+        let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&created_at_min=${yearStart}&created_at_max=${yearEnd}&fields=id,name,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds`
 
         while (url) {
           const res = await fetch(url, { headers })
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
       }
     } else {
       // Incremental sync: just fetch since last sync
-      let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&updated_at_min=${updatedAtMin}&fields=id,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds`
+      let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&updated_at_min=${updatedAtMin}&fields=id,name,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds`
 
       while (url) {
         const res = await fetch(url, { headers })
@@ -117,7 +117,7 @@ export async function POST(request: Request) {
 
       return {
         org_id,
-        external_id:     `shopify_${o.id}`,
+        external_id:     `shopify_${o.name || o.id}`, // use order name (#LM7079) to match CSV imports
         source:          'shopify',
         customer_email:  o.email || o.customer?.email || null,
         customer_name:   o.customer ? `${o.customer.first_name ?? ''} ${o.customer.last_name ?? ''}`.trim() : null,
