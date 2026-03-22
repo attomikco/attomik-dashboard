@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 
+export const maxDuration = 300 // 5 minutes — requires Vercel Pro, falls back to 60s on hobby
+
 async function getShopifyToken(domain: string, clientId: string, clientSecret: string): Promise<string> {
   const res = await fetch(`https://${domain}/admin/oauth/access_token`, {
     method: 'POST',
@@ -62,7 +64,8 @@ export async function POST(request: Request) {
 
     // Paginate through all orders
     const allOrders: any[] = []
-    let url: string | null = `${apiBase}/orders.json?limit=250&status=any&fields=id,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds${updatedAtMin ? `&updated_at_min=${updatedAtMin}` : ''}`
+    // Sort ascending to get oldest orders first, no date limit on full sync
+    let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&fields=id,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds${updatedAtMin ? `&updated_at_min=${updatedAtMin}` : ''}`
 
     while (url) {
       const res = await fetch(url, { headers })
