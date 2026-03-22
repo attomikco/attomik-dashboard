@@ -277,8 +277,8 @@ export default function AnalyticsPage() {
     const totalSpP  = pSpend.reduce((s, o) => s + Number(o.spend), 0)
     const roasC = totalSpC > 0 ? totalRevC / totalSpC : 0
     const roasP = totalSpP > 0 ? totalRevP / totalSpP : 0
-    const ordC  = enabledOrders.length
-    const ordP  = enabledOrdersP.length
+    const ordC  = enabledOrders.reduce((s, o) => s + (Number(o.units) || 1), 0)
+    const ordP  = enabledOrdersP.reduce((s, o) => s + (Number(o.units) || 1), 0)
     const netRevC = enabledOrders.reduce((s, o) => s + Number(o.subtotal || o.total_price || 0), 0)
     const netRevP = enabledOrdersP.reduce((s, o) => s + Number(o.subtotal || o.total_price || 0), 0)
     const aovC  = ordC > 0 ? netRevC / ordC : 0
@@ -634,7 +634,7 @@ export default function AnalyticsPage() {
               { label: 'Total Orders',        current: d.ordC,        previous: d.ordP,        format: 'number' as const,   sparkline: d.weekOrders },
               { label: 'New Customers',       current: d.newCustC,    previous: d.newCustP,    format: 'number' as const,     sparkline: d.weekNewCusts },
               { label: 'Returning Customers', current: d.retCustC,    previous: 0,             format: 'number' as const,     sparkline: d.weekRetCusts },
-              { label: 'Return Rate',         current: d.shRcrC,      previous: d.shRcrP,      format: 'percent' as const,    sparkline: d.weekRetRate },
+              { label: 'Returning Customer Rate',         current: d.shRcrC,      previous: d.shRcrP,      format: 'percent' as const,    sparkline: d.weekRetRate },
               ...(d.showShopify ? [
                 { label: 'Shopify',          current: -1,            previous: 0,             format: 'currency' as const },
                 { label: 'Gross Sales',      current: d.shGrossC,    previous: d.shGrossP,    format: 'currency' as const },
@@ -667,7 +667,7 @@ export default function AnalyticsPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
             <KpiCard label="New Customer Rev."       value={fmt$(d.newRevC)} subtitle={d.totalRevC > 0 ? `${((d.newRevC/d.totalRevC)*100).toFixed(1)}% of total` : ''} />
             <KpiCard label="Returning Customer Rev." value={fmt$(d.retRevC)} subtitle={d.totalRevC > 0 ? `${((d.retRevC/d.totalRevC)*100).toFixed(1)}% of total` : ''} />
-            <KpiCard label="Return Rate"             value={fmtPct(d.shRcrC)} change={pct(d.shRcrC, d.shRcrP)} />
+            <KpiCard label="Returning Customer Rate"             value={fmtPct(d.shRcrC)} change={pct(d.shRcrC, d.shRcrP)} />
             <KpiCard label="CAC"                     value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors />
           </div>
 
@@ -689,7 +689,7 @@ export default function AnalyticsPage() {
             { label: 'Orders',      value: fmtN(d.shOrdC),     sub: chg(d.shOrdC, d.shOrdP) },
             { label: 'Customers',   value: fmtN(d.shCustC),    sub: chg(d.shCustC, d.shCustP) },
             { label: 'Returning',   value: fmtN(d.shRetCustC), sub: chg(d.shRetCustC, d.shRetCustP) },
-            { label: 'Return Rate', value: fmtPct(d.shRcrC),   sub: chg(d.shRcrC, d.shRcrP) },
+            { label: 'Returning Customer Rate', value: fmtPct(d.shRcrC),   sub: chg(d.shRcrC, d.shRcrP) },
             { label: 'AOV',         value: fmt$(d.shAovC),     sub: chg(d.shAovC, d.shAovP) },
             { label: 'ROAS',        value: d.shRoasC > 0 ? fmtX(d.shRoasC) : '—', sub: d.shRoasP > 0 ? chg(d.shRoasC, d.shRoasP) : '' },
           ]} />
