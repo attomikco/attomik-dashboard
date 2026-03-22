@@ -13,10 +13,9 @@ export default function DayOfWeekHeatmap({ data }: Props) {
   )
   const avgRevs = ordered.map(d => d.revenue / Math.max(d.weeks, 1))
 
-  // Rank-based coloring — always uses full color range regardless of spread
   const sorted = [...avgRevs].sort((a, b) => a - b)
   const getColorIndex = (v: number) => {
-    const rank = sorted.indexOf(v) // 0 = lowest, 6 = highest
+    const rank = sorted.indexOf(v)
     return Math.floor((rank / (sorted.length - 1)) * (COLORS.length - 1))
   }
 
@@ -24,7 +23,8 @@ export default function DayOfWeekHeatmap({ data }: Props) {
 
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
+      {/* Desktop: 7 columns */}
+      <div className="dow-grid-desktop" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
         {ordered.map((d, i) => {
           const avg = avgRevs[i]
           const avgOrd = d.orders / Math.max(d.weeks, 1)
@@ -36,16 +36,43 @@ export default function DayOfWeekHeatmap({ data }: Props) {
               <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: isDark ? '#000' : '#666', marginBottom: 8 }}>
                 {DAYS[i]}
               </div>
-              <div style={{ fontSize: '1.2rem', fontWeight: 800, letterSpacing: '-0.03em', color: '#000', marginBottom: 4 }}>
+              <div style={{ fontSize: '1.1rem', fontWeight: 800, letterSpacing: '-0.03em', color: '#000', marginBottom: 4 }}>
                 {fmt$(avg)}
               </div>
-              <div style={{ fontSize: '0.72rem', color: isDark ? '#000' : '#666', opacity: 0.7 }}>
+              <div style={{ fontSize: '0.68rem', color: isDark ? '#000' : '#666', opacity: 0.7 }}>
                 {Math.round(avgOrd)} orders
               </div>
             </div>
           )
         })}
       </div>
+
+      {/* Mobile: scrollable row */}
+      <div className="dow-grid-mobile" style={{ display: 'none', overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 4 }}>
+        <div style={{ display: 'flex', gap: 8, minWidth: 'max-content' }}>
+          {ordered.map((d, i) => {
+            const avg = avgRevs[i]
+            const avgOrd = d.orders / Math.max(d.weeks, 1)
+            const colorIdx = getColorIndex(avg)
+            const bg = COLORS[colorIdx]
+            const isDark = colorIdx >= 3
+            return (
+              <div key={i} style={{ borderRadius: 8, padding: '14px 16px', background: bg, border: '1px solid rgba(0,0,0,0.06)', textAlign: 'center', minWidth: 90, flexShrink: 0 }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: isDark ? '#000' : '#666', marginBottom: 6 }}>
+                  {DAYS[i]}
+                </div>
+                <div style={{ fontSize: '1rem', fontWeight: 800, letterSpacing: '-0.03em', color: '#000', marginBottom: 3 }}>
+                  {fmt$(avg)}
+                </div>
+                <div style={{ fontSize: '0.68rem', color: isDark ? '#000' : '#666', opacity: 0.7 }}>
+                  {Math.round(avgOrd)} ord
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12, justifyContent: 'flex-end' }}>
         <span style={{ fontSize: '0.72rem', color: '#999' }}>Low</span>
         {COLORS.map(c => (
@@ -53,6 +80,13 @@ export default function DayOfWeekHeatmap({ data }: Props) {
         ))}
         <span style={{ fontSize: '0.72rem', color: '#999' }}>High</span>
       </div>
+
+      <style>{`
+        @media (max-width: 640px) {
+          .dow-grid-desktop { display: none !important; }
+          .dow-grid-mobile  { display: block !important; }
+        }
+      `}</style>
     </div>
   )
 }

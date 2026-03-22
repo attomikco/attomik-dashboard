@@ -48,25 +48,26 @@ interface Props {
 
 export default function MoMSummaryTable({ rows, currentLabel, previousLabel }: Props) {
   return (
-    <div style={{ border: '1px solid #e0e0e0', borderRadius: 10, overflow: 'hidden' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+    <div style={{ border: '1px solid #e0e0e0', borderRadius: 10, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520 }}>
         <thead>
           <tr>
-            <th style={{ padding: '10px 24px', background: '#f2f2f2', fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#666', textAlign: 'left', fontFamily: 'Barlow, sans-serif' }}>
-              Metric
-            </th>
-            <th style={{ padding: '10px 24px', background: '#f2f2f2', fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#666', textAlign: 'right', fontFamily: 'Barlow, sans-serif' }}>
-              {currentLabel}
-            </th>
-            <th style={{ padding: '10px 24px', background: '#f2f2f2', fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#666', textAlign: 'right', fontFamily: 'Barlow, sans-serif' }}>
-              {previousLabel}
-            </th>
-            <th style={{ padding: '10px 24px', background: '#f2f2f2', fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#666', textAlign: 'right', fontFamily: 'Barlow, sans-serif' }}>
-              Change
-            </th>
-            <th style={{ padding: '10px 24px', background: '#f2f2f2', fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#666', textAlign: 'right', fontFamily: 'Barlow, sans-serif' }}>
-              Trend
-            </th>
+            {[
+              { label: 'Metric',       align: 'left'  },
+              { label: currentLabel,   align: 'right' },
+              { label: previousLabel,  align: 'right' },
+              { label: 'Change',       align: 'right' },
+              { label: 'Trend',        align: 'right' },
+            ].map(h => (
+              <th key={h.label} style={{
+                padding: '10px 20px', background: '#f2f2f2',
+                fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase',
+                letterSpacing: '0.06em', color: '#666', textAlign: h.align as any,
+                fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap',
+              }}>
+                {h.label}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -81,7 +82,13 @@ export default function MoMSummaryTable({ rows, currentLabel, previousLabel }: P
             if (isSection) {
               return (
                 <tr key={i}>
-                  <td colSpan={5} style={{ padding: '8px 24px 4px', background: '#fafafa', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#999', fontFamily: 'Barlow, sans-serif', borderTop: i > 0 ? '1px solid #e0e0e0' : 'none' }}>
+                  <td colSpan={5} style={{
+                    padding: '8px 20px 4px', background: '#fafafa',
+                    fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase',
+                    letterSpacing: '0.08em', color: '#999', fontFamily: 'Barlow, sans-serif',
+                    borderTop: i > 0 ? '1px solid #e0e0e0' : 'none',
+                    whiteSpace: 'nowrap',
+                  }}>
                     {row.label}
                   </td>
                 </tr>
@@ -92,16 +99,16 @@ export default function MoMSummaryTable({ rows, currentLabel, previousLabel }: P
               <tr key={i} style={{ borderTop: '1px solid #f2f2f2' }}
                 onMouseEnter={e => (e.currentTarget.style.background = '#fafafa')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                <td style={{ padding: '13px 24px', fontSize: '0.875rem', fontFamily: 'Barlow, sans-serif', color: '#000' }}>
+                <td style={{ padding: '13px 20px', fontSize: '0.875rem', fontFamily: 'Barlow, sans-serif', color: '#000', whiteSpace: 'nowrap' }}>
                   {row.label}
                 </td>
-                <td style={{ padding: '13px 24px', textAlign: 'right', fontFamily: 'DM Mono, monospace', fontSize: '0.875rem', fontWeight: 600 }}>
+                <td style={{ padding: '13px 20px', textAlign: 'right', fontFamily: 'DM Mono, monospace', fontSize: '0.875rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
                   {fmt(row.current, row.format, row.format === 'currency' && (row.current >= 1000 || row.previous >= 1000))}
                 </td>
-                <td style={{ padding: '13px 24px', textAlign: 'right', fontFamily: 'DM Mono, monospace', fontSize: '0.875rem', color: '#999' }}>
+                <td style={{ padding: '13px 20px', textAlign: 'right', fontFamily: 'DM Mono, monospace', fontSize: '0.875rem', color: '#999', whiteSpace: 'nowrap' }}>
                   {fmt(row.previous, row.format, row.format === 'currency' && (row.current >= 1000 || row.previous >= 1000))}
                 </td>
-                <td style={{ padding: '13px 24px', textAlign: 'right' }}>
+                <td style={{ padding: '13px 20px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                   <span style={{
                     display: 'inline-flex', alignItems: 'center', gap: 3,
                     fontSize: '0.8rem', fontWeight: 700,
@@ -113,7 +120,7 @@ export default function MoMSummaryTable({ rows, currentLabel, previousLabel }: P
                     {isUp ? '↑' : '↓'} {Math.abs(pct).toFixed(1)}%
                   </span>
                 </td>
-                <td style={{ padding: '13px 24px', textAlign: 'right' }}>
+                <td style={{ padding: '13px 20px', textAlign: 'right' }}>
                   {row.sparkline && (
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                       <Sparkline values={row.sparkline} isGood={isGood} />
