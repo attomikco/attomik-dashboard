@@ -440,45 +440,54 @@ tbody tr:hover { background: #fafafa; }
 /* ── RESPONSIVE ── */
 @media (max-width: 768px) {
   :root { --sidebar-w: 0px; }
-  .topbar { padding: 16px 20px; }
-  .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; }
-  h1 { font-size: 1.5rem; }
-  .kpi-value { font-size: 1.5rem; }
-}
 
-/* ── MOBILE RESPONSIVE ── */
-@media (max-width: 768px) {
-  :root { --sidebar-w: 0px; }
-
-  /* Main content fills full width */
-  main { margin-left: 0 !important; padding-top: 60px; }
+  /* Layout */
+  main { margin-left: 0 !important; padding-top: 56px; }
 
   /* Topbar */
-  .topbar { padding: 14px 16px; }
-  h1 { font-size: 1.4rem !important; }
-  .topbar-subtitle { display: none; }
+  .topbar { padding: 14px 16px; flex-wrap: wrap; gap: 8px; }
 
-  /* Page content */
-  .page-content { padding: 16px 16px 60px !important; }
+  /* Page content padding — override inline styles */
+  div[style*="40px 40px"] { padding-left: 16px !important; padding-right: 16px !important; }
 
-  /* Grids collapse to 1 or 2 col */
-  .grid-3, .grid-4, .grid-5 { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+  /* Headings */
+  h1 { font-size: 1.3rem !important; }
+
+  /* Class-based grids */
   .grid-2 { grid-template-columns: 1fr !important; }
+  .grid-3, .grid-4, .grid-5 { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
 
-  /* KPI values smaller */
-  .kpi-value { font-size: 1.5rem !important; }
+  /* KPI values */
+  .kpi-value { font-size: 1.4rem !important; }
 
-  /* Charts stack */
-  [style*="gridTemplateColumns: '1fr 1fr'"] { grid-template-columns: 1fr !important; }
-
-  /* Scoreboard table scroll */
+  /* Tables scroll horizontally */
   .table-wrapper { overflow-x: auto; }
 
-  /* Date picker fits on mobile */
+  /* Charts: attribute selector for inline grid styles */
+  [style*="1fr 1fr"] { grid-template-columns: 1fr !important; gap: 12px !important; }
+  [style*="repeat(4, 1fr)"] { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+  [style*="repeat(3, 1fr)"] { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+  [style*="repeat(5, 1fr)"] { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+
+  /* Modal */
+  .modal { padding: 24px 16px; margin: 16px; max-width: calc(100vw - 32px); }
+
+  /* Section headers */
+  .section-header { margin: 24px 0 14px; }
+
+  /* Date picker */
   .date-picker-btn span { display: none; }
 }
 
 @media (max-width: 480px) {
-  .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr !important; }
-  h1 { font-size: 1.2rem !important; }
+  h1 { font-size: 1.1rem !important; }
+  [style*="repeat(4, 1fr)"],
+  [style*="repeat(3, 1fr)"],
+  [style*="repeat(5, 1fr)"],
+  [style*="repeat(2, 1fr)"],
+  .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr !important; }
+}
+
+@media (max-width: 768px) {
+  .dashboard-main { margin-left: 0 !important; padding-top: 56px; }
 }
