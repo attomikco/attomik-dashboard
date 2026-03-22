@@ -277,8 +277,8 @@ export default function AnalyticsPage() {
     const totalSpP  = pSpend.reduce((s, o) => s + Number(o.spend), 0)
     const roasC = totalSpC > 0 ? totalRevC / totalSpC : 0
     const roasP = totalSpP > 0 ? totalRevP / totalSpP : 0
-    const ordC  = enabledOrders.reduce((s, o) => s + (Number(o.units) || 1), 0)
-    const ordP  = enabledOrdersP.reduce((s, o) => s + (Number(o.units) || 1), 0)
+    const ordC  = enabledOrders.length
+    const ordP  = enabledOrdersP.length
     const netRevC = enabledOrders.reduce((s, o) => s + Number(o.subtotal || o.total_price || 0), 0)
     const netRevP = enabledOrdersP.reduce((s, o) => s + Number(o.subtotal || o.total_price || 0), 0)
     const aovC  = ordC > 0 ? netRevC / ordC : 0
