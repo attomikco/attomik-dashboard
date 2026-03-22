@@ -250,7 +250,14 @@ export default function AnalyticsPage() {
     const cSpend = curS.data ?? [], pSpend = prevS.data ?? []
     const allOrd = allOrdRaw ?? []
     const allSp = allSpRaw?.data ?? []
-    const shopC = cur.filter(o => o.source === 'shopify'), shopP = prev.filter(o => o.source === 'shopify')
+    const shopAllC = cur.filter(o => o.source === 'shopify')
+    const shopAllP = prev.filter(o => o.source === 'shopify')
+    // Exclude fully refunded orders from revenue calculations (match Shopify's gross sales)
+    const shopC = shopAllC.filter(o => o.status !== 'refunded')
+    const shopP = shopAllP.filter(o => o.status !== 'refunded')
+    // But keep all orders for returns calculation
+    const shopReturnsC = shopAllC.filter(o => o.status === 'refunded')
+    const shopReturnsP = shopAllP.filter(o => o.status === 'refunded')
     const amzC  = cur.filter(o => o.source === 'amazon'),  amzP  = prev.filter(o => o.source === 'amazon')
 
     // Filter orders by enabled channels for overview metrics
@@ -295,8 +302,8 @@ export default function AnalyticsPage() {
     const shGrossP    = shopP.reduce((s, o) => s + (Number(o.subtotal)||0) + (Number(o.discount_amount)||0), 0)
     const shDiscountC = shopC.reduce((s, o) => s + Number(o.discount_amount||0), 0)
     const shDiscountP = shopP.reduce((s, o) => s + Number(o.discount_amount||0), 0)
-    const shReturnsC  = shopC.reduce((s, o) => s + Number(o.refunded_amount||0), 0)
-    const shReturnsP  = shopP.reduce((s, o) => s + Number(o.refunded_amount||0), 0)
+    const shReturnsC  = shopAllC.reduce((s, o) => s + Number(o.refunded_amount||0), 0)
+    const shReturnsP  = shopAllP.reduce((s, o) => s + Number(o.refunded_amount||0), 0)
     const shNetC      = shopC.reduce((s, o) => s + Number(o.subtotal||o.total_price||0), 0)
     const shNetP      = shopP.reduce((s, o) => s + Number(o.subtotal||o.total_price||0), 0)
     const shShippingC = shopC.reduce((s, o) => s + Number(o.shipping_amount||0), 0)
