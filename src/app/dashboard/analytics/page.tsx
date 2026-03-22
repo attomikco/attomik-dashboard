@@ -354,11 +354,12 @@ export default function AnalyticsPage() {
     const metaRoasP = metaSpP > 0 ? totalRevP / metaSpP : 0
 
     const days: Record<string, any> = {}
-    for (let d = new Date(range.start); d <= new Date(range.end); d.setDate(d.getDate() + 1)) {
+    const rangeEndDate = new Date(range.end); rangeEndDate.setHours(23, 59, 59)
+    for (let d = new Date(range.start); d <= rangeEndDate; d.setDate(d.getDate() + 1)) {
       const k = d.toISOString().split('T')[0]
       days[k] = { date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), revenue: 0, shopify: 0, amazon: 0, spend: 0, roas: 0 }
     }
-    cur.forEach(o => {
+    enabledOrders.filter(o => o.status !== 'refunded').forEach(o => {
       const k = o.created_at.split('T')[0]
       if (!days[k]) return
       days[k].revenue += Number(o.total_price)
