@@ -231,7 +231,7 @@ export default function MetaAdsPage() {
     const [{ data }, { data: prevData }] = await Promise.all([
       supabase.from('ad_spend').select('campaign_name, adset_name, ad_name, spend, impressions, reach, clicks, conversions, conversion_value, cpc, cpm, ctr, date')
         .eq('org_id', orgId).eq('platform', 'meta').gte('date', range.start).lte('date', range.end),
-      supabase.from('ad_spend').select('spend, clicks, conversions, conversion_value, impressions')
+      supabase.from('ad_spend').select('spend, clicks, conversions, conversion_value, impressions, reach')
         .eq('org_id', orgId).eq('platform', 'meta').gte('date', prevStart).lte('date', prevEnd),
     ])
 
@@ -243,11 +243,13 @@ export default function MetaAdsPage() {
       conversions: acc.conversions + Number(r.conversions),
       convVal: acc.convVal + Number(r.conversion_value),
       impressions: acc.impressions + Number(r.impressions),
-    }), { spend: 0, clicks: 0, conversions: 0, convVal: 0, impressions: 0 })
+      reach: acc.reach + Number(r.reach),
+    }), { spend: 0, clicks: 0, conversions: 0, convVal: 0, impressions: 0, reach: 0 })
     const prevRoas = prevTotals.spend > 0 ? prevTotals.convVal / prevTotals.spend : 0
-    const prevCpc = prevMetaData.cpc ?? 0
-    const prevCtr = prevMetaData.ctr ?? 0
-    setPrevMetaData({ ...prevTotals, roas: prevRoas, cpc: prevCpc, ctr: prevCtr })
+    const prevCpc  = prevTotals.clicks > 0 ? prevTotals.spend / prevTotals.clicks : 0
+    const prevCtr  = prevTotals.impressions > 0 ? (prevTotals.clicks / prevTotals.impressions) * 100 : 0
+    const prevCpm  = prevTotals.impressions > 0 ? (prevTotals.spend / prevTotals.impressions) * 1000 : 0
+    setPrevMetaData({ ...prevTotals, roas: prevRoas, cpc: prevCpc, ctr: prevCtr, cpm: prevCpm, conversionValue: prevTotals.convVal })
 
     // Active = had spend in last 3 days of the range
     const dates = rows.map(r => r.date).sort()
