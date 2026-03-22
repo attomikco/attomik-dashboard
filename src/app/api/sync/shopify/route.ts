@@ -66,7 +66,7 @@ export async function POST(request: Request) {
         customer_email:   o.email || o.customer?.email || null,
         customer_name:    o.customer ? `${o.customer.first_name ?? ''} ${o.customer.last_name ?? ''}`.trim() : null,
         total_price:      parseFloat(o.total_price) || 0,
-        subtotal:         parseFloat(o.subtotal_price) || 0,
+        subtotal:         (parseFloat(o.subtotal_price) || 0) + (parseFloat(o.total_discounts) || 0), // gross = net + discounts
         discount_amount:  parseFloat(o.total_discounts) || 0,
         tax_amount:       parseFloat(o.total_tax) || 0,
         shipping_amount:  shippingAmount,
