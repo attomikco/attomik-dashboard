@@ -66,7 +66,7 @@ METRICS vs PRIOR PERIOD:
 - CAC: ${metrics.cac} (was ${metrics.cacChg}% change — lower is better)
 - New Customers: ${metrics.newCust}
 - Returning Customers: ${metrics.retCust}
-- Return Rate: ${metrics.retRate}%
+- Returning Customer Rate: ${metrics.retRate}% (% of customers who have ordered before — higher is better)
 ${metrics.shopifyGross ? `- Gross Sales: ${metrics.shopifyGross}\n- Net Sales: ${metrics.shopifyNet}\n- Discount Rate: ${metrics.discountRate}%` : ''}
 ${metrics.metaSp ? `- Meta Spend: ${metrics.metaSp}, Purchases: ${metrics.metaConv}` : ''}
 
