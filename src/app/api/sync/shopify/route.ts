@@ -64,18 +64,41 @@ export async function POST(request: Request) {
 
     // Paginate through all orders
     const allOrders: any[] = []
-    // Sort ascending to get oldest orders first, no date limit on full sync
-    let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&fields=id,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds${updatedAtMin ? `&updated_at_min=${updatedAtMin}` : ''}`
+    if (isFirstSync) {
+      // For full sync: paginate through ALL orders year by year from 2020 to now
+      const years = []
+      const startYear = 2020
+      const endYear = new Date().getFullYear()
+      for (let y = startYear; y <= endYear; y++) years.push(y)
 
-    while (url) {
-      const res = await fetch(url, { headers })
-      if (!res.ok) throw new Error(`Shopify API error: ${res.status}`)
-      const { orders } = await res.json()
-      allOrders.push(...orders)
+      for (const year of years) {
+        const yearStart = `${year}-01-01T00:00:00Z`
+        const yearEnd   = year === endYear ? new Date().toISOString() : `${year + 1}-01-01T00:00:00Z`
+        let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&created_at_min=${yearStart}&created_at_max=${yearEnd}&fields=id,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds`
 
-      const linkHeader = res.headers.get('Link') ?? ''
-      const nextMatch = linkHeader.match(/<([^>]+)>;\s*rel="next"/)
-      url = nextMatch ? nextMatch[1] : null
+        while (url) {
+          const res = await fetch(url, { headers })
+          if (!res.ok) throw new Error(`Shopify API error: ${res.status}`)
+          const { orders } = await res.json()
+          allOrders.push(...orders)
+          const linkHeader = res.headers.get('Link') ?? ''
+          const nextMatch = linkHeader.match(/<([^>]+)>;\s*rel="next"/)
+          url = nextMatch ? nextMatch[1] : null
+        }
+      }
+    } else {
+      // Incremental sync: just fetch since last sync
+      let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&updated_at_min=${updatedAtMin}&fields=id,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds`
+
+      while (url) {
+        const res = await fetch(url, { headers })
+        if (!res.ok) throw new Error(`Shopify API error: ${res.status}`)
+        const { orders } = await res.json()
+        allOrders.push(...orders)
+        const linkHeader = res.headers.get('Link') ?? ''
+        const nextMatch = linkHeader.match(/<([^>]+)>;\s*rel="next"/)
+        url = nextMatch ? nextMatch[1] : null
+      }
     }
 
     if (allOrders.length === 0) {
