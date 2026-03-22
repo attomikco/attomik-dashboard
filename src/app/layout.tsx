@@ -17,9 +17,15 @@ const dmMono = DM_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Attomik Dashboard',
+  title: {
+    template: '%s | Attomik',
+    default: 'Attomik Dashboard',
+  },
   description: 'Ecommerce analytics for Attomik clients',
-  icons: { icon: '/logo.png' },
+  icons: {
+    icon: '/favicon.png',
+    apple: '/favicon.png',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
