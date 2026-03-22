@@ -1,6 +1,37 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import Sidebar from '@/components/Sidebar'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const [ready, setReady] = useState(false)
+  const router = useRouter()
+  const supabase = createClient()
+
+  useEffect(() => {
+    // Wait for auth session to be fully ready before rendering pages
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        router.push('/auth/login')
+      } else {
+        setReady(true)
+      }
+    })
+
+    // Also listen for auth changes (handles magic link landing)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        setReady(true)
+      } else if (event === 'SIGNED_OUT') {
+        router.push('/auth/login')
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar />
@@ -8,7 +39,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         className="dashboard-main"
         style={{ marginLeft: 'var(--sidebar-w)', flex: 1, background: 'var(--paper)', minHeight: '100vh', transition: 'margin 0.25s' }}
       >
-        {children}
+        {ready ? children : (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--muted)', fontFamily: 'var(--font-barlow)', fontSize: '0.9rem' }}>
+            Loading…
+          </div>
+        )}
       </main>
     </div>
   )
