@@ -180,7 +180,7 @@ export default function AnalyticsPage() {
     // Fetch org config (channels + timezone)
     const { data: orgData } = await supabase
       .from('organizations').select('channels, timezone, name').eq('id', orgId).single()
-    if (orgData?.name) setOrgName(orgData.name)
+    if (orgData?.name) { setOrgName(orgData.name); document.title = `${orgData.name} Analytics | Attomik` }
     const orgTimezone = orgData?.timezone ?? 'America/New_York'
     const ch = orgData?.channels ?? {}
     // If channels column is null/empty object (never configured), show all

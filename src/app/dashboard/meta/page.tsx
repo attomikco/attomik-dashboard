@@ -221,7 +221,7 @@ export default function MetaAdsPage() {
     if (!orgId) { setLoading(false); return }
 
     const { data: orgData } = await supabase.from('organizations').select('name').eq('id', orgId).single()
-    if (orgData?.name) setOrgName(orgData.name)
+    if (orgData?.name) { setOrgName(orgData.name); document.title = `${orgData.name} Meta Ads | Attomik` }
 
     // Calc prev period dates
     const dayCount = Math.round((new Date(range.end).getTime() - new Date(range.start).getTime()) / 864e5) + 1
