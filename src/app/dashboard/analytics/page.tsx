@@ -87,26 +87,28 @@ function SectionHeader({ title, color = C.accent, platform }: { title: string; c
 
 function MetricRow({ items }: { items: { label: string; value: string; sub?: string; invertColors?: boolean }[] }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${items.length}, 1fr)`, gap: 1, background: C.border, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
-      {items.map((item, i) => {
-        const isUp = item.sub?.startsWith('↑')
-        const isDown = item.sub?.startsWith('↓')
-        const hasChange = isUp || isDown
-        const isGood = hasChange ? (item.invertColors ? isDown : isUp) : null
-        const subColor = isGood === true ? '#007a48' : isGood === false ? '#b91c1c' : '#999'
-        const subBg = isGood === true ? '#e6fff5' : isGood === false ? '#fee2e2' : 'transparent'
-        return (
-          <div key={i} style={{ background: C.paper, padding: '20px 24px' }}>
-            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>{item.label}</div>
-            <div style={{ fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.03em', color: C.ink }}>{item.value}</div>
-            {item.sub && (
-              <div style={{ display: 'inline-flex', alignItems: 'center', marginTop: 6, padding: '2px 8px', borderRadius: 4, background: subBg, fontSize: '0.8rem', fontWeight: 600, color: subColor, fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>
-                {item.sub}
-              </div>
-            )}
-          </div>
-        )
-      })}
+    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginBottom: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${items.length}, minmax(130px, 1fr))`, gap: 1, background: C.border, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', minWidth: items.length > 3 ? 520 : 'auto' }}>
+        {items.map((item, i) => {
+          const isUp = item.sub?.startsWith('↑')
+          const isDown = item.sub?.startsWith('↓')
+          const hasChange = isUp || isDown
+          const isGood = hasChange ? (item.invertColors ? isDown : isUp) : null
+          const subColor = isGood === true ? '#007a48' : isGood === false ? '#b91c1c' : '#999'
+          const subBg = isGood === true ? '#e6fff5' : isGood === false ? '#fee2e2' : 'transparent'
+          return (
+            <div key={i} style={{ background: C.paper, padding: '18px 20px' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontFamily: 'var(--font-barlow), Barlow, sans-serif', whiteSpace: 'nowrap' }}>{item.label}</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.03em', color: C.ink, whiteSpace: 'nowrap' }}>{item.value}</div>
+              {item.sub && (
+                <div style={{ display: 'inline-flex', alignItems: 'center', marginTop: 6, padding: '2px 8px', borderRadius: 4, background: subBg, fontSize: '0.8rem', fontWeight: 600, color: subColor, fontFamily: 'var(--font-barlow), Barlow, sans-serif', whiteSpace: 'nowrap' }}>
+                  {item.sub}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -530,17 +532,19 @@ export default function AnalyticsPage() {
   return (
     <div style={{ background: C.paper, minHeight: '100vh' }}>
       {/* Sticky topbar */}
-      <div style={{ padding: '20px 40px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: C.paper, zIndex: 50 }}>
-        <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'var(--font-barlow), Barlow, sans-serif', color: C.ink }}>{orgName} — Analytics</h1>
-          <p style={{ fontSize: '0.875rem', color: C.muted, marginTop: 2, fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>
+      <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, position: 'sticky', top: 0, background: C.paper, zIndex: 50 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <h1 style={{ fontSize: 'clamp(1.1rem, 4vw, 2rem)', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'var(--font-barlow), Barlow, sans-serif', color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{orgName} — Analytics</h1>
+          <p style={{ fontSize: '0.75rem', color: C.muted, marginTop: 2, fontFamily: 'var(--font-barlow), Barlow, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {fmtDate(range.start)} – {fmtDate(range.end)} · vs previous {dayCount} days
           </p>
         </div>
-        <DateRangePicker value={range} onChange={r => setRange(r)} />
+        <div style={{ flexShrink: 0 }}>
+          <DateRangePicker value={range} onChange={r => setRange(r)} />
+        </div>
       </div>
 
-      <div style={{ padding: '32px 40px 80px' }}>
+      <div style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 80px' }}>
         {loading ? (
           <div style={{ color: C.muted, textAlign: 'center', padding: '80px 0', fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontSize: '1rem' }}>Loading analytics…</div>
         ) : !d ? (
