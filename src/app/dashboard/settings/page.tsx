@@ -50,12 +50,23 @@ export default function SettingsPage() {
     const { data: { user } } = await supabase.auth.getUser()
     setUser(user)
     if (!user) return
+
     const { data: prof } = await supabase
       .from('profiles').select('*, organizations(*)').eq('id', user.id).single()
     setProfile(prof)
-    const o = (prof as any)?.organizations
-    setOrg(o)
-    if (o?.shopify_domain) setDomain(o.shopify_domain)
+
+    // Always load the active org from localStorage (respects org switcher)
+    const activeOrgId = localStorage.getItem('activeOrgId') || (prof as any)?.org_id
+    if (activeOrgId) {
+      const { data: activeOrg } = await supabase
+        .from('organizations')
+        .select('*')
+        .eq('id', activeOrgId)
+        .single()
+      setOrg(activeOrg)
+      if (activeOrg?.shopify_domain) setDomain(activeOrg.shopify_domain)
+      else setDomain('')
+    }
   }
 
   const orgId = () => localStorage.getItem('activeOrgId') || org?.id
