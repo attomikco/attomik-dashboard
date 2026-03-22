@@ -139,7 +139,7 @@ export async function POST(request: Request) {
 
     const { data, error } = await supabase
       .from('orders')
-      .upsert(rows, { onConflict: 'external_id', ignoreDuplicates: false })
+      .upsert(rows, { onConflict: 'org_id,external_id', ignoreDuplicates: false })
       .select()
 
     if (error) throw error

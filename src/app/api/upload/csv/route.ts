@@ -168,7 +168,7 @@ export async function POST(request: Request) {
       const records = parseOrdersCSV(headers, rows, orgId)
       const { data, error } = await serviceClient
         .from('orders')
-        .upsert(records, { onConflict: 'external_id', ignoreDuplicates: true })
+        .upsert(records, { onConflict: 'org_id,external_id', ignoreDuplicates: true })
         .select()
       if (error) throw error
       inserted = data?.length ?? records.length
