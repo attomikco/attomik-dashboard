@@ -8,6 +8,14 @@ export const createClient = () =>
     {
       auth: {
         flowType: 'implicit',
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+      cookieOptions: {
+        maxAge: 60 * 60 * 24 * 365, // 1 year
+        sameSite: 'lax',
+        secure: true,
       },
     }
   )
