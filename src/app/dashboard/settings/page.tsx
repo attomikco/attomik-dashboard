@@ -22,14 +22,15 @@ export default function SettingsPage() {
   const [profile, setProfile] = useState<any>(null)
   const [org, setOrg]         = useState<any>(null)
 
-  const [domain, setDomain]   = useState('')
-  const [token, setToken]     = useState('')
-  const [saving, setSaving]   = useState(false)
-  const [saveMsg, setSaveMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [domain, setDomain]         = useState('')
+  const [clientId, setClientId]     = useState('')
+  const [clientSecret, setClientSecret] = useState('')
+  const [saving, setSaving]         = useState(false)
+  const [saveMsg, setSaveMsg]       = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  const [syncing, setSyncing]         = useState(false)
-  const [syncResult, setSyncResult]   = useState<{ synced: number; inserted: number; message?: string } | null>(null)
-  const [syncError, setSyncError]     = useState<string | null>(null)
+  const [syncing, setSyncing]       = useState(false)
+  const [syncResult, setSyncResult] = useState<{ synced: number; inserted: number; message?: string } | null>(null)
+  const [syncError, setSyncError]   = useState<string | null>(null)
   const [disconnecting, setDisconnecting] = useState(false)
 
   useEffect(() => { loadData() }, [])
@@ -64,29 +65,36 @@ export default function SettingsPage() {
 
     const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '').trim()
 
-    // Test connection first
+    // Test connection
     const testRes = await fetch('/api/shopify/test', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ domain: cleanDomain, token }),
+      body: JSON.stringify({ domain: cleanDomain, client_id: clientId, client_secret: clientSecret }),
     })
     const testData = await testRes.json()
     if (!testRes.ok) {
-      setSaveMsg({ type: 'error', text: testData.error || 'Could not connect. Check your domain and token.' })
+      setSaveMsg({ type: 'error', text: testData.error || 'Could not connect. Check your credentials.' })
       setSaving(false)
       return
     }
 
+    // Save to DB
     const { error } = await supabase
       .from('organizations')
-      .update({ shopify_domain: cleanDomain, shopify_token: token })
+      .update({
+        shopify_domain: cleanDomain,
+        shopify_client_id: clientId,
+        shopify_client_secret: clientSecret,
+        shopify_token: null, // clear old token
+      })
       .eq('id', id)
 
     if (error) {
       setSaveMsg({ type: 'error', text: error.message })
     } else {
       setSaveMsg({ type: 'success', text: `Connected to ${testData.shop_name}!` })
-      setToken('')
+      setClientId('')
+      setClientSecret('')
       loadData()
     }
     setSaving(false)
@@ -111,10 +119,11 @@ export default function SettingsPage() {
     if (!confirm('Disconnect Shopify? Your existing order data will remain.')) return
     setDisconnecting(true)
     await supabase.from('organizations')
-      .update({ shopify_domain: null, shopify_token: null })
+      .update({ shopify_domain: null, shopify_token: null, shopify_client_id: null, shopify_client_secret: null })
       .eq('id', orgId())
     setDomain('')
-    setToken('')
+    setClientId('')
+    setClientSecret('')
     setSaveMsg(null)
     setSyncResult(null)
     setSyncError(null)
@@ -126,7 +135,6 @@ export default function SettingsPage() {
 
   return (
     <div>
-      {/* Topbar */}
       <div style={{ padding: '20px 40px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: 'var(--paper)', zIndex: 50 }}>
         <div>
           <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>
@@ -138,7 +146,6 @@ export default function SettingsPage() {
 
       <div style={{ padding: '32px 40px 80px', maxWidth: 640 }}>
 
-        {/* Org info */}
         <Section title="Organization">
           <div style={{ display: 'grid', gap: 12 }}>
             <div>
@@ -152,7 +159,6 @@ export default function SettingsPage() {
           </div>
         </Section>
 
-        {/* Shopify */}
         <Section title="Shopify">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
             <div style={{ width: 36, height: 36, borderRadius: 8, background: '#96bf48', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
@@ -184,68 +190,51 @@ export default function SettingsPage() {
           <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
             <div>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Store domain</label>
-              <input
-                type="text"
-                placeholder="your-store.myshopify.com"
-                value={domain}
-                onChange={e => setDomain(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', outline: 'none' }}
-              />
+              <input type="text" placeholder="your-store.myshopify.com" value={domain} onChange={e => setDomain(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', outline: 'none' }} />
             </div>
             <div>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>
-                Admin API token {isConnected && <span style={{ color: '#007a48', fontWeight: 400 }}>(leave blank to keep existing)</span>}
+                Client ID {isConnected && <span style={{ color: '#007a48', fontWeight: 400 }}>(leave blank to keep existing)</span>}
               </label>
-              <input
-                type="password"
-                placeholder={isConnected ? '••••••••••••••••' : 'shpat_xxxxxxxxxxxxxxxx'}
-                value={token}
-                onChange={e => setToken(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', outline: 'none' }}
-              />
+              <input type="text" placeholder={isConnected ? '••••••••••••••••' : 'Client ID from Dev Dashboard'} value={clientId} onChange={e => setClientId(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', outline: 'none' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>
+                Client Secret {isConnected && <span style={{ color: '#007a48', fontWeight: 400 }}>(leave blank to keep existing)</span>}
+              </label>
+              <input type="password" placeholder={isConnected ? '••••••••••••••••' : 'Client Secret from Dev Dashboard'} value={clientSecret} onChange={e => setClientSecret(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', outline: 'none' }} />
               <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 6, lineHeight: 1.5 }}>
-                Get token from: Shopify Admin → Settings → Apps → Develop apps → Create app → Configure API scopes (read_orders, read_customers) → Install app → copy token
+                Get from: Shopify Admin → Settings → Apps → Develop apps → Create app → Settings → Credentials. Install the app on the store first.
               </p>
             </div>
           </div>
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-            <button
-              onClick={handleSaveShopify}
-              disabled={saving || !domain || (!token && !isConnected)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 20px', background: (saving || !domain || (!token && !isConnected)) ? 'var(--cream)' : 'var(--ink)', color: (saving || !domain || (!token && !isConnected)) ? 'var(--muted)' : 'var(--accent)', fontFamily: 'var(--font-barlow)', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: (saving || !domain || (!token && !isConnected)) ? 'not-allowed' : 'pointer' }}
-            >
+            <button onClick={handleSaveShopify} disabled={saving || !domain || (!clientId && !isConnected)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 20px', background: (saving || !domain || (!clientId && !isConnected)) ? 'var(--cream)' : 'var(--ink)', color: (saving || !domain || (!clientId && !isConnected)) ? 'var(--muted)' : 'var(--accent)', fontFamily: 'var(--font-barlow)', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: (saving || !domain || (!clientId && !isConnected)) ? 'not-allowed' : 'pointer' }}>
               {saving ? 'Connecting…' : isConnected ? 'Update connection' : 'Connect Shopify'}
             </button>
 
-            {isConnected && (
-              <>
-                <button
-                  onClick={() => handleSync(false)}
-                  disabled={syncing}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 20px', background: 'var(--accent)', color: '#000', fontFamily: 'var(--font-barlow)', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: syncing ? 'not-allowed' : 'pointer' }}
-                >
-                  <RefreshCw size={14} style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
-                  {syncing ? 'Syncing…' : 'Sync new orders'}
-                </button>
-                <button
-                  onClick={() => handleSync(true)}
-                  disabled={syncing}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 20px', background: 'var(--ink)', color: 'var(--accent)', fontFamily: 'var(--font-barlow)', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: syncing ? 'not-allowed' : 'pointer' }}
-                >
-                  <RefreshCw size={14} />
-                  Full sync
-                </button>
-                <button
-                  onClick={handleDisconnect}
-                  disabled={disconnecting}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 16px', background: '#fee2e2', color: '#b91c1c', fontFamily: 'var(--font-barlow)', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: 'pointer' }}
-                >
-                  <Unplug size={14} />
-                  Disconnect
-                </button>
-              </>
-            )}
+            {isConnected && (<>
+              <button onClick={() => handleSync(false)} disabled={syncing}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 20px', background: 'var(--accent)', color: '#000', fontFamily: 'var(--font-barlow)', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: syncing ? 'not-allowed' : 'pointer' }}>
+                <RefreshCw size={14} style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
+                {syncing ? 'Syncing…' : 'Sync new orders'}
+              </button>
+              <button onClick={() => handleSync(true)} disabled={syncing}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 20px', background: 'var(--ink)', color: 'var(--accent)', fontFamily: 'var(--font-barlow)', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: syncing ? 'not-allowed' : 'pointer' }}>
+                <RefreshCw size={14} />
+                Full sync
+              </button>
+              <button onClick={handleDisconnect} disabled={disconnecting}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 16px', background: '#fee2e2', color: '#b91c1c', fontFamily: 'var(--font-barlow)', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+                <Unplug size={14} />
+                Disconnect
+              </button>
+            </>)}
           </div>
 
           {org?.shopify_synced_at && (
@@ -270,7 +259,6 @@ export default function SettingsPage() {
           )}
         </Section>
 
-        {/* Other integrations */}
         <Section title="Other integrations">
           {[
             { name: 'Meta Ads', desc: 'Sync ad spend + ROAS', status: 'coming soon' },
@@ -289,7 +277,6 @@ export default function SettingsPage() {
           ))}
         </Section>
 
-        {/* Account */}
         <Section title="Account">
           <div style={{ fontSize: '0.875rem', color: 'var(--muted)' }}>
             Signed in as <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{user?.email}</span>

@@ -1,6 +1,30 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 
+async function getShopifyToken(domain: string, clientId: string, clientSecret: string): Promise<string> {
+  const res = await fetch(`https://${domain}/admin/oauth/access_token`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Accept': 'application/json',
+    },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: 'client_credentials',
+    }).toString(),
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Failed to get Shopify token: ${res.status} ${text}`)
+  }
+
+  const data = await res.json()
+  if (!data.access_token) throw new Error('No access token in response')
+  return data.access_token
+}
+
 export async function POST(request: Request) {
   try {
     const { org_id, full_sync } = await request.json()
@@ -10,26 +34,33 @@ export async function POST(request: Request) {
 
     const { data: org } = await supabase
       .from('organizations')
-      .select('shopify_domain, shopify_token, shopify_synced_at')
+      .select('shopify_domain, shopify_token, shopify_client_id, shopify_client_secret, shopify_synced_at')
       .eq('id', org_id)
       .single()
 
-    if (!org?.shopify_domain || !org?.shopify_token) {
+    if (!org?.shopify_domain) {
       return NextResponse.json({ error: 'Shopify not configured for this org' }, { status: 400 })
     }
 
-    const { shopify_domain: domain, shopify_token: token, shopify_synced_at: lastSynced } = org
+    const { shopify_domain: domain, shopify_synced_at: lastSynced } = org
+
+    // Get token — use client credentials if available, fall back to stored token
+    let token: string
+    if (org.shopify_client_id && org.shopify_client_secret) {
+      token = await getShopifyToken(domain, org.shopify_client_id, org.shopify_client_secret)
+    } else if (org.shopify_token) {
+      token = org.shopify_token
+    } else {
+      return NextResponse.json({ error: 'No Shopify credentials configured' }, { status: 400 })
+    }
+
     const headers = { 'X-Shopify-Access-Token': token }
     const apiBase = `https://${domain}/admin/api/2024-01`
 
-    // If we have a previous sync date and this isn't a forced full sync,
-    // only fetch orders updated since last sync
     const isFirstSync = !lastSynced || full_sync
     const updatedAtMin = isFirstSync ? null : new Date(lastSynced).toISOString()
 
-    console.log(isFirstSync ? 'Full sync — fetching all orders' : `Incremental sync since ${updatedAtMin}`)
-
-    // Paginate through orders
+    // Paginate through all orders
     const allOrders: any[] = []
     let url: string | null = `${apiBase}/orders.json?limit=250&status=any&fields=id,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds${updatedAtMin ? `&updated_at_min=${updatedAtMin}` : ''}`
 
@@ -45,7 +76,6 @@ export async function POST(request: Request) {
     }
 
     if (allOrders.length === 0) {
-      // Update sync timestamp even if no new orders
       await supabase.from('organizations')
         .update({ shopify_synced_at: new Date().toISOString() })
         .eq('id', org_id)
@@ -61,16 +91,16 @@ export async function POST(request: Request) {
 
       return {
         org_id,
-        external_id:      `shopify_${o.id}`,
-        source:           'shopify',
-        customer_email:   o.email || o.customer?.email || null,
-        customer_name:    o.customer ? `${o.customer.first_name ?? ''} ${o.customer.last_name ?? ''}`.trim() : null,
-        total_price:      parseFloat(o.total_price) || 0,
-        subtotal:         (parseFloat(o.subtotal_price) || 0) + (parseFloat(o.total_discounts) || 0), // gross = net + discounts
-        discount_amount:  parseFloat(o.total_discounts) || 0,
-        tax_amount:       parseFloat(o.total_tax) || 0,
-        shipping_amount:  shippingAmount,
-        refunded_amount:  refundedAmount,
+        external_id:     `shopify_${o.id}`,
+        source:          'shopify',
+        customer_email:  o.email || o.customer?.email || null,
+        customer_name:   o.customer ? `${o.customer.first_name ?? ''} ${o.customer.last_name ?? ''}`.trim() : null,
+        total_price:     parseFloat(o.total_price) || 0,
+        subtotal:        parseFloat(o.subtotal_price) || 0,
+        discount_amount: parseFloat(o.total_discounts) || 0,
+        tax_amount:      parseFloat(o.total_tax) || 0,
+        shipping_amount: shippingAmount,
+        refunded_amount: refundedAmount,
         units,
         status: o.financial_status === 'paid' ? 'paid'
               : o.financial_status === 'refunded' ? 'refunded'
@@ -81,7 +111,6 @@ export async function POST(request: Request) {
       }
     })
 
-    // Upsert — updates existing orders if they changed (e.g. refunded), inserts new ones
     const { data, error } = await supabase
       .from('orders')
       .upsert(rows, { onConflict: 'external_id', ignoreDuplicates: false })
@@ -89,7 +118,6 @@ export async function POST(request: Request) {
 
     if (error) throw error
 
-    // Update last synced timestamp
     await supabase.from('organizations')
       .update({ shopify_synced_at: new Date().toISOString() })
       .eq('id', org_id)
