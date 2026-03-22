@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
       return {
         org_id: orgId!,
-        external_id: `shopify_${row['Name']}`,
+        external_id: row['Id'] ? `shopify_${row['Id']}` : `shopify_${row['Name']}`, // prefer numeric ID to match API sync
         source: 'shopify' as const,
         customer_email: row['Email'] || null,
         customer_name: fullName,

@@ -6,6 +6,7 @@ import Topbar from '@/components/Topbar'
 import { createClient } from '@/lib/supabase/client'
 
 const ALL_PLATFORMS = [
+  { id: 'shopify',  label: 'Shopify',     channelKey: 'shopify', color: '#96bf48', description: 'Orders export from Shopify admin', instructions: 'Shopify Admin → Orders → Export → All orders → CSV', endpoint: '/api/upload/shopify', columns: ['Name', 'Email', 'Financial Status', 'Created at', 'Subtotal', 'Shipping', 'Taxes', 'Total', 'Discount Amount', 'Refunded Amount'] },
   { id: 'amazon',   label: 'Amazon',      channelKey: 'amazon',  color: '#00cc78', description: 'Business Report from Seller Central', instructions: 'Seller Central → Reports → Business Reports → Sales & Traffic → Download', endpoint: '/api/upload/amazon', columns: ['Date', 'Ordered Product Sales', 'Ordered Product Sales - B2B', 'Units Ordered', 'Total Order Items'] },
   { id: 'walmart',  label: 'Walmart',     channelKey: 'walmart', color: '#0071ce', description: 'Seller Center sales report', instructions: 'Walmart Seller Center → Analytics → Sales Report → Export', endpoint: '/api/upload/csv', columns: ['Order Date', 'Net Sales', 'Units Sold', 'Customer Name'] },
   { id: 'meta',     label: 'Meta Ads',    channelKey: 'meta',    color: '#1877f2', description: 'Campaign performance — export with Day breakdown', instructions: 'Meta Ads Manager → Reports → Breakdown: Day → Export CSV', endpoint: '/api/upload/meta', columns: ['Day', 'Campaign name', 'Ad set name', 'Ad name', 'Amount spent (USD)', 'Impressions', 'Link clicks', 'Purchases'] },
