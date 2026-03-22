@@ -32,6 +32,8 @@ export default function SettingsPage() {
   const [syncResult, setSyncResult] = useState<{ synced: number; inserted: number; message?: string } | null>(null)
   const [syncError, setSyncError]   = useState<string | null>(null)
   const [disconnecting, setDisconnecting] = useState(false)
+  const [cleaning, setCleaning]       = useState(false)
+  const [cleanResult, setCleanResult] = useState<number | null>(null)
 
   useEffect(() => { loadData() }, [])
 
@@ -113,6 +115,20 @@ export default function SettingsPage() {
     if (!res.ok) setSyncError(data.error || 'Sync failed')
     else setSyncResult(data)
     setSyncing(false)
+  }
+
+  const handleClean = async () => {
+    if (!confirm('This will delete all CSV-imported Shopify orders that have been replaced by API-synced ones. Continue?')) return
+    setCleaning(true)
+    setCleanResult(null)
+    const res = await fetch('/api/shopify/cleanup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ org_id: orgId() }),
+    })
+    const data = await res.json()
+    if (res.ok) setCleanResult(data.deleted)
+    setCleaning(false)
   }
 
   const handleDisconnect = async () => {
@@ -229,6 +245,10 @@ export default function SettingsPage() {
                 <RefreshCw size={14} />
                 Full sync
               </button>
+              <button onClick={handleClean} disabled={cleaning}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 16px', background: 'var(--cream)', color: 'var(--ink)', fontFamily: 'var(--font-barlow)', fontWeight: 700, fontSize: '0.875rem', border: '1px solid var(--border)', borderRadius: 6, cursor: cleaning ? 'not-allowed' : 'pointer' }}>
+                {cleaning ? '…' : '🧹'} {cleaning ? 'Cleaning…' : 'Clean duplicates'}
+              </button>
               <button onClick={handleDisconnect} disabled={disconnecting}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 16px', background: '#fee2e2', color: '#b91c1c', fontFamily: 'var(--font-barlow)', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
                 <Unplug size={14} />
@@ -255,6 +275,14 @@ export default function SettingsPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 8, marginTop: 12, background: '#fee2e2', border: '1px solid #fca5a5' }}>
               <XCircle size={16} color="#b91c1c" />
               <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#b91c1c' }}>{syncError}</span>
+            </div>
+          )}
+          {cleanResult !== null && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 8, marginTop: 12, background: '#e6fff5', border: '1px solid #00cc78' }}>
+              <CheckCircle size={16} color="#007a48" />
+              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#007a48' }}>
+                {cleanResult === 0 ? 'No duplicates found — data is clean!' : `Removed ${cleanResult} duplicate orders`}
+              </span>
             </div>
           )}
         </Section>
