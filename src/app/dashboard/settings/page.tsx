@@ -72,14 +72,14 @@ export default function SettingsPage() {
     window.location.href = `/api/shopify/install?shop=${cleanDomain}&org_id=${id}`
   }
 
-  const handleSync = async () => {
+  const handleSync = async (fullSync = false) => {
     setSyncing(true)
     setSyncResult(null)
     setSyncError(null)
     const res = await fetch('/api/sync/shopify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ org_id: orgId() }),
+      body: JSON.stringify({ org_id: orgId(), full_sync: fullSync }),
     })
     const data = await res.json()
     if (!res.ok) setSyncError(data.error || 'Sync failed')
@@ -185,14 +185,27 @@ export default function SettingsPage() {
               </div>
             </div>
           ) : (
+            {org?.shopify_synced_at && (
+              <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: 12 }}>
+                Last synced: {new Date(org.shopify_synced_at).toLocaleString()}
+              </p>
+            )}
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <button
-                onClick={handleSync}
+                onClick={() => handleSync(false)}
                 disabled={syncing}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 20px', background: 'var(--accent)', color: '#000', fontFamily: 'var(--font-barlow)', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: syncing ? 'not-allowed' : 'pointer' }}
               >
                 <RefreshCw size={14} style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
-                {syncing ? 'Syncing…' : 'Sync now'}
+                {syncing ? 'Syncing…' : 'Sync new orders'}
+              </button>
+              <button
+                onClick={() => handleSync(true)}
+                disabled={syncing}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 20px', background: 'var(--ink)', color: 'var(--accent)', fontFamily: 'var(--font-barlow)', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: syncing ? 'not-allowed' : 'pointer' }}
+              >
+                <RefreshCw size={14} />
+                Full sync
               </button>
               <button
                 onClick={() => { setOrg({ ...org, shopify_domain: null }); setOauthMsg(null) }}
@@ -216,7 +229,7 @@ export default function SettingsPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 8, marginTop: 12, background: '#e6fff5', border: '1px solid #00cc78' }}>
               <CheckCircle size={16} color="#007a48" />
               <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#007a48' }}>
-                Synced {syncResult.synced} orders · {syncResult.inserted} new
+                {syncResult.message || `Synced ${syncResult.synced} orders · ${syncResult.inserted} new`}
               </span>
             </div>
           )}
