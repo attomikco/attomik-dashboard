@@ -105,7 +105,8 @@ export default function ImportPage() {
     const load = async () => {
       const orgId = localStorage.getItem('activeOrgId')
       if (!orgId) { setLoading(false); return }
-      const { data } = await supabase.from('organizations').select('channels').eq('id', orgId).single()
+      const { data } = await supabase.from('organizations').select('channels, name').eq('id', orgId).single()
+      if (data?.name) document.title = `${data.name} Import | Attomik`
       const ch = data?.channels ?? {}
       // If channels object has keys, respect values. If empty/null, show all.
       const isConfigured = Object.keys(ch).length > 0

@@ -58,6 +58,7 @@ export default function SettingsPage() {
       const { data: activeOrg } = await supabase
         .from('organizations').select('*').eq('id', activeOrgId).single()
       setOrg(activeOrg)
+      if (activeOrg?.name) document.title = `${activeOrg.name} Settings | Attomik`
     }
   }
 
