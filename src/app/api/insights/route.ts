@@ -50,7 +50,7 @@ IMPORTANT FRAMING RULES:
 - Be honest about real concerns, but only flag something as a problem if it's both low AND not improving
 - If the account is early-stage or scaling, factor that context in
 
-Write a 4-sentence executive summary: (1) brand + period + biggest headline (wins OR trend), (2) what's working or improving with specific numbers, (3) one honest concern if metrics are both poor AND not improving, (4) one specific actionable recommendation. Flowing prose, under 120 words.`
+Write a 4-sentence summary: (1) brand + period + biggest headline (wins OR trend), (2) what's working or improving with specific numbers, (3) one honest concern if metrics are both poor AND not improving, (4) one specific actionable recommendation. Flowing prose, under 120 words.`
 
       : `You are an expert ecommerce analyst. Analyze this data for ${orgName} and write a balanced, honest, directionally accurate summary.
 
@@ -66,7 +66,7 @@ METRICS vs PRIOR PERIOD:
 - CAC: ${metrics.cac} (was ${metrics.cacChg}% change — lower is better)
 - New Customers: ${metrics.newCust}
 - Returning Customers: ${metrics.retCust}
-- Returning Customer Rate: ${metrics.retRate}% (% of customers who have ordered before — higher is better)
+- Return Rate: ${metrics.retRate}%
 ${metrics.shopifyGross ? `- Gross Sales: ${metrics.shopifyGross}\n- Net Sales: ${metrics.shopifyNet}\n- Discount Rate: ${metrics.discountRate}%` : ''}
 ${metrics.metaSp ? `- Meta Spend: ${metrics.metaSp}, Purchases: ${metrics.metaConv}` : ''}
 
@@ -76,7 +76,7 @@ IMPORTANT FRAMING RULES:
 - Only flag something as a concern if it's BOTH poor AND not improving vs prior
 - If ROAS is improving, say so — even if still below breakeven
 
-Write a 4-sentence executive summary: (1) brand + period + biggest headline, (2) 2-3 wins or improving trends with numbers, (3) one honest concern if applicable, (4) one specific action. Flowing prose, under 120 words.`
+Write a 4-sentence summary: (1) brand + period + biggest headline, (2) 2-3 wins or improving trends with numbers, (3) one honest concern if applicable, (4) one specific action. Flowing prose, under 120 words.`
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',

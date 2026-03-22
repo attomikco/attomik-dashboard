@@ -45,7 +45,7 @@ export default function AIInsights({ metrics, period, preset, orgName, platform 
               AI Insights
             </div>
             <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.55)', fontFamily: 'Barlow, sans-serif' }}>
-              Powered by Claude
+              Powered by Attomik
             </div>
           </div>
         </div>
