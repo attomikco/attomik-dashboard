@@ -28,20 +28,24 @@ export async function GET(request: Request) {
   )
 
   async function handleUser(user: any) {
-    const { data: invite } = await serviceClient
+    // Find ALL pending invites for this email
+    const { data: invites } = await serviceClient
       .from('invites')
       .select('org_id, role')
       .eq('email', user.email!)
       .eq('status', 'pending')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
 
-    if (invite) {
-      await serviceClient.from('profiles')
-        .update({ org_id: invite.org_id, role: invite.role })
-        .eq('id', user.id)
+    if (invites && invites.length > 0) {
+      // Add a membership for each pending invite
+      for (const invite of invites) {
+        await serviceClient.from('org_memberships').upsert({
+          user_id: user.id,
+          org_id: invite.org_id,
+          role: invite.role,
+        }, { onConflict: 'user_id,org_id', ignoreDuplicates: true })
+      }
 
+      // Mark all invites as accepted
       await serviceClient.from('invites')
         .update({ status: 'accepted' })
         .eq('email', user.email!)
@@ -53,16 +57,12 @@ export async function GET(request: Request) {
 
   if (code) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error && data.user) {
-      return handleUser(data.user)
-    }
+    if (!error && data.user) return handleUser(data.user)
   }
 
   if (token_hash && type) {
     const { data, error } = await supabase.auth.verifyOtp({ type: type as any, token_hash })
-    if (!error && data.user) {
-      return handleUser(data.user)
-    }
+    if (!error && data.user) return handleUser(data.user)
   }
 
   return NextResponse.redirect(new URL('/auth/login?error=auth_failed', requestUrl.origin))

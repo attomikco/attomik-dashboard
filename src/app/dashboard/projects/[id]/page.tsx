@@ -194,10 +194,18 @@ export default function ProjectDetailPage() {
     const { data: orgData } = await supabase.from('organizations').select('*').eq('id', id).single()
     setOrg(orgData)
     setChannels(orgData?.channels ?? {})
-    const { data: profileData } = await supabase.from('profiles').select('id, full_name, role, created_at, is_superadmin').eq('org_id', id)
-    const { data: superadmins } = await supabase.from('profiles').select('id, full_name, role, created_at, is_superadmin').eq('is_superadmin', true)
-    // Merge: org members + superadmins, deduplicated
-    const allMembers = [...(profileData ?? []), ...(superadmins ?? [])].filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i)
+    // Load members from org_memberships joined with profiles
+    const { data: membershipData } = await supabase
+      .from('org_memberships')
+      .select('user_id, role, created_at, profiles(id, full_name, is_superadmin)')
+      .eq('org_id', id)
+    const allMembers = (membershipData ?? []).map((m: any) => ({
+      id: m.user_id,
+      full_name: m.profiles?.full_name ?? null,
+      role: m.role,
+      created_at: m.created_at,
+      is_superadmin: m.profiles?.is_superadmin ?? false,
+    }))
     setMembers(allMembers)
     const { data: inviteData } = await supabase.from('invites').select('*').eq('org_id', id).eq('status', 'pending').order('created_at', { ascending: false })
     setInvites(inviteData ?? [])
@@ -236,9 +244,9 @@ export default function ProjectDetailPage() {
     setInviting(false)
   }
 
-  const handleRemoveMember = async (profileId: string) => {
+  const handleRemoveMember = async (userId: string) => {
     if (!confirm('Remove this member from the project?')) return
-    await supabase.from('profiles').update({ org_id: null, role: 'viewer' }).eq('id', profileId)
+    await supabase.from('org_memberships').delete().eq('user_id', userId).eq('org_id', id)
     fetchData()
   }
 

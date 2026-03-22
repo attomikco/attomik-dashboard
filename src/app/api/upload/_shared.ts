@@ -7,12 +7,28 @@ export async function getOrgId(request: Request): Promise<{ orgId: string | null
   if (!user) return { orgId: null, error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
 
   const { data: profile } = await supabase
-    .from('profiles').select('org_id, is_superadmin').eq('id', user.id).single()
+    .from('profiles').select('is_superadmin').eq('id', user.id).single()
 
-  let orgId = profile?.org_id ?? null
+  let orgId: string | null = null
+
   if (profile?.is_superadmin) {
+    // Superadmin: use active org from header
+    orgId = request.headers.get('x-active-org')
+  } else {
+    // Regular user: get their first membership (caller should pass x-active-org if multi-org)
     const activeOrgId = request.headers.get('x-active-org')
-    if (activeOrgId) orgId = activeOrgId
+    if (activeOrgId) {
+      // Verify they actually have membership in this org
+      const { data: membership } = await supabase
+        .from('org_memberships').select('org_id').eq('user_id', user.id).eq('org_id', activeOrgId).single()
+      orgId = membership?.org_id ?? null
+    }
+    if (!orgId) {
+      // Fall back to first membership
+      const { data: membership } = await supabase
+        .from('org_memberships').select('org_id').eq('user_id', user.id).limit(1).single()
+      orgId = membership?.org_id ?? null
+    }
   }
 
   if (!orgId) return { orgId: null, error: NextResponse.json({ error: 'No organization selected. Pick a client first.' }, { status: 400 }) }
@@ -33,7 +49,6 @@ export function parseCSV(text: string): { headers: string[]; rows: Record<string
     result.push(current.trim())
     return result
   }
-  // Strip BOM if present
   const firstLine = lines[0].replace(/^\uFEFF/, '')
   const headers = parseCSVLine(firstLine)
   const rows = lines.slice(1).map(line => {

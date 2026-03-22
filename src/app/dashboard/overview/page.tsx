@@ -87,16 +87,19 @@ export default function OverviewPage() {
     if (!user) return
 
     const { data: prof } = await supabase
-      .from('profiles').select('org_id, is_superadmin').eq('id', user.id).single()
+      .from('profiles').select('is_superadmin').eq('id', user.id).single()
 
     let orgList: { id: string; name: string; slug: string }[] = []
 
     if (prof?.is_superadmin) {
       const { data } = await supabase.from('organizations').select('id, name, slug').order('name')
       orgList = data ?? []
-    } else if (prof?.org_id) {
-      const { data } = await supabase.from('organizations').select('id, name, slug').eq('id', prof.org_id)
-      orgList = data ?? []
+    } else {
+      const { data: memberships } = await supabase
+        .from('org_memberships')
+        .select('org_id, organizations(id, name, slug)')
+        .eq('user_id', user.id)
+      orgList = (memberships ?? []).map((m: any) => m.organizations).filter(Boolean)
     }
 
     const initial: OrgKpi[] = orgList.map(o => ({

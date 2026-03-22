@@ -43,9 +43,10 @@ export default function Sidebar() {
   const loadData = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { data: prof } = await supabase.from('profiles').select('full_name, role, is_superadmin, org_id').eq('id', user.id).single()
+    const { data: prof } = await supabase.from('profiles').select('full_name, role, is_superadmin').eq('id', user.id).single()
     setProfile(prof)
     if (prof?.is_superadmin) {
+      // Superadmin sees all orgs
       const { data: allOrgs } = await supabase.from('organizations').select('id, name, slug').order('name')
       setOrgs(allOrgs ?? [])
       const savedOrgId = localStorage.getItem('activeOrgId')
@@ -53,9 +54,22 @@ export default function Sidebar() {
       const defaultOrg = found ?? allOrgs?.[0] ?? null
       setActiveOrg(defaultOrg)
       if (defaultOrg) localStorage.setItem('activeOrgId', defaultOrg.id)
-    } else if (prof?.org_id) {
-      const { data: org } = await supabase.from('organizations').select('id, name, slug').eq('id', prof.org_id).single()
-      if (org) { setOrgs([org]); setActiveOrg(org); localStorage.setItem('activeOrgId', org.id) }
+    } else {
+      // Regular user: load their memberships
+      const { data: memberships } = await supabase
+        .from('org_memberships')
+        .select('org_id, role, organizations(id, name, slug)')
+        .eq('user_id', user.id)
+      const memberOrgs = (memberships ?? [])
+        .map((m: any) => m.organizations)
+        .filter(Boolean)
+        .sort((a: any, b: any) => a.name.localeCompare(b.name))
+      setOrgs(memberOrgs)
+      const savedOrgId = localStorage.getItem('activeOrgId')
+      const found = memberOrgs.find((o: any) => o.id === savedOrgId)
+      const defaultOrg = found ?? memberOrgs[0] ?? null
+      setActiveOrg(defaultOrg)
+      if (defaultOrg) localStorage.setItem('activeOrgId', defaultOrg.id)
     }
   }
 
