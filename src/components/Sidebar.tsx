@@ -187,25 +187,26 @@ export default function Sidebar() {
       </button>
 
       {/* Mobile overlay */}
-      {mobileOpen && (
-        <div onClick={() => setMobileOpen(false)}
-          style={{ display: 'none', position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 98 }}
-          className="mobile-overlay" />
-      )}
+      <div onClick={() => setMobileOpen(false)}
+        style={{ display: mobileOpen ? 'block' : 'none', position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 99 }}
+      />
 
       {/* Sidebar */}
       <aside className={`sidebar-nav-wrapper ${mobileOpen ? 'mobile-open' : ''}`}
-        style={{ position: 'fixed', top: 0, left: 0, bottom: 0, width: 'var(--sidebar-w)', background: 'var(--ink)', display: 'flex', flexDirection: 'column', zIndex: 100, borderRight: '1px solid rgba(255,255,255,0.06)', transition: 'transform 0.25s ease' }}>
+        style={{ position: 'fixed', top: 0, left: 0, bottom: 0, width: 260, background: 'var(--ink)', display: 'flex', flexDirection: 'column', zIndex: 100, borderRight: '1px solid rgba(255,255,255,0.06)', transition: 'transform 0.25s ease' }}>
         {sidebarContent}
       </aside>
 
       <style>{`
         @media (max-width: 768px) {
-          .mobile-menu-btn { display: flex !important; }
-          .mobile-overlay { display: block !important; }
-          .sidebar-nav-wrapper { transform: translateX(-100%); }
-          .sidebar-nav-wrapper.mobile-open { transform: translateX(0); }
+          .mobile-menu-btn { display: flex !important; align-items: center; justify-content: center; }
+          .sidebar-nav-wrapper { transform: translateX(-260px) !important; }
+          .sidebar-nav-wrapper.mobile-open { transform: translateX(0) !important; }
           .mobile-close { display: flex !important; }
+        }
+        @media (min-width: 769px) {
+          .mobile-menu-btn { display: none !important; }
+          .sidebar-nav-wrapper { transform: none !important; }
         }
       `}</style>
     </>
