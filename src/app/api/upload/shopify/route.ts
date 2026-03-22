@@ -68,22 +68,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No valid orders found in this file.' }, { status: 400 })
     }
 
+    // Deduplicate by external_id in case CSV has multiple rows per order
+    const deduped = Object.values(
+      records.reduce((acc: any, r) => { acc[r.external_id] = r; return acc }, {})
+    )
+
     const serviceClient = createServiceClient()
 
     const { data, error: dbError } = await serviceClient
       .from('orders')
-      .upsert(records, { onConflict: 'external_id', ignoreDuplicates: false })
+      .upsert(deduped as any[], { onConflict: 'external_id', ignoreDuplicates: false })
       .select('id')
     if (dbError) throw dbError
 
-    const totalRevenue  = records.reduce((s, r) => s + r.total_price, 0)
-    const totalDiscount = records.reduce((s, r) => s + r.discount_amount, 0)
-    const totalRefunded = records.reduce((s, r) => s + r.refunded_amount, 0)
+    const totalRevenue  = (deduped as any[]).reduce((s: number, r: any) => s + r.total_price, 0)
+    const totalDiscount = (deduped as any[]).reduce((s: number, r: any) => s + r.discount_amount, 0)
+    const totalRefunded = (deduped as any[]).reduce((s: number, r: any) => s + r.refunded_amount, 0)
 
     return NextResponse.json({
       inserted: data?.length ?? records.length,
       skipped: records.length - (data?.length ?? records.length),
-      orders: records.length,
+      orders: (deduped as any[]).length,
       total_revenue: `$${totalRevenue.toFixed(2)}`,
       total_discounts: `$${totalDiscount.toFixed(2)}`,
       total_refunded: `$${totalRefunded.toFixed(2)}`,
