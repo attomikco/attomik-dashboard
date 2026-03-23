@@ -17,6 +17,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         router.push('/auth/login')
       } else {
         setReady(true)
+        // Update joined status + last_seen on every dashboard load
+        // This handles users who get added to new projects while already logged in
+        fetch('/api/auth/track', { method: 'POST' }).catch(() => {})
       }
     })
 

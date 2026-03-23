@@ -75,13 +75,18 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'This user already has access to this project' }, { status: 400 })
       }
 
-      // Add membership
+      // If they've signed in before (last_sign_in_at exists), mark as joined immediately
+      // They're already using the dashboard — no need to wait for link click
+      const alreadyActive = !!existingUser.last_sign_in_at
+      const now = new Date().toISOString()
       await serviceClient.from('org_memberships').insert({
         user_id: existingUser.id,
         org_id,
         role,
-        status: 'invited',
-        invited_at: new Date().toISOString(),
+        status: alreadyActive ? 'joined' : 'invited',
+        invited_at: now,
+        joined_at: alreadyActive ? now : null,
+        last_seen_at: alreadyActive ? existingUser.last_sign_in_at : null,
       })
 
       if (full_name) {
