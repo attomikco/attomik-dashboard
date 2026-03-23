@@ -30,6 +30,7 @@ interface OrgKpi {
   id: string
   name: string
   slug: string
+  timezone?: string
   revenue: number
   prevRevenue: number
   orders: number
@@ -92,12 +93,12 @@ export default function OverviewPage() {
     let orgList: { id: string; name: string; slug: string }[] = []
 
     if (prof?.is_superadmin) {
-      const { data } = await supabase.from('organizations').select('id, name, slug').order('name')
+      const { data } = await supabase.from('organizations').select('id, name, slug, timezone').order('name')
       orgList = data ?? []
     } else {
       const { data: memberships } = await supabase
         .from('org_memberships')
-        .select('org_id, organizations(id, name, slug)')
+        .select('org_id, organizations(id, name, slug, timezone)')
         .eq('user_id', user.id)
       orgList = (memberships ?? []).map((m: any) => m.organizations).filter(Boolean)
     }
@@ -122,16 +123,31 @@ export default function OverviewPage() {
 
     await Promise.all(orgList.map(async (org) => {
       try {
+        const tz = (org as any).timezone ?? 'America/New_York'
+        const toUTC = (dateStr: string, endOfDay = false) => {
+          const time = endOfDay ? '23:59:59' : '00:00:00'
+          const utcMidnight = new Date(`${dateStr}T${time}Z`)
+          const fmt = new Intl.DateTimeFormat('en-US', {
+            timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+          })
+          const parts = fmt.formatToParts(utcMidnight)
+          const p = Object.fromEntries(parts.filter(x => x.type !== 'literal').map(x => [x.type, x.value]))
+          const localAtUTCMidnight = new Date(`${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}`)
+          const targetLocal = new Date(`${dateStr}T${time}`)
+          const diffMs = targetLocal.getTime() - localAtUTCMidnight.getTime()
+          return new Date(utcMidnight.getTime() + diffMs).toISOString()
+        }
         const [curOrders, prevOrders, curSpend, prevSpend] = await Promise.all([
-          supabase.from('orders').select('total_price, status, subtotal')
+          supabase.from('orders').select('total_price, status')
             .eq('org_id', org.id)
-            .gte('created_at', `${curStart}T00:00:00Z`)
-            .lte('created_at', `${curEnd}T23:59:59Z`)
+            .gte('created_at', toUTC(curStart, false))
+            .lte('created_at', toUTC(curEnd, true))
             .limit(5000),
-          supabase.from('orders').select('total_price, status, subtotal')
+          supabase.from('orders').select('total_price, status')
             .eq('org_id', org.id)
-            .gte('created_at', `${prevStart}T00:00:00Z`)
-            .lte('created_at', `${prevEnd}T23:59:59Z`)
+            .gte('created_at', toUTC(prevStart, false))
+            .lte('created_at', toUTC(prevEnd, true))
             .limit(5000),
           supabase.from('ad_spend').select('spend')
             .eq('org_id', org.id).gte('date', curStart).lte('date', curEnd),
@@ -142,8 +158,8 @@ export default function OverviewPage() {
         const cur  = (curOrders.data  ?? []).filter(o => o.status !== 'refunded')
         const prev = (prevOrders.data ?? []).filter(o => o.status !== 'refunded')
 
-        const revenue     = cur.reduce((s, o)  => s + Number(o.subtotal || o.total_price || 0), 0)
-        const prevRevenue = prev.reduce((s, o) => s + Number(o.subtotal || o.total_price || 0), 0)
+        const revenue     = cur.reduce((s, o)  => s + Number(o.total_price || 0), 0)
+        const prevRevenue = prev.reduce((s, o) => s + Number(o.total_price || 0), 0)
         const orders      = cur.length
         const prevOrdCnt  = prev.length
         const aov         = orders > 0 ? revenue / orders : 0
