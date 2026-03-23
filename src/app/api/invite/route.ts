@@ -75,18 +75,19 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'This user already has access to this project' }, { status: 400 })
       }
 
-      // If they've signed in before (last_sign_in_at exists), mark as joined immediately
-      // They're already using the dashboard — no need to wait for link click
-      const alreadyActive = !!existingUser.last_sign_in_at
+      // Only mark as joined immediately if they signed in very recently (last 7 days)
+      // Someone who was removed and re-invited should start as 'invited' again
+      const lastSignIn = existingUser.last_sign_in_at ? new Date(existingUser.last_sign_in_at) : null
+      const recentlyActive = lastSignIn ? (Date.now() - lastSignIn.getTime()) < 7 * 24 * 60 * 60 * 1000 : false
       const now = new Date().toISOString()
       await serviceClient.from('org_memberships').insert({
         user_id: existingUser.id,
         org_id,
         role,
-        status: alreadyActive ? 'joined' : 'invited',
+        status: recentlyActive ? 'joined' : 'invited',
         invited_at: now,
-        joined_at: alreadyActive ? now : null,
-        last_seen_at: alreadyActive ? existingUser.last_sign_in_at : null,
+        joined_at: recentlyActive ? now : null,
+        last_seen_at: recentlyActive ? existingUser.last_sign_in_at : null,
       })
 
       if (full_name) {
