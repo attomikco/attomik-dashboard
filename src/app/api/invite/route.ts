@@ -182,6 +182,18 @@ export async function POST(request: Request) {
       status: 'pending',
     }, { onConflict: 'email,org_id' })
 
+    // Also create org_membership so the user appears in member lists immediately
+    const newUserId = inviteData.user?.id
+    if (newUserId) {
+      await serviceClient.from('org_memberships').upsert({
+        user_id: newUserId,
+        org_id,
+        role,
+        status: 'invited',
+        invited_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,org_id' })
+    }
+
     if (full_name) {
       const { data: { users: updated } } = await serviceClient.auth.admin.listUsers()
       const created = updated?.find(u => u.email === email)
