@@ -186,7 +186,7 @@ export default function ProductsBreakdownPage() {
                         {p.product}
                       </div>
                       <div style={{ flex: 1, height: 24, background: '#f0f0f0', borderRadius: 4, overflow: 'hidden' }}>
-                        <div style={{ width: maxUnits > 0 ? `${(p.units / maxUnits) * 100}%` : '0%', height: '100%', background: '#a78bfa', borderRadius: 4, transition: 'width 0.3s ease' }} />
+                        <div style={{ width: maxUnits > 0 ? `${(p.units / maxUnits) * 100}%` : '0%', height: '100%', background: '#000', borderRadius: 4, transition: 'width 0.3s ease' }} />
                       </div>
                       <div style={{ fontFamily: 'Barlow, sans-serif', fontSize: '0.82rem', fontWeight: 700, minWidth: 50, textAlign: 'right', flexShrink: 0 }}>
                         {fmtN(p.units)}
