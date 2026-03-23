@@ -931,18 +931,18 @@ export default function AnalyticsPage() {
             <KpiCard label="Returning Customer Rate"             value={fmtPct(d.shRcrC)} change={pct(d.shRcrC, d.shRcrP)} />
             <KpiCard label="CAC"                     value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors />
           </div>
-          {d.monthlyRetention?.length > 0 && (<>
-            <ChartCard title="Customer Retention" subtitle="Returning (green) vs New (gray) customers · Return rate line · Last 6 months">
-              <RetentionChart data={d.monthlyRetention} />
-            </ChartCard>
-            <div style={{ marginTop: 16 }}>
-              <ChartCard title="Returning Customers Growth" subtitle="Number of returning customers per month · Last 6 months">
-                <div style={{ width: '100%', height: 180 }}>
+          {d.monthlyRetention?.length > 0 && (
+            <div className="chart-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <ChartCard title="Customer Retention" subtitle="Returning (green) vs New (gray) · Return rate line">
+                <RetentionChart data={d.monthlyRetention} />
+              </ChartCard>
+              <ChartCard title="Returning Customers Growth" subtitle="Returning customers per month">
+                <div style={{ width: '100%', height: 220 }}>
                   <ReturnGrowthChart data={d.monthlyRetention} />
                 </div>
               </ChartCard>
             </div>
-          </>)}
+          )}
           <div style={{ marginBottom: 32 }} />
 
           {/* ── TRAFFIC (GA4) ── */}
