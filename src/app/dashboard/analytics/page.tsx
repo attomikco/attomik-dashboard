@@ -439,8 +439,17 @@ export default function AnalyticsPage() {
     const subCustsP = new Set(subOrdsP.map(o => o.customer_email).filter(Boolean)).size
     const subPctRevC = totalRevC > 0 ? (subRevC / totalRevC) * 100 : 0
     const subPctRevP = totalRevP > 0 ? (subRevP / totalRevP) * 100 : 0
+    const subAovC = subCountC > 0 ? subRevC / subCountC : 0
+    const subAovP = subCountP > 0 ? subRevP / subCountP : 0
+    const subRevPerCustC = subCustsC > 0 ? subRevC / subCustsC : 0
+    const subRevPerCustP = subCustsP > 0 ? subRevP / subCustsP : 0
+    // Sub LTV: ACL (2) × AOV × frequency (orders per subscriber)
+    const subFreqC = subCustsC > 0 ? subCountC / subCustsC : 0
+    const subFreqP = subCustsP > 0 ? subCountP / subCustsP : 0
+    const subLtvC = 2 * subAovC * subFreqC
+    const subLtvP = 2 * subAovP * subFreqP
 
-    // Monthly subscription data for churn calculation (last 6 months)
+    // Monthly subscription data (last 6 months)
     const monthlySubscribers: { month: string; subscribers: number; revenue: number; pctOfRev: number }[] = []
     for (let m = 5; m >= 0; m--) {
       const dt = new Date(); dt.setMonth(dt.getMonth() - m)
@@ -665,7 +674,8 @@ export default function AnalyticsPage() {
       metaSpC, metaSpP, metaImprC, metaImprP, metaClkC, metaClkP, metaConvC, metaConvP, metaRoasC, metaRoasP,
       weekRevs, weekSpend, weekOrders, weekCac, weekAov, weekRoas, weekNewCusts, weekRetCusts, weekRetRate,
       monthlyRetention,
-      subRevC, subRevP, subCountC, subCountP, subCustsC, subCustsP, subPctRevC, subPctRevP, monthlySubscribers,
+      subRevC, subRevP, subCountC, subCountP, subCustsC, subCustsP, subPctRevC, subPctRevP,
+      subAovC, subAovP, subRevPerCustC, subRevPerCustP, subLtvC, subLtvP, monthlySubscribers,
     })
     setLoading(false)
   }
@@ -963,6 +973,20 @@ export default function AnalyticsPage() {
             { label: 'Sub. Orders', value: fmtN(d.subCountC), sub: d.subCountP > 0 ? chg(d.subCountC, d.subCountP) : '' },
             { label: 'Subscribers', value: fmtN(d.subCustsC), sub: d.subCustsP > 0 ? chg(d.subCustsC, d.subCustsP) : '' },
           ]} />
+          <MetricRow items={[
+            { label: 'Sub. AOV', value: fmt$(d.subAovC), sub: d.subAovP > 0 ? chg(d.subAovC, d.subAovP) : '' },
+            { label: 'Rev / Subscriber', value: fmt$(d.subRevPerCustC), sub: d.subRevPerCustP > 0 ? chg(d.subRevPerCustC, d.subRevPerCustP) : '' },
+            { label: 'Sub. LTV', value: fmt$(d.subLtvC), sub: d.subLtvP > 0 ? chg(d.subLtvC, d.subLtvP) : '', desc: 'ACL (2) × AOV × Frequency' },
+          ]} />
+          {d.monthlySubscribers?.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <ChartCard title="Monthly Subscribers" subtitle="Unique subscription customers per month · Last 6 months">
+                <div style={{ width: '100%', height: 180 }}>
+                  <ReturnGrowthChart data={d.monthlySubscribers.map((m: any) => ({ month: m.month, returning: m.subscribers }))} />
+                </div>
+              </ChartCard>
+            </div>
+          )}
           </> }
 
           {/* ── AMAZON ── */}
