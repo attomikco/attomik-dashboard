@@ -332,6 +332,12 @@ export default function AnalyticsPage() {
     const retRevC = enabledOrders.filter(o => o.customer_email && prevEmails.has(o.customer_email)).reduce((s, o) => s + Number(o.total_price), 0)
     const newRevC  = enabledOrders.filter(o => o.customer_email && !prevEmails.has(o.customer_email)).reduce((s, o) => s + Number(o.total_price), 0)
 
+    // CLTV placeholder — AOV * purchase frequency (orders per customer)
+    const purchaseFreqC = totalCustC > 0 ? ordC / totalCustC : 0
+    const purchaseFreqP = newCustP > 0 ? ordP / newCustP : 0
+    const cltvC = aovC * purchaseFreqC
+    const cltvP = aovP * purchaseFreqP
+
     const shGrossC    = shopC.reduce((s, o) => s + (Number(o.subtotal)||0) + (Number(o.discount_amount)||0), 0)
     const shGrossP    = shopP.reduce((s, o) => s + (Number(o.subtotal)||0) + (Number(o.discount_amount)||0), 0)
     const shDiscountC = shopC.reduce((s, o) => s + Number(o.discount_amount||0), 0)
@@ -555,7 +561,7 @@ export default function AnalyticsPage() {
     setData({ showShopify, showAmazon, showMeta, showGoogle, showAds,
       totalRevC, totalRevP, totalSpC, totalSpP, roasC, roasP,
       ordC, ordP, aovC: finalAovC, aovP: finalAovP, cacC, cacP,
-      newCustC, newCustP, retCustC, totalCustC, rcrC, rcrP, retRevC, newRevC,
+      newCustC, newCustP, retCustC, totalCustC, rcrC, rcrP, retRevC, newRevC, cltvC, cltvP,
       shGrossC, shGrossP, shDiscountC, shDiscountP, shReturnsC, shReturnsP,
       shNetC, shNetP, shShippingC, shShippingP, shTaxC, shTaxP, shTotalC, shTotalP,
       shOrdC, shOrdP, shCustC, shCustP, shAovC, shAovP,
@@ -632,26 +638,42 @@ export default function AnalyticsPage() {
           </div>
 
           {/* ── SALES BY CHANNEL ── */}
-          {(d.shTotalC > 0 || d.amzRevC > 0) && (
+          {(d.shTotalC > 0 || d.amzRevC > 0) && (() => {
+            const shPctC = d.totalRevC > 0 ? (d.shTotalC / d.totalRevC * 100) : 0
+            const shPctP = d.totalRevP > 0 ? (d.shTotalP / d.totalRevP * 100) : 0
+            const amzPctC = d.totalRevC > 0 ? (d.amzRevC / d.totalRevC * 100) : 0
+            const amzPctP = d.totalRevP > 0 ? (d.amzRevP / d.totalRevP * 100) : 0
+            return (
+              <MetricRow items={[
+                ...(d.shTotalC > 0 ? [{
+                  label: 'Shopify',
+                  value: fmt$(d.shTotalC),
+                  sub: d.shTotalP > 0 ? chg(d.shTotalC, d.shTotalP) : '',
+                }] : []),
+                ...(d.shTotalC > 0 && d.totalRevC > 0 ? [{
+                  label: 'Shopify % of Total',
+                  value: `${shPctC.toFixed(1)}%`,
+                  sub: shPctP > 0 ? chg(shPctC, shPctP) : '',
+                }] : []),
+                ...(d.amzRevC > 0 ? [{
+                  label: 'Amazon',
+                  value: fmt$(d.amzRevC),
+                  sub: d.amzRevP > 0 ? chg(d.amzRevC, d.amzRevP) : '',
+                }] : []),
+                ...(d.amzRevC > 0 && d.totalRevC > 0 ? [{
+                  label: 'Amazon % of Total',
+                  value: `${amzPctC.toFixed(1)}%`,
+                  sub: amzPctP > 0 ? chg(amzPctC, amzPctP) : '',
+                }] : []),
+              ]} />
+            )
+          })()}
+
+          {/* ── CLTV & CLTV/CAC ── */}
+          {d.aovC > 0 && (
             <MetricRow items={[
-              ...(d.shTotalC > 0 ? [{
-                label: 'Shopify',
-                value: fmt$(d.shTotalC),
-                sub: d.shTotalP > 0 ? chg(d.shTotalC, d.shTotalP) : '',
-              }] : []),
-              ...(d.shTotalC > 0 && d.totalRevC > 0 ? [{
-                label: 'Shopify % of Total',
-                value: `${(d.shTotalC / d.totalRevC * 100).toFixed(1)}%`,
-              }] : []),
-              ...(d.amzRevC > 0 ? [{
-                label: 'Amazon',
-                value: fmt$(d.amzRevC),
-                sub: d.amzRevP > 0 ? chg(d.amzRevC, d.amzRevP) : '',
-              }] : []),
-              ...(d.amzRevC > 0 && d.totalRevC > 0 ? [{
-                label: 'Amazon % of Total',
-                value: `${(d.amzRevC / d.totalRevC * 100).toFixed(1)}%`,
-              }] : []),
+              { label: 'CLTV', value: fmt$(d.cltvC), sub: d.cltvP > 0 ? chg(d.cltvC, d.cltvP) : '' },
+              ...(d.cacC > 0 ? [{ label: 'CLTV / CAC', value: `${(d.cltvC / d.cacC).toFixed(2)}x`, sub: d.cltvP > 0 && d.cacP > 0 ? chg(d.cltvC / d.cacC, d.cltvP / d.cacP) : '' }] : []),
             ]} />
           )}
 
