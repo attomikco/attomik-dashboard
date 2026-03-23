@@ -57,26 +57,44 @@ Write a 4-sentence summary: (1) brand + period + biggest headline (wins OR trend
 Period: ${periodLabel} (${period})
 Write in ${tenseNote}. Always mention the period label naturally.
 
-METRICS vs PRIOR PERIOD:
+OVERALL PERFORMANCE vs PRIOR PERIOD:
 - Total Sales: ${metrics.totalRev} (${Number(metrics.totalRevChg) > 0 ? '+' : ''}${metrics.totalRevChg}% vs prior)
-- Ad Spend: ${metrics.totalSp} (${Number(metrics.totalSpChg) > 0 ? '+' : ''}${metrics.totalSpChg}% vs prior)
-- ROAS: ${metrics.roas}x (was ${metrics.roasP}x prior)
+- Total Ad Spend: ${metrics.totalSp} (${Number(metrics.totalSpChg) > 0 ? '+' : ''}${metrics.totalSpChg}% vs prior)
+- Blended ROAS: ${metrics.roas}x (was ${metrics.roasP}x prior)
 - Orders: ${metrics.orders} (${Number(metrics.ordersChg) > 0 ? '+' : ''}${metrics.ordersChg}% vs prior)
 - AOV: ${metrics.aov} (${Number(metrics.aovChg) > 0 ? '+' : ''}${metrics.aovChg}% vs prior)
-- CAC: ${metrics.cac} (was ${metrics.cacChg}% change — lower is better)
+- CAC: ${metrics.cac} (${Number(metrics.cacChg) > 0 ? '+' : ''}${metrics.cacChg}% change — lower is better)
+
+SALES BY CHANNEL:
+${metrics.shopifyRev ? `- Shopify: ${metrics.shopifyRev} (${metrics.shopifyPctOfTotal}% of total${metrics.shopifyRevChg ? `, ${Number(metrics.shopifyRevChg) > 0 ? '+' : ''}${metrics.shopifyRevChg}% vs prior` : ''})
+  - Orders: ${metrics.shopifyOrders}, Customers: ${metrics.shopifyCust}, AOV: ${metrics.shopifyAov}
+  - Gross: ${metrics.shopifyGross}, Net: ${metrics.shopifyNet}, Discount Rate: ${metrics.discountRate}%, Refund Rate: ${metrics.refundRate}%${metrics.shopifyRoas ? `\n  - Shopify ROAS: ${metrics.shopifyRoas}x` : ''}` : '- Shopify: No data'}
+${metrics.amazonRev ? `- Amazon: ${metrics.amazonRev} (${metrics.amazonPctOfTotal}% of total${metrics.amazonRevChg ? `, ${Number(metrics.amazonRevChg) > 0 ? '+' : ''}${metrics.amazonRevChg}% vs prior` : ''})
+  - Units: ${metrics.amazonUnits}${metrics.amazonAov ? `, AOV: ${metrics.amazonAov}` : ''}` : ''}
+
+CUSTOMERS:
 - New Customers: ${metrics.newCust}
 - Returning Customers: ${metrics.retCust}
-- Return Rate: ${metrics.retRate}%
-${metrics.shopifyGross ? `- Gross Sales: ${metrics.shopifyGross}\n- Net Sales: ${metrics.shopifyNet}\n- Discount Rate: ${metrics.discountRate}%` : ''}
-${metrics.metaSp ? `- Meta Spend: ${metrics.metaSp}, Purchases: ${metrics.metaConv}` : ''}
+- Returning Customer Rate: ${metrics.retRate}%
+
+${metrics.cltv ? `UNIT ECONOMICS:
+- CLTV (Shopify): ${metrics.cltv}${metrics.cltvChg ? ` (${Number(metrics.cltvChg) > 0 ? '+' : ''}${metrics.cltvChg}% vs prior)` : ''}
+- CLTV/CAC Ratio: ${metrics.cltvCacRatio ? `${metrics.cltvCacRatio}x` : 'N/A'} (healthy = above 3x)` : ''}
+
+${metrics.metaSp ? `META ADS:
+- Meta Spend: ${metrics.metaSp}${metrics.metaSpChg ? ` (${Number(metrics.metaSpChg) > 0 ? '+' : ''}${metrics.metaSpChg}% vs prior)` : ''}
+- Meta ROAS: ${metrics.metaRoas ? `${metrics.metaRoas}x` : 'N/A'}
+- Impressions: ${metrics.metaImpr}, Clicks: ${metrics.metaClicks}, Purchases: ${metrics.metaConv}` : ''}
 
 IMPORTANT FRAMING RULES:
 - If a metric is low in absolute terms but improving vs prior, frame it as positive momentum
 - Always reference the direction of change, not just the current level
 - Only flag something as a concern if it's BOTH poor AND not improving vs prior
 - If ROAS is improving, say so — even if still below breakeven
+- Mention channel mix insights if multiple channels have data
+- Reference CLTV/CAC ratio health if available
 
-Write a 4-sentence summary: (1) brand + period + biggest headline, (2) 2-3 wins or improving trends with numbers, (3) one honest concern if applicable, (4) one specific action. Flowing prose, under 120 words.`
+Write a 4-sentence summary: (1) brand + period + biggest headline, (2) 2-3 wins or improving trends with numbers, (3) one honest concern if applicable, (4) one specific action. Flowing prose, under 150 words.`
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',

@@ -627,11 +627,36 @@ export default function AnalyticsPage() {
               cac: fmt$(d.cacC), cacChg: pct(d.cacC, d.cacP).toFixed(1),
               newCust: d.newCustC, retCust: d.retCustC,
               retRate: d.shRcrC.toFixed(1),
+              // Channel breakdown
+              shopifyRev: d.showShopify ? fmt$(d.shTotalC) : null,
+              shopifyRevP: d.showShopify ? fmt$(d.shTotalP) : null,
+              shopifyRevChg: d.shTotalP > 0 ? pct(d.shTotalC, d.shTotalP).toFixed(1) : null,
+              shopifyPctOfTotal: d.totalRevC > 0 ? (d.shTotalC / d.totalRevC * 100).toFixed(1) : null,
               shopifyGross: d.showShopify ? fmt$(d.shGrossC) : null,
               shopifyNet: d.showShopify ? fmt$(d.shNetC) : null,
+              shopifyOrders: d.shOrdC,
+              shopifyCust: d.shCustC,
+              shopifyAov: fmt$(d.shAovC),
+              shopifyRoas: d.shRoasC > 0 ? d.shRoasC.toFixed(2) : null,
               discountRate: d.shDiscRateC.toFixed(1),
+              refundRate: d.shRefRateC.toFixed(1),
+              // Amazon
+              amazonRev: d.showAmazon && d.amzRevC > 0 ? fmt$(d.amzRevC) : null,
+              amazonRevP: d.showAmazon && d.amzRevP > 0 ? fmt$(d.amzRevP) : null,
+              amazonRevChg: d.amzRevP > 0 ? pct(d.amzRevC, d.amzRevP).toFixed(1) : null,
+              amazonPctOfTotal: d.totalRevC > 0 && d.amzRevC > 0 ? (d.amzRevC / d.totalRevC * 100).toFixed(1) : null,
+              amazonUnits: d.amzUnitC,
+              amazonAov: d.amzAovC > 0 ? fmt$(d.amzAovC) : null,
+              // Ad Spend detail
               metaSp: d.showMeta ? fmt$(d.metaSpC) : null,
-              metaConv: d.metaConvC,
+              metaSpChg: d.metaSpP > 0 ? pct(d.metaSpC, d.metaSpP).toFixed(1) : null,
+              metaRoas: d.metaRoasC > 0 ? d.metaRoasC.toFixed(2) : null,
+              metaImpr: d.metaImprC, metaClicks: d.metaClkC, metaConv: d.metaConvC,
+              // CLTV
+              cltv: d.cltvC > 0 ? fmt$(d.cltvC) : null,
+              cltvP: d.cltvP > 0 ? fmt$(d.cltvP) : null,
+              cltvChg: d.cltvP > 0 ? pct(d.cltvC, d.cltvP).toFixed(1) : null,
+              cltvCacRatio: d.cltvC > 0 && d.cacC > 0 ? (d.cltvC / d.cacC).toFixed(2) : null,
             }}
           />
 
