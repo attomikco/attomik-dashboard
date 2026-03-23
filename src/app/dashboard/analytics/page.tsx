@@ -667,25 +667,21 @@ export default function AnalyticsPage() {
                   label: 'Shopify',
                   value: fmt$(d.shTotalC),
                   sub: d.shTotalP > 0 ? chg(d.shTotalC, d.shTotalP) : '',
-                  tooltip: 'Total revenue from Shopify orders in this period',
                 }] : []),
                 ...(d.shTotalC > 0 && d.totalRevC > 0 ? [{
                   label: 'Shopify % of Total',
                   value: `${shPctC.toFixed(1)}%`,
                   sub: shPctP > 0 ? chg(shPctC, shPctP) : '',
-                  tooltip: 'Shopify revenue as a percentage of total revenue across all channels',
                 }] : []),
                 ...(d.amzRevC > 0 ? [{
                   label: 'Amazon',
                   value: fmt$(d.amzRevC),
                   sub: d.amzRevP > 0 ? chg(d.amzRevC, d.amzRevP) : '',
-                  tooltip: 'Total revenue from Amazon orders in this period',
                 }] : []),
                 ...(d.amzRevC > 0 && d.totalRevC > 0 ? [{
                   label: 'Amazon % of Total',
                   value: `${amzPctC.toFixed(1)}%`,
                   sub: amzPctP > 0 ? chg(amzPctC, amzPctP) : '',
-                  tooltip: 'Amazon revenue as a percentage of total revenue across all channels',
                 }] : []),
               ]} />
             )
