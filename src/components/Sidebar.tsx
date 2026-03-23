@@ -6,15 +6,19 @@ import { createClient } from '@/lib/supabase/client'
 import { BarChart2, Users, Upload, Settings, LogOut, Building2, ChevronDown, FolderOpen, TrendingUp, Menu, X, LayoutGrid } from 'lucide-react'
 
 const navItems = [
-  { label: 'Overview',   href: '/dashboard/overview',  icon: LayoutGrid },
-  { label: 'Analytics',  href: '/dashboard/analytics', icon: BarChart2 },
-  { label: 'Meta Ads',   href: '/dashboard/meta',      icon: TrendingUp },
-  { label: 'Import CSV', href: '/dashboard/import',    icon: Upload },
-  { label: 'Settings',   href: '/dashboard/settings',  icon: Settings },
+  { label: 'Overview',   href: '/dashboard/overview',  icon: LayoutGrid,  minRole: 'viewer' },
+  { label: 'Analytics',  href: '/dashboard/analytics', icon: BarChart2,   minRole: 'viewer' },
+  { label: 'Meta Ads',   href: '/dashboard/meta',      icon: TrendingUp,  minRole: 'viewer' },
+  { label: 'Import CSV', href: '/dashboard/import',    icon: Upload,      minRole: 'member' },
+  { label: 'Settings',   href: '/dashboard/settings',  icon: Settings,    minRole: 'admin'  },
 ]
+const ROLE_RANK: Record<string, number> = { viewer: 0, member: 1, admin: 2 }
+function canAccess(userRole: string, minRole: string) {
+  return (ROLE_RANK[userRole] ?? 0) >= (ROLE_RANK[minRole] ?? 0)
+}
 
 interface Org { id: string; name: string; slug: string }
-interface Profile { full_name: string | null; role: string; is_superadmin: boolean; org_id: string | null }
+interface Profile { full_name: string | null; role: string; is_superadmin: boolean; org_id: string | null; memberRole?: string }
 
 export default function Sidebar() {
   const pathname = usePathname()
@@ -70,6 +74,11 @@ export default function Sidebar() {
       const defaultOrg = found ?? memberOrgs[0] ?? null
       setActiveOrg(defaultOrg)
       if (defaultOrg) localStorage.setItem('activeOrgId', defaultOrg.id)
+      // Store highest role across all orgs for nav visibility
+      const highestRole = (memberships ?? []).reduce((best: string, m: any) => {
+        return (ROLE_RANK[m.role] ?? 0) > (ROLE_RANK[best] ?? 0) ? m.role : best
+      }, 'viewer')
+      setProfile(prev => prev ? { ...prev, memberRole: highestRole } : prev)
     }
   }
 
@@ -145,7 +154,11 @@ export default function Sidebar() {
 
       {/* Nav */}
       <div style={{ flex: 1, padding: '8px 0', overflowY: 'auto' }}>
-        {navItems.map(({ label, href, icon: Icon }) => {
+        {navItems.filter(({ minRole }) => {
+          if (profile?.is_superadmin) return true
+          const role = profile?.memberRole ?? profile?.role ?? 'viewer'
+          return canAccess(role, minRole)
+        }).map(({ label, href, icon: Icon }) => {
           const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
           return (
             <button key={href} onClick={() => router.push(href)}
