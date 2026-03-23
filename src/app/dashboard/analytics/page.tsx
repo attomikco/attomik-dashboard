@@ -743,6 +743,13 @@ export default function AnalyticsPage() {
               cltvP: d.cltvP > 0 ? fmt$(d.cltvP) : null,
               cltvChg: d.cltvP > 0 ? pct(d.cltvC, d.cltvP).toFixed(1) : null,
               cltvCacRatio: d.cltvC > 0 && d.cacC > 0 ? (d.cltvC / d.cacC).toFixed(2) : null,
+              // Subscriptions
+              subRev: d.subRevC > 0 ? fmt$(d.subRevC) : null,
+              subRevChg: d.subRevP > 0 ? pct(d.subRevC, d.subRevP).toFixed(1) : null,
+              subOrders: d.subCountC,
+              subOrdersChg: d.subCountP > 0 ? pct(d.subCountC, d.subCountP).toFixed(1) : null,
+              subCusts: d.subCustsC,
+              subPctRev: d.subPctRevC > 0 ? d.subPctRevC.toFixed(1) : null,
             }}
           />
 
@@ -781,6 +788,12 @@ export default function AnalyticsPage() {
               convRateSessions: trafficData && trafficData.sessions > 0 ? (d.ordC / trafficData.sessions * 100).toFixed(2) : null,
               convRateUsers: trafficData && trafficData.users > 0 ? (d.ordC / trafficData.users * 100).toFixed(2) : null,
               convRateNewUsers: trafficData && trafficData.newUsers > 0 ? (d.ordC / trafficData.newUsers * 100).toFixed(2) : null,
+              // Subscriptions
+              subRev: d.subRevC > 0 ? fmt$(d.subRevC) : null,
+              subRevChg: d.subRevP > 0 ? pct(d.subRevC, d.subRevP).toFixed(1) : null,
+              subOrders: d.subCountC,
+              subCusts: d.subCustsC,
+              subPctRev: d.subPctRevC > 0 ? d.subPctRevC.toFixed(1) : null,
             }}
           />
 

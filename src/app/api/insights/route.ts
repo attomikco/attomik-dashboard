@@ -108,6 +108,11 @@ ${metrics.metaSp ? `META ADS:
 - Meta ROAS: ${metrics.metaRoas ? `${metrics.metaRoas}x` : 'N/A'}
 - Impressions: ${metrics.metaImpr}, Clicks: ${metrics.metaClicks}, Purchases: ${metrics.metaConv}` : ''}
 
+${metrics.subRev ? `SUBSCRIPTIONS:
+- Subscription Revenue: ${metrics.subRev} (${metrics.subPctRev}% of total${metrics.subRevChg ? `, ${Number(metrics.subRevChg) > 0 ? '+' : ''}${metrics.subRevChg}% vs prior` : ''})
+- Subscription Orders: ${metrics.subOrders}${metrics.subOrdersChg ? ` (${Number(metrics.subOrdersChg) > 0 ? '+' : ''}${metrics.subOrdersChg}%)` : ''}
+- Subscribers: ${metrics.subCusts}` : ''}
+
 IMPORTANT FRAMING RULES:
 - Focus on GROWTH and TRAJECTORY — what's improving, what's trending up
 - Always lead with wins and positive momentum

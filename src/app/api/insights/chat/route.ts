@@ -63,6 +63,10 @@ ${metrics.trafficSessions ? `TRAFFIC (GA4):
 - Conv. Rate (Users): ${metrics.convRateUsers ?? 'N/A'}%
 - Conv. Rate (New Users): ${metrics.convRateNewUsers ?? 'N/A'}%` : ''}
 
+${metrics.subRev ? `SUBSCRIPTIONS:
+- Revenue: ${metrics.subRev} (${metrics.subPctRev}% of total${metrics.subRevChg ? `, ${fmtChg(metrics.subRevChg)}` : ''})
+- Orders: ${metrics.subOrders}, Subscribers: ${metrics.subCusts}` : ''}
+
 TONE RULES:
 - Be positive but grounded — no hype, no exclamation marks
 - Note improvements naturally ("sales are up 12%" not "sales are CRUSHING it!")
