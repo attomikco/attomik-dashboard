@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { UserPlus, Trash2, ArrowLeft, Building2, CheckCircle, AlertCircle } from 'lucide-react'
 
-interface Member { id: string; full_name: string | null; role: string; created_at: string; is_superadmin?: boolean }
+interface Member { id: string; full_name: string | null; email: string | null; role: string; status: string; invited_at: string | null; joined_at: string | null; last_seen_at: string | null; is_superadmin?: boolean }
 interface Org { id: string; name: string; slug: string; created_at: string; shopify_domain: string | null; meta_ad_account_id: string | null; channels: Record<string, boolean>; timezone: string | null; logo_url: string | null; header_url: string | null }
 interface PendingInvite { id: string; email: string; role: string; created_at: string; status: string }
 
@@ -381,7 +381,7 @@ export default function ProjectDetailPage() {
               ) : (
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr>{['Member', 'Role', 'Joined', ''].map(h => <th key={h} style={{ padding: '10px 24px', background: '#f2f2f2', fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#666', textAlign: 'left', fontFamily: 'Barlow, sans-serif' }}>{h}</th>)}</tr>
+                    <tr>{['Member', 'Role', 'Status', 'Last seen', ''].map(h => <th key={h} style={{ padding: '10px 24px', background: '#f2f2f2', fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#666', textAlign: 'left', fontFamily: 'Barlow, sans-serif' }}>{h}</th>)}</tr>
                   </thead>
                   <tbody>
                     {members.map(m => (
@@ -389,19 +389,34 @@ export default function ProjectDetailPage() {
                         <td style={{ padding: '13px 24px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f2f2f2', display: 'grid', placeItems: 'center', fontSize: '0.75rem', fontWeight: 700, color: '#666', flexShrink: 0 }}>
-                              {(m.full_name || 'U').slice(0, 2).toUpperCase()}
+                              {(m.full_name || m.email || 'U').slice(0, 2).toUpperCase()}
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <div style={{ fontSize: '0.875rem', fontWeight: 500, fontFamily: 'Barlow, sans-serif' }}>{m.full_name || 'Unnamed user'}</div>
-                              {m.is_superadmin && <span style={{ fontSize: '0.65rem', fontWeight: 700, background: '#000', color: '#00ff97', padding: '2px 6px', borderRadius: 4, letterSpacing: '0.05em', fontFamily: 'Barlow, sans-serif' }}>ATTOMIK</span>}
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{ fontSize: '0.875rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif' }}>{m.full_name || m.email || 'Unnamed user'}</div>
+                                {m.is_superadmin && <span style={{ fontSize: '0.65rem', fontWeight: 700, background: '#000', color: '#00ff97', padding: '2px 6px', borderRadius: 4, letterSpacing: '0.05em', fontFamily: 'Barlow, sans-serif' }}>ATTOMIK</span>}
+                              </div>
+                              {m.full_name && m.email && <div style={{ fontSize: '0.72rem', color: '#999', fontFamily: 'DM Mono, monospace', marginTop: 2 }}>{m.email}</div>}
                             </div>
                           </div>
                         </td>
                         <td style={{ padding: '13px 24px' }}>
                           <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: m.role === 'admin' ? '#000' : '#f2f2f2', color: m.role === 'admin' ? '#00ff97' : '#666', fontFamily: 'Barlow, sans-serif', textTransform: 'uppercase' }}>{m.role}</span>
                         </td>
-                        <td style={{ padding: '13px 24px', fontSize: '0.875rem', color: '#999', fontFamily: 'Barlow, sans-serif' }}>
-                          {new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        <td style={{ padding: '13px 24px' }}>
+                          <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 20, fontFamily: 'Barlow, sans-serif',
+                            background: m.status === 'joined' ? '#e6fff5' : '#fff8e1',
+                            color: m.status === 'joined' ? '#007a48' : '#b45309',
+                          }}>
+                            {m.status === 'joined' ? '✓ Joined' : '⏳ Invited'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '13px 24px', fontSize: '0.8rem', color: '#999', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap' }}>
+                          {m.last_seen_at
+                            ? new Date(m.last_seen_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                            : m.invited_at
+                              ? `Invited ${new Date(m.invited_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                              : '—'}
                         </td>
                         <td style={{ padding: '13px 24px', textAlign: 'right' }}>
                           <button onClick={() => handleRemoveMember(m.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', padding: 4, transition: '0.15s' }} onMouseEnter={e => (e.currentTarget.style.color = '#b91c1c')} onMouseLeave={e => (e.currentTarget.style.color = '#ccc')}>

@@ -28,6 +28,8 @@ export async function GET(request: Request) {
   )
 
   async function handleUser(user: any) {
+    const now = new Date().toISOString()
+
     // Find ALL pending invites for this email
     const { data: invites } = await serviceClient
       .from('invites')
@@ -36,20 +38,33 @@ export async function GET(request: Request) {
       .eq('status', 'pending')
 
     if (invites && invites.length > 0) {
-      // Add a membership for each pending invite
       for (const invite of invites) {
+        // Upsert membership
         await serviceClient.from('org_memberships').upsert({
           user_id: user.id,
           org_id: invite.org_id,
           role: invite.role,
-        }, { onConflict: 'user_id,org_id', ignoreDuplicates: true })
+          status: 'joined',
+          joined_at: now,
+          last_seen_at: now,
+        }, { onConflict: 'user_id,org_id' })
       }
 
-      // Mark all invites as accepted
+      // Mark invites accepted
       await serviceClient.from('invites')
         .update({ status: 'accepted' })
         .eq('email', user.email!)
         .eq('status', 'pending')
+    } else {
+      // Existing user signing in — update last_seen_at and mark joined on all their memberships
+      await serviceClient.from('org_memberships')
+        .update({ last_seen_at: now, status: 'joined', joined_at: now })
+        .eq('user_id', user.id)
+        .is('joined_at', null)
+
+      await serviceClient.from('org_memberships')
+        .update({ last_seen_at: now })
+        .eq('user_id', user.id)
     }
 
     return NextResponse.redirect(new URL(next, requestUrl.origin))

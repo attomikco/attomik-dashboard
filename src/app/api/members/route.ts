@@ -13,31 +13,38 @@ export async function GET(request: Request) {
 
     const serviceClient = createServiceClient()
 
-    // Fetch memberships
     const { data: memberships } = await serviceClient
       .from('org_memberships')
-      .select('user_id, role, created_at')
+      .select('user_id, role, status, invited_at, joined_at, last_seen_at')
       .eq('org_id', org_id)
+      .order('invited_at', { ascending: false })
 
     if (!memberships || memberships.length === 0) {
       return NextResponse.json({ members: [] })
     }
 
-    // Fetch profiles for all members
     const userIds = memberships.map(m => m.user_id)
     const { data: profiles } = await serviceClient
       .from('profiles')
       .select('id, full_name, is_superadmin')
       .in('id', userIds)
 
+    // Also get emails from auth.users via admin API
+    const { data: { users: authUsers } } = await serviceClient.auth.admin.listUsers()
+
     const members = memberships.map(m => {
       const profile = profiles?.find(p => p.id === m.user_id)
+      const authUser = authUsers?.find(u => u.id === m.user_id)
       return {
         id: m.user_id,
         full_name: profile?.full_name ?? null,
+        email: authUser?.email ?? null,
         is_superadmin: profile?.is_superadmin ?? false,
         role: m.role,
-        created_at: m.created_at,
+        status: m.status ?? 'joined',
+        invited_at: m.invited_at,
+        joined_at: m.joined_at,
+        last_seen_at: m.last_seen_at,
       }
     })
 
