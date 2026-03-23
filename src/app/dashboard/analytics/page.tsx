@@ -907,9 +907,9 @@ export default function AnalyticsPage() {
           {d.showAmazon && <SectionHeader title="Amazon" color="#00cc78" platform="amazon" />}
           {d.showAmazon && <>
           <MetricRow items={[
-            { label: 'Gross Sales',   value: fmt$(d.amzRevC),  sub: chg(d.amzRevC, d.amzRevP) },
-            { label: 'Units Ordered', value: fmtN(d.amzUnitC), sub: chg(d.amzUnitC, d.amzUnitP) },
-            { label: 'Days Reported', value: fmtN(d.amzDaysC) },
+            { label: 'Gross Sales',       value: fmt$(d.amzRevC),  sub: chg(d.amzRevC, d.amzRevP) },
+            { label: 'Total Order Items', value: fmtN(d.amzUnitC), sub: chg(d.amzUnitC, d.amzUnitP) },
+            { label: 'Days Reported',     value: fmtN(d.amzDaysC) },
             { label: 'AOV',           value: fmt$(d.amzAovC),  sub: chg(d.amzAovC, d.amzAovP) },
           ]} />
 
