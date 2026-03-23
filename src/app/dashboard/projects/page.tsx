@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { Building2, BarChart2, ChevronDown, ChevronRight, UserPlus, Trash2, CheckCircle, AlertCircle, X } from 'lucide-react'
+import { Building2, BarChart2, ChevronDown, ChevronRight, UserPlus, Trash2, CheckCircle, AlertCircle, X, Eye, Users } from 'lucide-react'
 
 const C = { ink: '#000', paper: '#fff', cream: '#f2f2f2', accent: '#00ff97', muted: '#666', border: '#e0e0e0' }
 
@@ -37,7 +37,10 @@ interface Org {
 }
 interface Member {
   id: string; full_name: string | null; email: string | null
-  role: string; status: string; invited_at: string | null; last_seen_at: string | null
+  role: string; status: string; invited_at: string | null; last_seen_at: string | null; is_superadmin?: boolean
+}
+interface TeamMember extends Member {
+  orgs: { id: string; name: string; role: string }[]
 }
 
 function fmtTime(ts: string | null) {
@@ -68,6 +71,9 @@ export default function ProjectsPage() {
   const [newSlug, setNewSlug] = useState('')
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [teamLoading, setTeamLoading] = useState(true)
+  const [showTeam, setShowTeam] = useState(true)
   const supabase = createClient()
   const router = useRouter()
 
@@ -87,6 +93,24 @@ export default function ProjectsPage() {
     setChannels(chMap)
     setSettingsState(sMap)
     setLoading(false)
+
+    // Fetch all members across all orgs for the team table
+    setTeamLoading(true)
+    const allMembers: Map<string, TeamMember> = new Map()
+    await Promise.all((data ?? []).map(async (org: Org) => {
+      const res = await fetch(`/api/members?org_id=${org.id}`)
+      const json = await res.json()
+      for (const m of (json.members ?? []) as Member[]) {
+        const existing = allMembers.get(m.id)
+        if (existing) {
+          existing.orgs.push({ id: org.id, name: org.name, role: m.role })
+        } else {
+          allMembers.set(m.id, { ...m, orgs: [{ id: org.id, name: org.name, role: m.role }] })
+        }
+      }
+    }))
+    setTeamMembers(Array.from(allMembers.values()).sort((a, b) => (a.full_name ?? a.email ?? '').localeCompare(b.full_name ?? b.email ?? '')))
+    setTeamLoading(false)
   }
 
   const toggleExpand = async (orgId: string) => {
@@ -231,6 +255,101 @@ export default function ProjectsPage() {
             </form>
           </div>
         )}
+
+        {/* Team table */}
+        <div style={{ marginBottom: 24 }}>
+          <button
+            onClick={() => setShowTeam(p => !p)}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 12px', fontFamily: 'Barlow, sans-serif' }}
+          >
+            <Users size={16} color={C.muted} />
+            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: C.ink, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Team {!teamLoading && `(${teamMembers.length})`}
+            </span>
+            <ChevronDown size={14} color={C.muted} style={{ transform: showTeam ? 'rotate(0)' : 'rotate(-90deg)', transition: '0.15s' }} />
+          </button>
+          {showTeam && (
+            teamLoading ? (
+              <div style={{ color: C.muted, fontSize: '0.8rem', fontFamily: 'Barlow, sans-serif', padding: '12px 0' }}>Loading team...</div>
+            ) : (
+              <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: C.cream }}>
+                      {['Member', 'Projects', 'Status', 'Last seen', ''].map(h => (
+                        <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.muted, fontFamily: 'Barlow, sans-serif', borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {teamMembers.map((m, i) => (
+                      <tr key={m.id} style={{ borderTop: i > 0 ? `1px solid ${C.border}` : 'none' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#fafafa')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                        <td style={{ padding: '12px 16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 30, height: 30, borderRadius: '50%', background: C.cream, display: 'grid', placeItems: 'center', fontSize: '0.68rem', fontWeight: 700, color: C.muted, flexShrink: 0 }}>
+                              {(m.full_name || m.email || 'U').slice(0, 2).toUpperCase()}
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif' }}>{m.full_name || m.email || 'Unnamed'}</span>
+                                {m.is_superadmin && <span style={{ fontSize: '0.6rem', fontWeight: 700, background: C.ink, color: C.accent, padding: '1px 5px', borderRadius: 4, letterSpacing: '0.05em', fontFamily: 'Barlow, sans-serif' }}>ATTOMIK</span>}
+                              </div>
+                              {m.full_name && m.email && <div style={{ fontSize: '0.7rem', color: '#aaa', fontFamily: 'DM Mono, monospace', marginTop: 1 }}>{m.email}</div>}
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                            {m.orgs.map(o => (
+                              <span key={o.id} style={{ fontSize: '0.68rem', fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: C.cream, color: C.ink, fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap', border: `1px solid ${C.border}` }}>
+                                {o.name} <span style={{ color: C.muted, fontWeight: 400 }}>· {o.role}</span>
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '2px 8px', borderRadius: 20, fontFamily: 'Barlow, sans-serif',
+                            background: m.status === 'joined' ? '#e6fff5' : '#fff8e1',
+                            color: m.status === 'joined' ? '#007a48' : '#b45309',
+                          }}>
+                            {m.status === 'joined' ? 'Joined' : 'Invited'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 16px', fontSize: '0.78rem', color: '#999', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap' }}>
+                          {m.last_seen_at
+                            ? new Date(m.last_seen_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+                            : m.invited_at
+                              ? `Invited ${new Date(m.invited_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                              : '—'}
+                        </td>
+                        <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                          {!m.is_superadmin && m.status === 'joined' && (
+                            <button
+                              onClick={() => {
+                                localStorage.setItem('viewAsUserId', m.id)
+                                localStorage.setItem('viewAsUserName', m.full_name || m.email || 'User')
+                                localStorage.setItem('activeOrgId', m.orgs[0].id)
+                                window.location.href = '/dashboard/analytics'
+                              }}
+                              title={`View as ${m.full_name || m.email}`}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', padding: 4, transition: '0.15s' }}
+                              onMouseEnter={e => (e.currentTarget.style.color = '#000')}
+                              onMouseLeave={e => (e.currentTarget.style.color = '#ccc')}
+                            >
+                              <Eye size={15} />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          )}
+        </div>
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: '80px 0', color: C.muted, fontFamily: 'Barlow, sans-serif' }}>Loading…</div>
