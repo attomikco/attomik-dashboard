@@ -166,12 +166,17 @@ export async function POST(request: Request) {
 
     if (fileType === 'orders') {
       const records = parseOrdersCSV(headers, rows, orgId)
-      const { data, error } = await serviceClient
-        .from('orders')
-        .upsert(records, { onConflict: 'external_id', ignoreDuplicates: true })
-        .select()
-      if (error) throw error
-      inserted = data?.length ?? records.length
+      const externalIds = records.map(r => r.external_id).filter(Boolean)
+      const { data: existing } = externalIds.length > 0
+        ? await serviceClient.from('orders').select('external_id').eq('org_id', orgId!).in('external_id', externalIds)
+        : { data: [] }
+      const existingSet = new Set((existing ?? []).map((r: any) => r.external_id))
+      const toInsert = records.filter(r => !r.external_id || !existingSet.has(r.external_id))
+      if (toInsert.length > 0) {
+        const { data, error } = await serviceClient.from('orders').insert(toInsert).select()
+        if (error) throw error
+        inserted = data?.length ?? toInsert.length
+      }
       skipped = records.length - inserted
 
     } else if (fileType === 'ad_spend') {

@@ -75,11 +75,26 @@ export async function POST(request: Request) {
 
     const serviceClient = createServiceClient()
 
-    const { data, error: dbError } = await serviceClient
+    // Fetch existing external_ids for this org to handle duplicates manually
+    const externalIds = (deduped as any[]).map((r: any) => r.external_id)
+    const { data: existing } = await serviceClient
       .from('orders')
-      .upsert(deduped as any[], { onConflict: 'external_id', ignoreDuplicates: false })
-      .select('id')
-    if (dbError) throw dbError
+      .select('external_id')
+      .eq('org_id', orgId!)
+      .in('external_id', externalIds)
+    const existingSet = new Set((existing ?? []).map((r: any) => r.external_id))
+
+    const toInsert = (deduped as any[]).filter((r: any) => !existingSet.has(r.external_id))
+
+    let data: any[] = []
+    if (toInsert.length > 0) {
+      const { data: inserted, error: dbError } = await serviceClient
+        .from('orders')
+        .insert(toInsert)
+        .select('id')
+      if (dbError) throw dbError
+      data = inserted ?? []
+    }
 
     const totalRevenue  = (deduped as any[]).reduce((s: number, r: any) => s + r.total_price, 0)
     const totalDiscount = (deduped as any[]).reduce((s: number, r: any) => s + r.discount_amount, 0)
