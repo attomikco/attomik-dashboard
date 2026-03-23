@@ -47,7 +47,7 @@ const C = {
   success: '#00cc78',
 }
 
-function KpiCard({ label, value, change, invertColors, subtitle }: { label: string; value: string; change?: number; invertColors?: boolean; subtitle?: string }) {
+function KpiCard({ label, value, change, invertColors, subtitle, children }: { label: string; value: string; change?: number; invertColors?: boolean; subtitle?: string; children?: React.ReactNode }) {
   const up = change === undefined ? null : change >= 0
   const isGood = up === null ? null : (invertColors ? !up : up)
   return (
@@ -66,6 +66,7 @@ function KpiCard({ label, value, change, invertColors, subtitle }: { label: stri
           {up ? '↑' : '↓'} {Math.abs(change).toFixed(1)}%
         </span>
       )}
+      {children}
     </div>
   )
 }
@@ -620,7 +621,22 @@ export default function AnalyticsPage() {
           {/* ── OVERVIEW KPIs ── */}
           <SectionHeader title="Overview" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
-            <KpiCard label="Total Sales"    value={fmt$(d.totalRevC)} change={pct(d.totalRevC, d.totalRevP)} />
+            <KpiCard label="Total Sales"    value={fmt$(d.totalRevC)} change={pct(d.totalRevC, d.totalRevP)}>
+              {d.totalRevC > 0 && (d.shTotalC > 0 || d.amzRevC > 0) && (
+                <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+                  {d.shTotalC > 0 && (
+                    <span style={{ fontSize: '0.72rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', padding: '2px 8px', borderRadius: 4, background: '#f0fdf4', color: '#166534' }}>
+                      Shopify {fmt$(d.shTotalC)} · {(d.shTotalC / d.totalRevC * 100).toFixed(0)}%
+                    </span>
+                  )}
+                  {d.amzRevC > 0 && (
+                    <span style={{ fontSize: '0.72rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', padding: '2px 8px', borderRadius: 4, background: '#fef3c7', color: '#92400e' }}>
+                      Amazon {fmt$(d.amzRevC)} · {(d.amzRevC / d.totalRevC * 100).toFixed(0)}%
+                    </span>
+                  )}
+                </div>
+              )}
+            </KpiCard>
             <KpiCard label="Total Ad Spend" value={fmt$(d.totalSpC)}  change={pct(d.totalSpC, d.totalSpP)} invertColors />
             <KpiCard label="ROAS"           value={fmtX(d.roasC)}     change={pct(d.roasC, d.roasP)} />
           </div>

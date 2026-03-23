@@ -74,14 +74,6 @@ function DeltaBadge({ value, invert = false }: { value: number; invert?: boolean
   )
 }
 
-function MiniBar({ value, max }: { value: number; max: number }) {
-  const w = max > 0 ? Math.min((value / max) * 100, 100) : 0
-  return (
-    <div style={{ width: '100%', height: 3, background: '#f0f0f0', borderRadius: 2, marginTop: 5 }}>
-      <div style={{ width: `${w}%`, height: '100%', background: C.accent, borderRadius: 2, transition: 'width 0.6s ease' }} />
-    </div>
-  )
-}
 
 export default function OverviewPage() {
   const [orgs, setOrgs] = useState<OrgKpi[]>([])
@@ -243,10 +235,6 @@ export default function OverviewPage() {
   }
 
   const sorted = [...orgs].sort((a, b) => b[sortBy] - a[sortBy])
-  const maxRevenue = Math.max(...orgs.map(o => o.revenue), 1)
-  const maxOrders  = Math.max(...orgs.map(o => o.orders), 1)
-  const maxSpend   = Math.max(...orgs.map(o => o.adSpend), 1)
-
   const loaded = orgs.filter(o => !o.loading)
   const totalRevenue  = loaded.reduce((s, o) => s + o.revenue, 0)
   const totalPrevRev  = loaded.reduce((s, o) => s + o.prevRevenue, 0)
@@ -398,7 +386,6 @@ export default function OverviewPage() {
                                   )}
                                 </div>
                               )}
-                              <MiniBar value={org.revenue} max={maxRevenue} />
                             </>
                         }
                       </td>
@@ -412,7 +399,6 @@ export default function OverviewPage() {
                                 <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>{fmtN(org.orders)}</span>
                                 <DeltaBadge value={pct(org.orders, org.prevOrders)} />
                               </div>
-                              <MiniBar value={org.orders} max={maxOrders} />
                             </>
                         }
                       </td>
@@ -438,7 +424,6 @@ export default function OverviewPage() {
                                   <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>{fmt$(org.adSpend)}</span>
                                   <DeltaBadge value={pct(org.adSpend, org.prevAdSpend)} invert />
                                 </div>
-                                <MiniBar value={org.adSpend} max={maxSpend} />
                               </>
                             : <span style={{ fontSize: '0.8rem', color: '#ccc', fontFamily: 'Barlow, sans-serif' }}>—</span>
                         }
