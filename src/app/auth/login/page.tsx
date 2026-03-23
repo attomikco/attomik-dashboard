@@ -8,6 +8,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [authenticating, setAuthenticating] = useState(false)
   const [error, setError] = useState('')
   const supabase = createClient()
   const router = useRouter()
@@ -16,6 +17,7 @@ export default function LoginPage() {
   useEffect(() => {
     const hash = window.location.hash
     if (!hash.includes('access_token')) return
+    setAuthenticating(true)
     const params = new URLSearchParams(hash.replace('#', ''))
     const access_token = params.get('access_token')
     const refresh_token = params.get('refresh_token')
@@ -29,6 +31,8 @@ export default function LoginPage() {
             body: JSON.stringify({ user_id: data.user.id }),
           })
           router.replace('/dashboard/analytics')
+        } else {
+          setAuthenticating(false)
         }
       })
     }
@@ -83,6 +87,15 @@ export default function LoginPage() {
         </g>
       </svg>
 
+      {authenticating ? (
+        <div style={{ textAlign: 'center', padding: '20px 0' }}>
+          <div style={{ width: 36, height: 36, border: '3px solid #e0e0e0', borderTopColor: '#00ff97', borderRadius: '50%', margin: '0 auto 16px', animation: 'spin 0.8s linear infinite' }} />
+          <p style={{ fontFamily: 'var(--font-barlow)', fontWeight: 700, fontSize: '1rem', color: '#000', marginBottom: 4 }}>Signing you in…</p>
+          <p style={{ fontSize: '0.8rem', color: '#999' }}>Setting up your account</p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+        </div>
+      ) : <>
+
       <h1 style={{ fontFamily: 'var(--font-barlow)', fontWeight: 800, fontSize: '1.4rem', letterSpacing: '-0.03em', marginBottom: 6 }}>
         Sign in
       </h1>
@@ -133,6 +146,7 @@ export default function LoginPage() {
           </button>
         </form>
       )}
+      </>}
     </div>
   )
 }
