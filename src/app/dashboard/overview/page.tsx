@@ -223,7 +223,7 @@ export default function OverviewPage() {
 
   const openOrg = (org: OrgKpi) => {
     localStorage.setItem('activeOrgId', org.id)
-    router.push('/dashboard/analytics')
+    window.location.href = '/dashboard/analytics'
   }
 
   const sorted = [...orgs].sort((a, b) => b[sortBy] - a[sortBy])
