@@ -64,24 +64,18 @@ export default function Sidebar() {
       setActiveOrg(defaultOrg)
       if (defaultOrg) localStorage.setItem('activeOrgId', defaultOrg.id)
     } else if (prof?.is_superadmin && viewAsUserId) {
-      // Superadmin in "View as" mode — load target user's memberships
-      const { data: memberships } = await supabase
-        .from('org_memberships')
-        .select('org_id, role, organizations(id, name, slug)')
-        .eq('user_id', viewAsUserId)
-      const memberOrgs = (memberships ?? [])
-        .map((m: any) => m.organizations)
-        .filter(Boolean)
-        .sort((a: any, b: any) => a.name.localeCompare(b.name))
+      // Superadmin in "View as" mode — fetch via API to bypass RLS
+      const res = await fetch(`/api/overview?viewAs=${viewAsUserId}`)
+      const data = await res.json()
+      const memberOrgs = (data.orgs ?? []).sort((a: any, b: any) => a.name.localeCompare(b.name))
       setOrgs(memberOrgs)
       const savedOrgId = localStorage.getItem('activeOrgId')
       const found = memberOrgs.find((o: any) => o.id === savedOrgId)
       const defaultOrg = found ?? memberOrgs[0] ?? null
       setActiveOrg(defaultOrg)
       if (defaultOrg) localStorage.setItem('activeOrgId', defaultOrg.id)
-      // Use the target user's role for nav filtering
-      const memberRole = (memberships ?? []).find((m: any) => m.org_id === defaultOrg?.id)?.role ?? 'viewer'
-      setProfile(prev => prev ? { ...prev, memberRole, is_superadmin: false } : prev)
+      // Use viewer role for nav filtering in view-as mode
+      setProfile(prev => prev ? { ...prev, memberRole: 'viewer', is_superadmin: false } : prev)
     } else {
       // Regular user: load their memberships
       const { data: memberships } = await supabase
