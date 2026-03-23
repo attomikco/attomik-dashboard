@@ -661,7 +661,7 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      <div style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 80px' }}>
+      <div className="analytics-content" style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 80px' }}>
         {loading ? (
           <div style={{ color: C.muted, textAlign: 'center', padding: '80px 0', fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontSize: '1rem' }}>Loading analytics…</div>
         ) : !d ? (
@@ -974,7 +974,16 @@ export default function AnalyticsPage() {
 
       <style>{`
         @media (max-width: 768px) {
-          .analytics-topbar { top: 56px !important; }
+          .analytics-topbar {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            padding-left: 60px !important;
+            z-index: 100 !important;
+            border-bottom: 1px solid #e0e0e0 !important;
+          }
+          .analytics-content { padding-top: 80px !important; }
           .kpi-grid-3 { grid-template-columns: 1fr 1fr !important; }
           .kpi-grid-4 { grid-template-columns: 1fr 1fr !important; }
           .chart-grid { grid-template-columns: 1fr !important; }

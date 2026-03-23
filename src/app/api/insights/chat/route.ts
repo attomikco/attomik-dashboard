@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 export async function POST(request: Request) {
   try {
@@ -81,7 +81,19 @@ QUESTION: ${question}`
     }
 
     const data = await response.json()
-    return NextResponse.json({ answer: data.content?.[0]?.text ?? 'No answer generated.' })
+    const answer = data.content?.[0]?.text ?? 'No answer generated.'
+
+    // Log the question and answer
+    const serviceClient = createServiceClient()
+    await serviceClient.from('chat_logs').insert({
+      user_id: user.id,
+      org_id: metrics.orgId ?? null,
+      question,
+      answer,
+      org_name: orgName,
+    }).then(() => {}).catch(() => {}) // fire and forget
+
+    return NextResponse.json({ answer })
   } catch (err: any) {
     console.error('Chat error:', err)
     return NextResponse.json({ error: err.message }, { status: 500 })

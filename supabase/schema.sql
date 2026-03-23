@@ -50,6 +50,16 @@ create table ad_spend (
   synced_at timestamptz default now()
 );
 
+create table chat_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id),
+  org_id uuid references organizations(id),
+  org_name text,
+  question text not null,
+  answer text not null,
+  created_at timestamptz default now()
+);
+
 -- ============================================
 -- Indexes for performance
 -- ============================================
