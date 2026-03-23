@@ -80,44 +80,51 @@ export default function OverviewPage() {
   const supabase = createClient()
   const router = useRouter()
 
-  useEffect(() => { bootstrap() }, [])
-  useEffect(() => { if (orgs.length > 0) fetchAllKpis(orgs) }, [range])
+  // Single effect — re-runs when range changes, loads orgs fresh each time
+  useEffect(() => {
+    let cancelled = false
 
-  const bootstrap = async () => {
-    setLoadingOrgs(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    const run = async () => {
+      setLoadingOrgs(true)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || cancelled) return
 
-    const { data: prof } = await supabase
-      .from('profiles').select('is_superadmin').eq('id', user.id).single()
+      const { data: prof } = await supabase
+        .from('profiles').select('is_superadmin').eq('id', user.id).single()
 
-    let orgList: { id: string; name: string; slug: string }[] = []
+      let orgList: any[] = []
+      if (prof?.is_superadmin) {
+        const { data } = await supabase.from('organizations').select('id, name, slug, timezone, channels').order('name')
+        orgList = data ?? []
+      } else {
+        const { data: memberships } = await supabase
+          .from('org_memberships')
+          .select('org_id, organizations(id, name, slug, timezone, channels)')
+          .eq('user_id', user.id)
+        orgList = (memberships ?? []).map((m: any) => m.organizations).filter(Boolean)
+      }
 
-    if (prof?.is_superadmin) {
-      const { data } = await supabase.from('organizations').select('id, name, slug, timezone, channels').order('name')
-      orgList = data ?? []
-    } else {
-      const { data: memberships } = await supabase
-        .from('org_memberships')
-        .select('org_id, organizations(id, name, slug, timezone, channels)')
-        .eq('user_id', user.id)
-      orgList = (memberships ?? []).map((m: any) => m.organizations).filter(Boolean)
+      if (cancelled) return
+
+      const initial: OrgKpi[] = orgList.map(o => ({
+        ...o, revenue: 0, prevRevenue: 0, orders: 0, prevOrders: 0,
+        aov: 0, prevAov: 0, adSpend: 0, prevAdSpend: 0, roas: 0, prevRoas: 0, loading: true,
+      }))
+      setOrgs(initial)
+      setLoadingOrgs(false)
+
+      if (!cancelled) fetchAllKpis(initial, range, cancelled)
     }
 
-    const initial: OrgKpi[] = orgList.map(o => ({
-      ...o, revenue: 0, prevRevenue: 0, orders: 0, prevOrders: 0,
-      aov: 0, prevAov: 0, adSpend: 0, prevAdSpend: 0, roas: 0, prevRoas: 0, loading: true,
-    }))
-    setOrgs(initial)
-    setLoadingOrgs(false)
-    fetchAllKpis(initial)
-  }
+    run()
+    return () => { cancelled = true }
+  }, [range])
 
-  const fetchAllKpis = async (orgList: OrgKpi[]) => {
-    setOrgs(prev => prev.map(o => ({ ...o, loading: true })))
+  const fetchAllKpis = async (orgList: OrgKpi[], currentRange: DateRange, cancelled: boolean) => {
+    if (cancelled) return
 
-    const curStart = range.start
-    const curEnd   = range.end
+    const curStart = currentRange.start
+    const curEnd   = currentRange.end
     const diffDays = Math.round((new Date(curEnd).getTime() - new Date(curStart).getTime()) / 864e5) + 1
     const prevEnd   = daysAgo(diffDays)
     const prevStart = daysAgo(diffDays * 2)
@@ -186,12 +193,12 @@ export default function OverviewPage() {
         const roas        = adSpend > 0 ? revenue / adSpend : 0
         const prevRoas    = prevAdSpend > 0 ? prevRevenue / prevAdSpend : 0
 
-        setOrgs(prev => prev.map(o => o.id === org.id
+        if (!cancelled) setOrgs(prev => prev.map(o => o.id === org.id
           ? { ...o, revenue, prevRevenue, orders, prevOrders: prevOrdCnt, aov, prevAov, adSpend, prevAdSpend, roas, prevRoas, loading: false }
           : o
         ))
       } catch {
-        setOrgs(prev => prev.map(o => o.id === org.id ? { ...o, loading: false } : o))
+        if (!cancelled) setOrgs(prev => prev.map(o => o.id === org.id ? { ...o, loading: false } : o))
       }
     }))
   }
