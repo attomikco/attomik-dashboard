@@ -57,7 +57,7 @@ export default function ProjectsPage() {
   const [membersLoading, setMembersLoading] = useState<Record<string, boolean>>({})
   const [channels, setChannels] = useState<Record<string, Record<string, boolean>>>({})
   const [savingChannels, setSavingChannels] = useState<string | null>(null)
-  const [settingsState, setSettingsState] = useState<Record<string, { name: string; timezone: string; logo_url: string; header_url: string }>>({})
+  const [settingsState, setSettingsState] = useState<Record<string, { name: string; timezone: string; logo_url: string; header_url: string; ga_property_id: string }>>({})
   const [savingSettings, setSavingSettings] = useState<string | null>(null)
   const [settingsSaved, setSettingsSaved] = useState<string | null>(null)
   const [uploadingImage, setUploadingImage] = useState<Record<string, boolean>>({})
@@ -91,13 +91,13 @@ export default function ProjectsPage() {
   const fetchOrgs = async () => {
     setLoading(true)
     const { data } = await supabase.from('organizations')
-      .select('id, name, slug, created_at, shopify_domain, channels, timezone, logo_url, header_url').order('name')
+      .select('id, name, slug, created_at, shopify_domain, channels, timezone, logo_url, header_url, ga_property_id').order('name')
     setOrgs(data ?? [])
     const chMap: Record<string, Record<string, boolean>> = {}
     const sMap: Record<string, { name: string; timezone: string }> = {}
     ;(data ?? []).forEach((o: Org) => {
       chMap[o.id] = o.channels ?? {}
-      sMap[o.id] = { name: o.name, timezone: o.timezone ?? 'America/New_York', logo_url: (o as any).logo_url ?? '', header_url: (o as any).header_url ?? '' }
+      sMap[o.id] = { name: o.name, timezone: o.timezone ?? 'America/New_York', logo_url: (o as any).logo_url ?? '', header_url: (o as any).header_url ?? '', ga_property_id: (o as any).ga_property_id ?? '' }
     })
     setChannels(chMap)
     setSettingsState(sMap)
@@ -143,7 +143,7 @@ export default function ProjectsPage() {
   const saveSettings = async (orgId: string) => {
     setSavingSettings(orgId)
     const s = settingsState[orgId]
-    await supabase.from('organizations').update({ name: s.name, timezone: s.timezone }).eq('id', orgId)
+    await supabase.from('organizations').update({ name: s.name, timezone: s.timezone, ga_property_id: s.ga_property_id || null }).eq('id', orgId)
     setOrgs(prev => prev.map(o => o.id === orgId ? { ...o, name: s.name } : o))
     setSavingSettings(null)
     setSettingsSaved(orgId)
@@ -701,6 +701,18 @@ export default function ProjectsPage() {
                               <div style={{ fontSize: '0.72rem', color: '#aaa', marginTop: 6, fontFamily: 'DM Mono, monospace' }}>
                                 Now: {new Date().toLocaleString('en-US', { timeZone: settingsState[org.id]?.timezone ?? 'America/New_York', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })}
                               </div>
+                            </div>
+                            <div>
+                              <label style={{ fontSize: '0.72rem', fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'Barlow, sans-serif', display: 'block', marginBottom: 6 }}>GA4 Property ID</label>
+                              <p style={{ fontSize: '0.8rem', color: C.muted, marginBottom: 8, fontFamily: 'Barlow, sans-serif' }}>
+                                Enter your Google Analytics 4 Property ID to display website traffic data on the analytics page.
+                              </p>
+                              <input value={settingsState[org.id]?.ga_property_id ?? ''}
+                                onChange={e => setSettingsState(p => ({ ...p, [org.id]: { ...p[org.id], ga_property_id: e.target.value } }))}
+                                placeholder="e.g. 123456789"
+                                style={{ ...inp, width: '100%', fontFamily: 'DM Mono, monospace', fontSize: '0.8rem' }}
+                                onFocus={e => (e.target.style.borderColor = C.accent)}
+                                onBlur={e => (e.target.style.borderColor = C.border)} />
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                               <button onClick={() => saveSettings(org.id)} disabled={savingSettings === org.id}

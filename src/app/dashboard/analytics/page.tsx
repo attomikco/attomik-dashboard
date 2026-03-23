@@ -190,6 +190,7 @@ export default function AnalyticsPage() {
   const [dowData, setDowData] = useState<any[]>([])
   const [cacData, setCacData] = useState<any[]>([])
   const [channels, setChannels] = useState<Record<string, boolean>>({})
+  const [trafficData, setTrafficData] = useState<{ users: number; sessions: number; newUsers: number; daily: { date: string; users: number; sessions: number }[] } | null>(null)
   const [orgName, setOrgName] = useState<string>('your store')
   const [lastSynced, setLastSynced] = useState<string | null>(null)
   const [estEOM, setEstEOM] = useState<number | null>(null)
@@ -204,7 +205,7 @@ export default function AnalyticsPage() {
 
     // Fetch org config (channels + timezone)
     const { data: orgData } = await supabase
-      .from('organizations').select('channels, timezone, name, shopify_synced_at').eq('id', orgId).single()
+      .from('organizations').select('channels, timezone, name, shopify_synced_at, ga_property_id').eq('id', orgId).single()
     if (orgData?.name) { setOrgName(orgData.name); document.title = `${orgData.name} Analytics | Attomik` }
     if (orgData?.shopify_synced_at) setLastSynced(orgData.shopify_synced_at)
     const orgTimezone = orgData?.timezone ?? 'America/New_York'
@@ -224,6 +225,20 @@ export default function AnalyticsPage() {
         default: return { start: range.start, end: range.end }
       }
     })()
+
+    // Fetch GA4 traffic data if property is configured (fire and forget)
+    if (orgData?.ga_property_id) {
+      fetch('/api/analytics/traffic', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ org_id: orgId, startDate: resolvedRange.start, endDate: resolvedRange.end }),
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d) setTrafficData(d) })
+        .catch(() => setTrafficData(null))
+    } else {
+      setTrafficData(null)
+    }
 
     const ch = orgData?.channels ?? {}
     // If channels column is null/empty object (never configured), show all
@@ -711,6 +726,18 @@ export default function AnalyticsPage() {
               { label: 'CLTV', value: fmt$(d.cltvC), sub: d.cltvP > 0 ? chg(d.cltvC, d.cltvP) : '', desc: 'Shopify only · ACL (2) × AOV × Orders/Customers' },
               ...(d.cacC > 0 ? [{ label: 'CLTV / CAC', value: `${(d.cltvC / d.cacC).toFixed(2)}x`, sub: d.cltvP > 0 && d.cacP > 0 ? chg(d.cltvC / d.cacC, d.cltvP / d.cacP) : '', desc: 'Lifetime Value ÷ Acquisition Cost' }] : []),
             ]} />
+          )}
+
+          {/* ── TRAFFIC (GA4) ── */}
+          {trafficData && (
+            <>
+              <SectionHeader title="Traffic" color="#4285f4" platform="google analytics" />
+              <MetricRow items={[
+                { label: 'Sessions', value: fmtN(trafficData.sessions) },
+                { label: 'Users', value: fmtN(trafficData.users) },
+                { label: 'New Users', value: fmtN(trafficData.newUsers) },
+              ]} />
+            </>
           )}
 
           {/* ── CHARTS ROW 1 ── */}

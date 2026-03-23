@@ -11,6 +11,7 @@ create table organizations (
   shopify_token text,
   meta_ad_account_id text,
   meta_access_token text,
+  ga_property_id text,
   created_at timestamptz default now()
 );
 
