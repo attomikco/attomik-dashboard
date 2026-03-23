@@ -33,7 +33,7 @@ export default function AIInsights({ metrics, period, preset, orgName, platform 
         body: JSON.stringify({ metrics, period, preset, orgName, platform }),
       })
       const data = await res.json()
-      setInsight(data.insight ?? 'No insights available.')
+      setInsight(data.insight ?? data.error ?? 'No insights available.')
       setGenerated(true)
     } catch {
       setInsight('Failed to generate insights. Please try again.')
