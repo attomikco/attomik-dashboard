@@ -736,6 +736,9 @@ export default function AnalyticsPage() {
                 { label: 'Sessions', value: fmtN(trafficData.sessions) },
                 { label: 'Users', value: fmtN(trafficData.users) },
                 { label: 'New Users', value: fmtN(trafficData.newUsers) },
+                { label: 'Conv. Rate (Sessions)', value: trafficData.sessions > 0 ? fmtPct(d.ordC / trafficData.sessions * 100) : '—', desc: 'Orders ÷ Sessions' },
+                { label: 'Conv. Rate (Users)', value: trafficData.users > 0 ? fmtPct(d.ordC / trafficData.users * 100) : '—', desc: 'Orders ÷ Users' },
+                { label: 'Conv. Rate (New Users)', value: trafficData.newUsers > 0 ? fmtPct(d.ordC / trafficData.newUsers * 100) : '—', desc: 'Orders ÷ New Users' },
               ]} />
             </>
           )}
