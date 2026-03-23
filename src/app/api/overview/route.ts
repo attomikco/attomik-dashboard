@@ -1,6 +1,39 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 
+export async function GET(request: Request) {
+  try {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { data: prof } = await supabase
+      .from('profiles').select('is_superadmin').eq('id', user.id).single()
+
+    const serviceClient = createServiceClient()
+    const { searchParams } = new URL(request.url)
+    const viewAsUserId = searchParams.get('viewAs')
+
+    let orgs: any[] = []
+    if (prof?.is_superadmin && !viewAsUserId) {
+      const { data } = await serviceClient
+        .from('organizations').select('id, name, slug, timezone, channels').order('name')
+      orgs = data ?? []
+    } else {
+      const targetUserId = viewAsUserId ?? user.id
+      const { data: memberships } = await serviceClient
+        .from('org_memberships')
+        .select('org_id, organizations(id, name, slug, timezone, channels)')
+        .eq('user_id', targetUserId)
+      orgs = (memberships ?? []).map((m: any) => m.organizations).filter(Boolean)
+    }
+
+    return NextResponse.json({ orgs })
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 })
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = createClient()
