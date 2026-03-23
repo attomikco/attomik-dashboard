@@ -30,7 +30,7 @@ function fmtX(n: number) { return `${n.toFixed(2)}x` }
 function fmtPct(n: number) { return `${n.toFixed(1)}%` }
 function chg(cur: number, prev: number) {
   const p = pct(cur, prev)
-  return `${p >= 0 ? '↑' : '↓'} ${Math.abs(p).toFixed(1)}% vs prev`
+  return `${p >= 0 ? '↑' : '↓'} ${Math.abs(p).toFixed(1)}%`
 }
 function getPrevPeriod(start: string, end: string) {
   const s = new Date(start).getTime()
