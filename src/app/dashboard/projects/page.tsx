@@ -430,7 +430,7 @@ export default function ProjectsPage() {
                           {m.last_seen_at
                             ? new Date(m.last_seen_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
                             : m.invited_at
-                              ? `Invited ${new Date(m.invited_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                              ? `Invited ${new Date(m.invited_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
                               : '—'}
                         </td>
                         <td style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
@@ -643,6 +643,22 @@ export default function ProjectsPage() {
                                     <span style={{ fontSize: '0.62rem', fontWeight: 700, padding: '1px 6px', borderRadius: 20, fontFamily: 'Barlow, sans-serif', flexShrink: 0, background: m.status === 'joined' ? '#e6fff5' : '#fff8e1', color: m.status === 'joined' ? '#007a48' : '#b45309' }}>
                                       {m.status === 'joined' ? '✓ Joined' : '⏳ Invited'}
                                     </span>
+                                    {m.status === 'joined' && (
+                                      <button
+                                        onClick={() => {
+                                          localStorage.setItem('viewAsUserId', m.id)
+                                          localStorage.setItem('viewAsUserName', m.full_name || m.email || 'User')
+                                          localStorage.setItem('activeOrgId', org.id)
+                                          window.location.href = '/dashboard/analytics'
+                                        }}
+                                        title={`View as ${m.full_name || m.email}`}
+                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ddd', padding: 2, flexShrink: 0, transition: '0.15s' }}
+                                        onMouseEnter={e => (e.currentTarget.style.color = '#000')}
+                                        onMouseLeave={e => (e.currentTarget.style.color = '#ddd')}
+                                      >
+                                        <Eye size={12} />
+                                      </button>
+                                    )}
                                     <button onClick={() => removeMember(m.id, org.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ddd', padding: 2, flexShrink: 0, transition: '0.15s' }}
                                       onMouseEnter={e => (e.currentTarget.style.color = '#b91c1c')}
                                       onMouseLeave={e => (e.currentTarget.style.color = '#ddd')}>
