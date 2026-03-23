@@ -313,8 +313,8 @@ export default function AnalyticsPage() {
       return all
     }
 
-    const orderCols = 'total_price,status,source,customer_email,created_at,units,subtotal,discount_amount,shipping_amount,tax_amount,refunded_amount'
-    const orderColsLight = 'total_price,source,customer_email,created_at,units'
+    const orderCols = 'total_price,status,source,customer_email,created_at,units,subtotal,discount_amount,shipping_amount,tax_amount,refunded_amount,is_subscription'
+    const orderColsLight = 'total_price,source,customer_email,created_at,units,is_subscription'
 
     const [cur, prev, curS, prevS, allOrdRaw, allSpRaw] = await Promise.all([
       fetchAllOrders(thisStart, thisEnd, orderCols),
@@ -427,6 +427,32 @@ export default function AnalyticsPage() {
     const shDiscRateP = shGrossP > 0 ? (shDiscountP / shGrossP) * 100 : 0
     const shRefRateC  = shOrdC > 0 ? (shopC.filter(o => o.status === 'refunded').length / shOrdC) * 100 : 0
     const shRefRateP  = shOrdP > 0 ? (shopP.filter(o => o.status === 'refunded').length / shOrdP) * 100 : 0
+
+    // Subscription metrics (Shopify only)
+    const subOrdsC = shopC.filter(o => o.is_subscription)
+    const subOrdsP = shopP.filter(o => o.is_subscription)
+    const subRevC = subOrdsC.reduce((s, o) => s + Number(o.total_price || 0), 0)
+    const subRevP = subOrdsP.reduce((s, o) => s + Number(o.total_price || 0), 0)
+    const subCountC = subOrdsC.length
+    const subCountP = subOrdsP.length
+    const subCustsC = new Set(subOrdsC.map(o => o.customer_email).filter(Boolean)).size
+    const subCustsP = new Set(subOrdsP.map(o => o.customer_email).filter(Boolean)).size
+    const subPctRevC = totalRevC > 0 ? (subRevC / totalRevC) * 100 : 0
+    const subPctRevP = totalRevP > 0 ? (subRevP / totalRevP) * 100 : 0
+
+    // Monthly subscription data for churn calculation (last 6 months)
+    const monthlySubscribers: { month: string; subscribers: number; revenue: number; pctOfRev: number }[] = []
+    for (let m = 5; m >= 0; m--) {
+      const dt = new Date(); dt.setMonth(dt.getMonth() - m)
+      const mStart = new Date(dt.getFullYear(), dt.getMonth(), 1).toISOString()
+      const mEnd = new Date(dt.getFullYear(), dt.getMonth() + 1, 0, 23, 59, 59).toISOString()
+      const mLabel = new Date(dt.getFullYear(), dt.getMonth(), 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+      const mOrd = allOrd.filter(o => o.source === 'shopify' && o.is_subscription && o.created_at >= mStart && o.created_at < mEnd)
+      const mSubs = new Set(mOrd.map(o => o.customer_email).filter(Boolean)).size
+      const mRev = mOrd.reduce((s, o) => s + Number(o.total_price || 0), 0)
+      const mAllRev = allOrd.filter(o => o.created_at >= mStart && o.created_at < mEnd).reduce((s, o) => s + Number(o.total_price || 0), 0)
+      monthlySubscribers.push({ month: mLabel, subscribers: mSubs, revenue: mRev, pctOfRev: mAllRev > 0 ? (mRev / mAllRev) * 100 : 0 })
+    }
 
     const amzRevC  = amzC.reduce((s, o) => s + Number(o.total_price), 0)
     const amzRevP  = amzP.reduce((s, o) => s + Number(o.total_price), 0)
@@ -639,6 +665,7 @@ export default function AnalyticsPage() {
       metaSpC, metaSpP, metaImprC, metaImprP, metaClkC, metaClkP, metaConvC, metaConvP, metaRoasC, metaRoasP,
       weekRevs, weekSpend, weekOrders, weekCac, weekAov, weekRoas, weekNewCusts, weekRetCusts, weekRetRate,
       monthlyRetention,
+      subRevC, subRevP, subCountC, subCountP, subCustsC, subCustsP, subPctRevC, subPctRevP, monthlySubscribers,
     })
     setLoading(false)
   }
@@ -912,6 +939,17 @@ export default function AnalyticsPage() {
             { label: 'ROAS',        value: d.shRoasC > 0 ? fmtX(d.shRoasC) : '—', sub: d.shRoasP > 0 ? chg(d.shRoasC, d.shRoasP) : '' },
           ]} />
 
+          </> }
+
+          {/* ── SUBSCRIPTIONS ── */}
+          {d.showShopify && d.subCountC > 0 && <>
+          <SectionHeader title="Subscriptions" color="#7c3aed" platform="paywhirl" />
+          <MetricRow items={[
+            { label: 'Sub. Revenue', value: fmt$(d.subRevC), sub: d.subRevP > 0 ? chg(d.subRevC, d.subRevP) : '' },
+            { label: '% of Total Revenue', value: fmtPct(d.subPctRevC), sub: d.subPctRevP > 0 ? chg(d.subPctRevC, d.subPctRevP) : '' },
+            { label: 'Sub. Orders', value: fmtN(d.subCountC), sub: d.subCountP > 0 ? chg(d.subCountC, d.subCountP) : '' },
+            { label: 'Subscribers', value: fmtN(d.subCustsC), sub: d.subCustsP > 0 ? chg(d.subCustsC, d.subCustsP) : '' },
+          ]} />
           </> }
 
           {/* ── AMAZON ── */}

@@ -34,7 +34,7 @@ async function syncOrg(orgId: string, org: any, supabase: any): Promise<{ orgId:
     const updatedAtMin = lastSynced ? new Date(lastSynced).toISOString() : new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 
     const allOrders: any[] = []
-    let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&updated_at_min=${updatedAtMin}&fields=id,name,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds`
+    let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&updated_at_min=${updatedAtMin}&fields=id,name,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds,source_name,tags`
 
     while (url) {
       const res = await fetch(url, { headers })
@@ -58,6 +58,10 @@ async function syncOrg(orgId: string, org: any, supabase: any): Promise<{ orgId:
           s + (t.kind === 'refund' ? parseFloat(t.amount ?? '0') : 0), 0), 0)
       const shippingAmount = parseFloat(o.total_shipping_price_set?.shop_money?.amount ?? '0')
 
+      const hasSellingPlan = (o.line_items ?? []).some((li: any) => li.selling_plan_allocation)
+      const isSubSource = (o.source_name ?? '').toLowerCase().includes('paywhirl')
+      const isSubTag = (o.tags ?? '').toLowerCase().includes('subscription')
+
       return {
         org_id: orgId,
         external_id: `shopify_${o.name || o.id}`,
@@ -71,6 +75,7 @@ async function syncOrg(orgId: string, org: any, supabase: any): Promise<{ orgId:
         shipping_amount: shippingAmount,
         refunded_amount: refundedAmount,
         units,
+        is_subscription: hasSellingPlan || isSubSource || isSubTag,
         status: o.financial_status === 'paid' ? 'paid'
               : o.financial_status === 'refunded' ? 'refunded'
               : o.financial_status === 'pending' ? 'pending'

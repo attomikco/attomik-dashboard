@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       for (const year of years) {
         const yearStart = `${year}-01-01T00:00:00Z`
         const yearEnd   = year === endYear ? new Date().toISOString() : `${year + 1}-01-01T00:00:00Z`
-        let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&created_at_min=${yearStart}&created_at_max=${yearEnd}&fields=id,name,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds`
+        let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&created_at_min=${yearStart}&created_at_max=${yearEnd}&fields=id,name,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds,source_name,tags`
 
         while (url) {
           const res = await fetch(url, { headers })
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
       }
     } else {
       // Incremental sync: just fetch since last sync
-      let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&updated_at_min=${updatedAtMin}&fields=id,name,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds`
+      let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&updated_at_min=${updatedAtMin}&fields=id,name,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds,source_name,tags`
 
       while (url) {
         const res = await fetch(url, { headers })
@@ -115,9 +115,18 @@ export async function POST(request: Request) {
           s + (t.kind === 'refund' ? parseFloat(t.amount ?? '0') : 0), 0), 0)
       const shippingAmount = parseFloat(o.total_shipping_price_set?.shop_money?.amount ?? '0')
 
+      // Detect subscription orders:
+      // 1. selling_plan_allocation on any line item (most reliable)
+      // 2. source_name contains 'paywhirl' or subscription app name
+      // 3. tags contain 'subscription'
+      const hasSellingPlan = (o.line_items ?? []).some((li: any) => li.selling_plan_allocation)
+      const isSubSource = (o.source_name ?? '').toLowerCase().includes('paywhirl')
+      const isSubTag = (o.tags ?? '').toLowerCase().includes('subscription')
+      const isSubscription = hasSellingPlan || isSubSource || isSubTag
+
       return {
         org_id,
-        external_id:     `shopify_${o.name || o.id}`, // use order name (#LM7079) to match CSV imports
+        external_id:     `shopify_${o.name || o.id}`,
         source:          'shopify',
         customer_email:  o.email || o.customer?.email || null,
         customer_name:   o.customer ? `${o.customer.first_name ?? ''} ${o.customer.last_name ?? ''}`.trim() : null,
@@ -128,6 +137,7 @@ export async function POST(request: Request) {
         shipping_amount: shippingAmount,
         refunded_amount: refundedAmount,
         units,
+        is_subscription: isSubscription,
         status: o.financial_status === 'paid' ? 'paid'
               : o.financial_status === 'refunded' ? 'refunded'
               : o.financial_status === 'pending' ? 'pending'

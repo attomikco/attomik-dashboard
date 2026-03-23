@@ -32,6 +32,7 @@ create table orders (
   customer_name text,
   total_price numeric(10,2) not null default 0,
   status text default 'paid' check (status in ('paid', 'pending', 'refunded', 'cancelled')),
+  is_subscription boolean default false,
   created_at timestamptz not null default now(),
   synced_at timestamptz default now(),
   unique(org_id, external_id)
