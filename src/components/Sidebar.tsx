@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { BarChart2, Users, Upload, Settings, LogOut, Building2, ChevronDown, FolderOpen, TrendingUp, Menu, X, LayoutGrid } from 'lucide-react'
+import { BarChart2, Users, Upload, Settings, LogOut, Building2, ChevronDown, FolderOpen, TrendingUp, Menu, X, LayoutGrid, Eye } from 'lucide-react'
 
 const navItems = [
   { label: 'Overview',   href: '/dashboard/overview',  icon: LayoutGrid,  minRole: 'viewer' },
@@ -160,18 +160,21 @@ export default function Sidebar() {
 
       {/* View as banner */}
       {viewAsName && (
-        <div style={{ padding: '10px 12px', background: '#fef3c7', borderBottom: '1px solid #f59e0b' }}>
-          <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Barlow, sans-serif', marginBottom: 4 }}>Viewing as</div>
-          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#78350f', fontFamily: 'Barlow, sans-serif', marginBottom: 8 }}>{viewAsName}</div>
+        <div style={{ padding: '8px 12px', background: '#fef3c7', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Eye size={13} color="#92400e" style={{ flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '0.62rem', fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Barlow, sans-serif' }}>Viewing as</div>
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#78350f', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{viewAsName}</div>
+          </div>
           <button
             onClick={() => {
               localStorage.removeItem('viewAsUserId')
               localStorage.removeItem('viewAsUserName')
               window.location.href = '/dashboard/overview'
             }}
-            style={{ width: '100%', padding: '6px 10px', background: '#000', color: '#00ff97', fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.75rem', border: 'none', borderRadius: 5, cursor: 'pointer' }}
+            style={{ padding: '4px 10px', background: '#000', color: '#00ff97', fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.68rem', border: 'none', borderRadius: 4, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}
           >
-            Exit view
+            Exit
           </button>
         </div>
       )}

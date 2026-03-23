@@ -96,14 +96,17 @@ export default function OverviewPage() {
         .from('profiles').select('is_superadmin').eq('id', user.id).single()
 
       let orgList: any[] = []
-      if (prof?.is_superadmin) {
+      const viewAsUserId = localStorage.getItem('viewAsUserId')
+      if (prof?.is_superadmin && !viewAsUserId) {
         const { data } = await supabase.from('organizations').select('id, name, slug, timezone, channels').order('name')
         orgList = data ?? []
       } else {
+        // Regular user OR superadmin in "View as" mode
+        const targetUserId = viewAsUserId ?? user.id
         const { data: memberships } = await supabase
           .from('org_memberships')
           .select('org_id, organizations(id, name, slug, timezone, channels)')
-          .eq('user_id', user.id)
+          .eq('user_id', targetUserId)
         orgList = (memberships ?? []).map((m: any) => m.organizations).filter(Boolean)
       }
 
