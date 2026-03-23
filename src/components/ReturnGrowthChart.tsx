@@ -1,6 +1,6 @@
 'use client'
 
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 interface Props {
   data: { month: string; returning: number }[]
@@ -21,19 +21,13 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export default function ReturnGrowthChart({ data }: Props) {
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <AreaChart data={data} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+      <BarChart data={data} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#f2f2f2" vertical={false} />
         <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#999', fontFamily: 'DM Mono, monospace' }} axisLine={false} tickLine={false} />
         <YAxis tick={{ fontSize: 11, fill: '#999', fontFamily: 'DM Mono, monospace' }} axisLine={false} tickLine={false} width={36} allowDecimals={false} />
         <Tooltip content={<CustomTooltip />} />
-        <defs>
-          <linearGradient id="retGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#00ff97" stopOpacity={0.2} />
-            <stop offset="95%" stopColor="#00ff97" stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <Area type="monotone" dataKey="returning" stroke="#00ff97" strokeWidth={2.5} fill="url(#retGrad)" dot={{ r: 4, fill: '#00ff97', stroke: '#fff', strokeWidth: 2 }} />
-      </AreaChart>
+        <Bar dataKey="returning" fill="#00ff97" radius={[4, 4, 0, 0]} />
+      </BarChart>
     </ResponsiveContainer>
   )
 }
