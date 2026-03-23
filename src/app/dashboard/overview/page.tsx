@@ -182,6 +182,9 @@ export default function OverviewPage() {
             end: toUTC(orgCurEnd, true),
             prevStart,
             prevEnd,
+            // Plain dates for ad_spend table (stores date, not timestamp)
+            adSpendStart: orgCurStart,
+            adSpendEnd: orgCurEnd,
           }),
         })
         const fetched = await res.json()
