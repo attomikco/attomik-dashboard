@@ -132,7 +132,7 @@ export default function Sidebar() {
   const sidebarContent = (
     <>
       {/* Logo */}
-      <div style={{ padding: '28px 24px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ padding: '28px 24px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3162 909" style={{ height: 38, display: 'block' }}>
           <g transform="scale(8.11041548093341) translate(10, 10)">
             <g transform="matrix(1.0466,0,0,1.0466,-6.28,-6.28)" fill="#ffffff">
@@ -148,7 +148,7 @@ export default function Sidebar() {
           </g>
         </svg>
         {/* Close button on mobile */}
-        <button onClick={() => setMobileOpen(false)} style={{ display: 'none', background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }} className="mobile-close">
+        <button onClick={() => setMobileOpen(false)} style={{ display: 'none', background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', position: 'absolute', right: 16, top: 28 }} className="mobile-close">
           <X size={20} />
         </button>
       </div>
