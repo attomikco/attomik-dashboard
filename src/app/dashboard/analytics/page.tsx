@@ -218,7 +218,6 @@ export default function AnalyticsPage() {
         if (prof?.full_name) setUserName(prof.full_name)
       }
     }
-    }
 
     // Fetch org config (channels + timezone)
     const { data: orgData } = await supabase
