@@ -497,7 +497,7 @@ export default function ProjectsPage() {
                   </tbody>
                 </table>
               </div>
-            )
+            </>)
           )}
         </div>
 
