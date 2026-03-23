@@ -575,7 +575,7 @@ export default function AnalyticsPage() {
       const d = new Date(o.created_at)
       const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
       if (!monthMap[key]) monthMap[key] = { customers: new Set(), spend: 0, orders: 0 }
-      monthMap[key].orders += 1
+      monthMap[key].orders += o.source === 'amazon' ? (Number(o.units) || 1) : 1
       if (o.customer_email) monthMap[key].customers.add(o.customer_email)
     })
     allSp.forEach(s => { const key = s.date.slice(0,7); if (monthMap[key]) monthMap[key].spend += Number(s.spend) })
@@ -616,7 +616,7 @@ export default function AnalyticsPage() {
 
       const wOrds = allOrd.filter(o => o.created_at >= wStartISO && o.created_at < wEndISO)
       const wRev  = wOrds.reduce((s, o) => s + Number(o.total_price), 0)
-      const wOrdCount = wOrds.reduce((s, o) => s + (Number(o.units) || 1), 0)
+      const wOrdCount = wOrds.reduce((s, o) => s + (o.source === 'amazon' ? (Number(o.units) || 1) : 1), 0)
 
       const wSp = allSp.filter((s: any) => s.date >= wStart.toISOString().split('T')[0] && s.date < wEnd.toISOString().split('T')[0])
       const wSpend = wSp.reduce((s: any, o: any) => s + Number(o.spend), 0)
