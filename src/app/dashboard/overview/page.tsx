@@ -21,9 +21,9 @@ function pct(a: number, b: number) { return b === 0 ? (a > 0 ? 100 : 0) : ((a - 
 const daysAgo = (n: number) => new Date(Date.now() - n * 864e5).toISOString().split('T')[0]
 
 const defaultRange: DateRange = {
-  start: daysAgo(30),
+  start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
   end: new Date().toISOString().split('T')[0],
-  label: 'Last 30 days',
+  label: 'Month to date',
 }
 
 interface OrgKpi {

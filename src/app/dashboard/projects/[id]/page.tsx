@@ -413,7 +413,7 @@ export default function ProjectDetailPage() {
                         </td>
                         <td style={{ padding: '13px 24px', fontSize: '0.8rem', color: '#999', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap' }}>
                           {m.last_seen_at
-                            ? new Date(m.last_seen_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                            ? new Date(m.last_seen_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
                             : m.invited_at
                               ? `Invited ${new Date(m.invited_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
                               : '—'}
