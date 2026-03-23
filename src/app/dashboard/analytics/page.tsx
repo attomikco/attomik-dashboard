@@ -322,7 +322,20 @@ export default function AnalyticsPage() {
       supabase.from('ad_spend').select('spend,platform,impressions,clicks,conversions,date').eq('org_id', orgId).gte('date', resolvedRange.start).lte('date', resolvedRange.end).limit(5000),
       supabase.from('ad_spend').select('spend,platform,impressions,clicks,conversions').eq('org_id', orgId).gte('date', prevStart).lte('date', prevEnd).limit(5000),
       fetchAllOrders(sixMonthsAgo, new Date().toISOString(), orderColsLight),
-      supabase.from('ad_spend').select('spend,date').eq('org_id', orgId).gte('date', sixMonthsAgo.split('T')[0]).limit(5000),
+      (async () => {
+        const all: any[] = []
+        let from = 0
+        while (true) {
+          const { data } = await supabase.from('ad_spend').select('spend,date')
+            .eq('org_id', orgId).gte('date', sixMonthsAgo.split('T')[0])
+            .order('date', { ascending: true }).range(from, from + 999)
+          if (!data || data.length === 0) break
+          all.push(...data)
+          if (data.length < 1000) break
+          from += 1000
+        }
+        return { data: all }
+      })(),
     ])
 
     const cSpend = curS.data ?? [], pSpend = prevS.data ?? []
