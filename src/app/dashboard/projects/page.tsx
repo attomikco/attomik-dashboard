@@ -7,6 +7,22 @@ import { Building2, BarChart2, ChevronDown, ChevronRight, UserPlus, Trash2, Chec
 
 const C = { ink: '#000', paper: '#fff', cream: '#f2f2f2', accent: '#00ff97', muted: '#666', border: '#e0e0e0' }
 
+const TIMEZONES = [
+  { value: 'America/New_York',    label: 'Eastern (ET)' },
+  { value: 'America/Chicago',     label: 'Central (CT)' },
+  { value: 'America/Denver',      label: 'Mountain (MT)' },
+  { value: 'America/Los_Angeles', label: 'Pacific (PT)' },
+  { value: 'America/Anchorage',   label: 'Alaska (AKT)' },
+  { value: 'Pacific/Honolulu',    label: 'Hawaii (HT)' },
+  { value: 'America/Mexico_City', label: 'Mexico City (CT)' },
+  { value: 'America/Bogota',      label: 'Bogotá' },
+  { value: 'America/Sao_Paulo',   label: 'São Paulo' },
+  { value: 'Europe/London',       label: 'London (GMT)' },
+  { value: 'Europe/Paris',        label: 'Paris (CET)' },
+  { value: 'Asia/Tokyo',          label: 'Tokyo (JST)' },
+  { value: 'Australia/Sydney',    label: 'Sydney (AET)' },
+]
+
 const CHANNELS = [
   { key: 'shopify', label: 'Shopify', color: '#96bf48' },
   { key: 'amazon',  label: 'Amazon',  color: '#ff9900' },
@@ -43,6 +59,10 @@ export default function ProjectsPage() {
   const [inviting, setInviting] = useState<string | null>(null)
   const [inviteMsg, setInviteMsg] = useState<Record<string, { text: string; ok: boolean }>>({})
   const [showNewForm, setShowNewForm] = useState(false)
+  const [settingsState, setSettingsState] = useState<Record<string, { name: string; timezone: string }>>({})
+  const [savingSettings, setSavingSettings] = useState<string | null>(null)
+  const [settingsSaved, setSettingsSaved] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<Record<string, 'channels' | 'members' | 'settings'>>({})
   const [newName, setNewName] = useState('')
   const [newSlug, setNewSlug] = useState('')
   const [creating, setCreating] = useState(false)
@@ -54,11 +74,14 @@ export default function ProjectsPage() {
 
   const fetchOrgs = async () => {
     setLoading(true)
-    const { data } = await supabase.from('organizations').select('id, name, slug, created_at, shopify_domain, channels').order('name')
+    const { data } = await supabase.from('organizations').select('id, name, slug, created_at, shopify_domain, channels, timezone').order('name')
     setOrgs(data ?? [])
     const chMap: Record<string, Record<string, boolean>> = {}
     ;(data ?? []).forEach((o: Org) => { chMap[o.id] = o.channels ?? {} })
     setChannels(chMap)
+    const sMap: Record<string, { name: string; timezone: string }> = {}
+    ;(data ?? []).forEach((o: Org) => { sMap[o.id] = { name: o.name, timezone: (o as any).timezone ?? 'America/New_York' } })
+    setSettingsState(sMap)
     setLoading(false)
   }
 
@@ -78,6 +101,17 @@ export default function ProjectsPage() {
     setSavingChannels(orgId)
     await supabase.from('organizations').update({ channels: channels[orgId] }).eq('id', orgId)
     setSavingChannels(null)
+  }
+
+  const saveSettings = async (orgId: string) => {
+    setSavingSettings(orgId)
+    const s = settingsState[orgId]
+    await supabase.from('organizations').update({ name: s.name, timezone: s.timezone }).eq('id', orgId)
+    // Refresh org name in list
+    setOrgs(prev => prev.map(o => o.id === orgId ? { ...o, name: s.name } : o))
+    setSavingSettings(null)
+    setSettingsSaved(orgId)
+    setTimeout(() => setSettingsSaved(null), 2000)
   }
 
   const handleInvite = async (e: React.FormEvent, orgId: string) => {
@@ -244,7 +278,10 @@ export default function ProjectsPage() {
                             {savingChannels === org.id ? 'Saving…' : 'Save channels'}
                           </button>
                         </div>
+                      )}
 
+                      {(activeTab[org.id] ?? 'channels') === 'members' && (
+                        <div style={{ maxWidth: 560 }}>
                         {/* Members */}
                         <div>
                           <div style={{ fontSize: '0.72rem', fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'Barlow, sans-serif', marginBottom: 10 }}>
@@ -313,6 +350,51 @@ export default function ProjectsPage() {
                             </div>
                           )}
                         </div>
+                      )}
+
+                      {(activeTab[org.id] ?? 'channels') === 'settings' && (
+                        <div style={{ maxWidth: 480 }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            <div>
+                              <label style={{ fontSize: '0.72rem', fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'Barlow, sans-serif', display: 'block', marginBottom: 6 }}>Project name</label>
+                              <input value={settingsState[org.id]?.name ?? org.name}
+                                onChange={e => setSettingsState(p => ({ ...p, [org.id]: { ...p[org.id], name: e.target.value } }))}
+                                style={{ ...inp, width: '100%' }}
+                                onFocus={e => (e.target.style.borderColor = C.accent)}
+                                onBlur={e => (e.target.style.borderColor = C.border)} />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: '0.72rem', fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'Barlow, sans-serif', display: 'block', marginBottom: 6 }}>Slug</label>
+                              <div style={{ ...inp, background: C.cream, color: '#aaa', fontFamily: 'DM Mono, monospace', fontSize: '0.8rem' }}>{org.slug}</div>
+                            </div>
+                            <div>
+                              <label style={{ fontSize: '0.72rem', fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'Barlow, sans-serif', display: 'block', marginBottom: 6 }}>Timezone</label>
+                              <p style={{ fontSize: '0.8rem', color: C.muted, marginBottom: 8, fontFamily: 'Barlow, sans-serif' }}>Match this to your Shopify store timezone so date filters line up correctly.</p>
+                              <select value={settingsState[org.id]?.timezone ?? 'America/New_York'}
+                                onChange={e => setSettingsState(p => ({ ...p, [org.id]: { ...p[org.id], timezone: e.target.value } }))}
+                                style={{ ...inp, width: '100%', cursor: 'pointer' }}
+                                onFocus={e => (e.target.style.borderColor = C.accent)}
+                                onBlur={e => (e.target.style.borderColor = C.border)}>
+                                {TIMEZONES.map(tz => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
+                              </select>
+                              <div style={{ fontSize: '0.72rem', color: '#aaa', marginTop: 6, fontFamily: 'DM Mono, monospace' }}>
+                                Now: {new Date().toLocaleString('en-US', { timeZone: settingsState[org.id]?.timezone ?? 'America/New_York', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <button onClick={() => saveSettings(org.id)} disabled={savingSettings === org.id}
+                                style={{ padding: '8px 20px', background: savingSettings === org.id ? '#ccc' : C.accent, color: C.ink, fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+                                {savingSettings === org.id ? 'Saving…' : 'Save settings'}
+                              </button>
+                              {settingsSaved === org.id && (
+                                <span style={{ fontSize: '0.875rem', color: '#007a48', fontFamily: 'Barlow, sans-serif', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  ✓ Saved
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       </div>
                     </div>
                   )}
