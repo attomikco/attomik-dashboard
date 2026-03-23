@@ -11,6 +11,7 @@ import MoMSummaryTable from '@/components/MoMSummaryTable'
 import PacingChart from '@/components/PacingChart'
 import DayOfWeekHeatmap from '@/components/DayOfWeekHeatmap'
 import CacTrendChart from '@/components/CacTrendChart'
+import RetentionChart from '@/components/RetentionChart'
 import AIInsights from '@/components/AIInsights'
 import AskAttomik from '@/components/AskAttomik'
 
@@ -597,6 +598,26 @@ export default function AnalyticsPage() {
       weekRetRate.push(wRetRate)
     }
 
+    // Monthly retention data (last 6 months)
+    const monthlyRetention: { month: string; total: number; returning: number; new: number; retRate: number }[] = []
+    for (let m = 5; m >= 0; m--) {
+      const d = new Date()
+      d.setMonth(d.getMonth() - m)
+      const mStart = new Date(d.getFullYear(), d.getMonth(), 1)
+      const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59)
+      const mStartISO = mStart.toISOString()
+      const mEndISO = mEnd.toISOString()
+      const mLabel = mStart.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+
+      const mOrds = allOrd.filter(o => o.created_at >= mStartISO && o.created_at < mEndISO)
+      const mCusts = new Set(mOrds.map(o => o.customer_email).filter(Boolean))
+      const mPrior = new Set(allOrd.filter(o => o.created_at < mStartISO).map(o => o.customer_email).filter(Boolean))
+      const mRet = [...mCusts].filter(e => mPrior.has(e)).length
+      const mNew = [...mCusts].filter(e => !mPrior.has(e)).length
+      const mTotal = mCusts.size
+      monthlyRetention.push({ month: mLabel, total: mTotal, returning: mRet, new: mNew, retRate: mTotal > 0 ? (mRet / mTotal) * 100 : 0 })
+    }
+
     // If only Shopify enabled, use Shopify-specific calcs for accuracy
     const finalAovC = (showShopify && !showAmazon) ? shAovC : aovC
     const finalAovP = (showShopify && !showAmazon) ? shAovP : aovP
@@ -613,6 +634,7 @@ export default function AnalyticsPage() {
       amzRevC, amzRevP, amzUnitC, amzUnitP, amzDaysC: amzC.length, amzDaysP: amzP.length, amzAovC, amzAovP,
       metaSpC, metaSpP, metaImprC, metaImprP, metaClkC, metaClkP, metaConvC, metaConvP, metaRoasC, metaRoasP,
       weekRevs, weekSpend, weekOrders, weekCac, weekAov, weekRoas, weekNewCusts, weekRetCusts, weekRetRate,
+      monthlyRetention,
     })
     setLoading(false)
   }
@@ -823,12 +845,18 @@ export default function AnalyticsPage() {
 
           {/* ── CUSTOMER REVENUE ── */}
           <SectionHeader title="Customer Revenue" />
-          <div className="kpi-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
+          <div className="kpi-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 16 }}>
             <KpiCard label="New Customer Rev."       value={fmt$(d.newRevC)} subtitle={d.totalRevC > 0 ? `${((d.newRevC/d.totalRevC)*100).toFixed(1)}% of total` : ''} />
             <KpiCard label="Returning Customer Rev." value={fmt$(d.retRevC)} subtitle={d.totalRevC > 0 ? `${((d.retRevC/d.totalRevC)*100).toFixed(1)}% of total` : ''} />
             <KpiCard label="Returning Customer Rate"             value={fmtPct(d.shRcrC)} change={pct(d.shRcrC, d.shRcrP)} />
             <KpiCard label="CAC"                     value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors />
           </div>
+          {d.monthlyRetention?.length > 0 && (
+            <ChartCard title="Customer Retention" subtitle="Returning (green) vs New (gray) customers · Return rate line · Last 6 months">
+              <RetentionChart data={d.monthlyRetention} />
+            </ChartCard>
+          )}
+          <div style={{ marginBottom: 32 }} />
 
           {/* ── TRAFFIC (GA4) ── */}
           {trafficData && (
