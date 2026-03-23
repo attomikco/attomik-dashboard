@@ -38,6 +38,21 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
+
+    // Check if this email has access before sending magic link
+    const check = await fetch('/api/auth/check-access', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+    const { access } = await check.json()
+
+    if (!access) {
+      setError('This email is not part of any project. Contact your admin to get access.')
+      setLoading(false)
+      return
+    }
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: `${location.origin}/auth/callback` },
