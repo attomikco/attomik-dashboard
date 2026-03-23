@@ -34,7 +34,7 @@ async function syncOrg(orgId: string, org: any, supabase: any): Promise<{ orgId:
     const updatedAtMin = lastSynced ? new Date(lastSynced).toISOString() : new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 
     const allOrders: any[] = []
-    let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&updated_at_min=${updatedAtMin}&fields=id,name,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds,source_name,tags`
+    let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&updated_at_min=${updatedAtMin}&fields=id,name,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds,source_name,tags,discount_codes`
 
     while (url) {
       const res = await fetch(url, { headers })
@@ -59,8 +59,10 @@ async function syncOrg(orgId: string, org: any, supabase: any): Promise<{ orgId:
       const shippingAmount = parseFloat(o.total_shipping_price_set?.shop_money?.amount ?? '0')
 
       const hasSellingPlan = (o.line_items ?? []).some((li: any) => li.selling_plan_allocation)
-      const isSubSource = (o.source_name ?? '').toLowerCase().includes('paywhirl')
+      const sourceName = (o.source_name ?? '').toLowerCase()
+      const isSubSource = sourceName.includes('paywhirl') || sourceName.includes('subscription')
       const isSubTag = (o.tags ?? '').toLowerCase().includes('subscription')
+      const isSubDiscount = (o.discount_codes ?? []).some((dc: any) => (dc.code ?? '').toLowerCase().includes('subscri'))
 
       return {
         org_id: orgId,
@@ -75,7 +77,7 @@ async function syncOrg(orgId: string, org: any, supabase: any): Promise<{ orgId:
         shipping_amount: shippingAmount,
         refunded_amount: refundedAmount,
         units,
-        is_subscription: hasSellingPlan || isSubSource || isSubTag,
+        is_subscription: hasSellingPlan || isSubSource || isSubTag || isSubDiscount,
         status: o.financial_status === 'paid' ? 'paid'
               : o.financial_status === 'refunded' ? 'refunded'
               : o.financial_status === 'pending' ? 'pending'

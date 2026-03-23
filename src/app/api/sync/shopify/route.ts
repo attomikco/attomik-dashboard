@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     const headers = { 'X-Shopify-Access-Token': token }
     const apiBase = `https://${domain}/admin/api/2024-01`
 
-    const fields = 'id,name,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds,source_name,tags'
+    const fields = 'id,name,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds,source_name,tags,discount_codes'
     const isFirstSync = !lastSynced || full_sync
     const updatedAtMin = isFirstSync ? null : new Date(lastSynced).toISOString()
 
@@ -118,13 +118,16 @@ export async function POST(request: Request) {
       const shippingAmount = parseFloat(o.total_shipping_price_set?.shop_money?.amount ?? '0')
 
       // Detect subscription orders:
-      // 1. selling_plan_allocation on any line item (most reliable)
+      // 1. selling_plan_allocation on any line item
       // 2. source_name contains 'paywhirl' or subscription app name
       // 3. tags contain 'subscription'
+      // 4. discount codes contain 'subscri' (e.g. FREE-SHIPPING-SUBCRIPTION)
       const hasSellingPlan = (o.line_items ?? []).some((li: any) => li.selling_plan_allocation)
-      const isSubSource = (o.source_name ?? '').toLowerCase().includes('paywhirl')
+      const sourceName = (o.source_name ?? '').toLowerCase()
+      const isSubSource = sourceName.includes('paywhirl') || sourceName.includes('subscription')
       const isSubTag = (o.tags ?? '').toLowerCase().includes('subscription')
-      const isSubscription = hasSellingPlan || isSubSource || isSubTag
+      const isSubDiscount = (o.discount_codes ?? []).some((dc: any) => (dc.code ?? '').toLowerCase().includes('subscri'))
+      const isSubscription = hasSellingPlan || isSubSource || isSubTag || isSubDiscount
 
       return {
         org_id,
@@ -160,9 +163,13 @@ export async function POST(request: Request) {
       .update({ shopify_synced_at: new Date().toISOString() })
       .eq('id', org_id)
 
+    const subCount = rows.filter(r => r.is_subscription).length
+    console.log(`[sync] ${org_id}: ${rows.length} orders, ${subCount} subscriptions`)
+
     return NextResponse.json({
       synced: rows.length,
       inserted: data?.length ?? 0,
+      subscriptions: subCount,
       full_sync: isFirstSync,
       message: isFirstSync
         ? `Full sync complete — ${rows.length} orders imported`
