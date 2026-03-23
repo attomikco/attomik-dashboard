@@ -495,6 +495,7 @@ export default function OverviewPage() {
                       {[1,2,3,4].map(i => <div key={i} style={{ height: 52, background: '#f0f0f0', borderRadius: 6 }} className="animate-pulse" />)}
                     </div>
                   ) : (
+                    <>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       {[
                         { label: 'Total Sales', value: fmt$(org.revenue),  delta: pct(org.revenue, org.prevRevenue) },
@@ -523,6 +524,7 @@ export default function OverviewPage() {
                         )}
                       </div>
                     )}
+                    </>
                   )}
                 </div>
               ))}

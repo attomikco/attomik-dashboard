@@ -70,9 +70,14 @@ export default function DateRangePicker({ value, onChange }: Props) {
     return () => window.removeEventListener('resize', check)
   }, [])
 
+  const mobileSheetRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (ref.current && !ref.current.contains(e.target as Node) &&
+          (!mobileSheetRef.current || !mobileSheetRef.current.contains(e.target as Node))) {
+        setOpen(false)
+      }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -227,6 +232,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
           onClick={() => setOpen(false)}
         >
           <div
+            ref={mobileSheetRef}
             style={{
               position: 'absolute', bottom: 0, left: 0, right: 0,
               background: '#fff', borderRadius: '16px 16px 0 0',
