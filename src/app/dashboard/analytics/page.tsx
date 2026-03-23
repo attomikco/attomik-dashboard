@@ -770,6 +770,14 @@ export default function AnalyticsPage() {
             <KpiCard label="AOV"    value={fmt$(d.aovC)} change={pct(d.aovC, d.aovP)} />
           </div>
 
+          {/* ── CLTV & CLTV/CAC ── */}
+          {d.cltvC > 0 && (
+            <div className="kpi-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
+              <KpiCard label="CLTV" value={fmt$(d.cltvC)} change={d.cltvP > 0 ? pct(d.cltvC, d.cltvP) : undefined} subtitle="Shopify · ACL (2) × AOV × Freq" />
+              {d.cacC > 0 && <KpiCard label="CLTV / CAC" value={`${(d.cltvC / d.cacC).toFixed(2)}x`} change={d.cltvP > 0 && d.cacP > 0 ? pct(d.cltvC / d.cacC, d.cltvP / d.cacP) : undefined} />}
+            </div>
+          )}
+
           {/* ── SALES BY CHANNEL ── */}
           {(d.shTotalC > 0 || d.amzRevC > 0) && (() => {
             const shPctC = d.totalRevC > 0 ? (d.shTotalC / d.totalRevC * 100) : 0
@@ -802,13 +810,8 @@ export default function AnalyticsPage() {
             )
           })()}
 
-          {/* ── CLTV & CLTV/CAC ── */}
-          {d.cltvC > 0 && (
-            <MetricRow items={[
-              { label: 'CLTV', value: fmt$(d.cltvC), sub: d.cltvP > 0 ? chg(d.cltvC, d.cltvP) : '', desc: 'Shopify only · ACL (2) × AOV × Orders/Customers' },
-              ...(d.cacC > 0 ? [{ label: 'CLTV / CAC', value: `${(d.cltvC / d.cacC).toFixed(2)}x`, sub: d.cltvP > 0 && d.cacP > 0 ? chg(d.cltvC / d.cacC, d.cltvP / d.cacP) : '', desc: 'Lifetime Value ÷ Acquisition Cost' }] : []),
-            ]} />
-          )}
+          {/* ── PERFORMANCE ── */}
+          <SectionHeader title="Performance" />
 
           {/* ── CHARTS ROW 1 ── */}
           <div className="chart-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
