@@ -621,30 +621,39 @@ export default function AnalyticsPage() {
           {/* ── OVERVIEW KPIs ── */}
           <SectionHeader title="Overview" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
-            <KpiCard label="Total Sales"    value={fmt$(d.totalRevC)} change={pct(d.totalRevC, d.totalRevP)}>
-              {d.totalRevC > 0 && (d.shTotalC > 0 || d.amzRevC > 0) && (
-                <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
-                  {d.shTotalC > 0 && (
-                    <span style={{ fontSize: '0.72rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', padding: '2px 8px', borderRadius: 4, background: '#f0fdf4', color: '#166534' }}>
-                      Shopify {fmt$(d.shTotalC)} · {(d.shTotalC / d.totalRevC * 100).toFixed(0)}%
-                    </span>
-                  )}
-                  {d.amzRevC > 0 && (
-                    <span style={{ fontSize: '0.72rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', padding: '2px 8px', borderRadius: 4, background: '#fef3c7', color: '#92400e' }}>
-                      Amazon {fmt$(d.amzRevC)} · {(d.amzRevC / d.totalRevC * 100).toFixed(0)}%
-                    </span>
-                  )}
-                </div>
-              )}
-            </KpiCard>
+            <KpiCard label="Total Sales"    value={fmt$(d.totalRevC)} change={pct(d.totalRevC, d.totalRevP)} />
             <KpiCard label="Total Ad Spend" value={fmt$(d.totalSpC)}  change={pct(d.totalSpC, d.totalSpP)} invertColors />
             <KpiCard label="ROAS"           value={fmtX(d.roasC)}     change={pct(d.roasC, d.roasP)} />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 32 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
             <KpiCard label="Orders" value={fmtN(d.ordC)} change={pct(d.ordC, d.ordP)} />
             <KpiCard label="CAC"    value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors />
             <KpiCard label="AOV"    value={fmt$(d.aovC)} change={pct(d.aovC, d.aovP)} />
           </div>
+
+          {/* ── SALES BY CHANNEL ── */}
+          {(d.shTotalC > 0 || d.amzRevC > 0) && (
+            <MetricRow items={[
+              ...(d.shTotalC > 0 ? [{
+                label: 'Shopify',
+                value: fmt$(d.shTotalC),
+                sub: d.shTotalP > 0 ? chg(d.shTotalC, d.shTotalP) : '',
+              }] : []),
+              ...(d.shTotalC > 0 && d.totalRevC > 0 ? [{
+                label: 'Shopify % of Total',
+                value: `${(d.shTotalC / d.totalRevC * 100).toFixed(1)}%`,
+              }] : []),
+              ...(d.amzRevC > 0 ? [{
+                label: 'Amazon',
+                value: fmt$(d.amzRevC),
+                sub: d.amzRevP > 0 ? chg(d.amzRevC, d.amzRevP) : '',
+              }] : []),
+              ...(d.amzRevC > 0 && d.totalRevC > 0 ? [{
+                label: 'Amazon % of Total',
+                value: `${(d.amzRevC / d.totalRevC * 100).toFixed(1)}%`,
+              }] : []),
+            ]} />
+          )}
 
           {/* ── CHARTS ROW 1 ── */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
