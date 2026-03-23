@@ -136,8 +136,8 @@ Write a 3-sentence summary: (1) brand + period + biggest growth headline with nu
 
     if (!response.ok) {
       const err = await response.text()
-      console.error('Anthropic API error:', err)
-      return NextResponse.json({ error: `API error: ${response.status}` }, { status: 500 })
+      console.error('Anthropic API error:', response.status, err)
+      return NextResponse.json({ insight: `Error: ${response.status} — check ANTHROPIC_API_KEY env var` })
     }
 
     const data = await response.json()
