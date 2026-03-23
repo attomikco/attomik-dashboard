@@ -51,22 +51,18 @@ export async function POST(request: Request) {
     const spendStart = adSpendStart ?? start.split('T')[0]
     const spendEnd = adSpendEnd ?? end.split('T')[0]
 
-    // For orders: use the EARLIER of midnight UTC or the timezone-adjusted start
-    // This ensures Amazon daily records (stored at midnight UTC) are always captured
-    const orderStart = `${spendStart}T00:00:00.000Z` < start ? `${spendStart}T00:00:00.000Z` : start
-    const orderEnd = `${spendEnd}T23:59:59.999Z` > end ? `${spendEnd}T23:59:59.999Z` : end
-
     // Paginated fetch to get ALL orders (Supabase caps at 1000 per query)
-    const fetchAllOrders = async (gte: string, lte: string) => {
+    const fetchAllOrders = async (gte: string, lte: string, source?: string) => {
       const size = 1000
       let from = 0
       const all: any[] = []
       while (true) {
-        const { data } = await serviceClient.from('orders')
+        let query = serviceClient.from('orders')
           .select('total_price, subtotal, status, source')
           .eq('org_id', org_id).gte('created_at', gte).lte('created_at', lte)
           .order('created_at', { ascending: true })
-          .range(from, from + size - 1)
+        if (source) query = query.eq('source', source)
+        const { data } = await query.range(from, from + size - 1)
         if (!data || data.length === 0) break
         all.push(...data)
         if (data.length < size) break
@@ -75,14 +71,21 @@ export async function POST(request: Request) {
       return all
     }
 
-    const [curOrders, prevOrders, curSpend, prevSpend] = await Promise.all([
-      fetchAllOrders(orderStart, orderEnd),
+    // Fetch non-Amazon orders with exact timezone-adjusted range
+    // Fetch Amazon orders separately using midnight UTC boundaries (they're stored at 00:00 UTC)
+    const amazonStart = `${spendStart}T00:00:00.000Z`
+    const amazonEnd = `${spendEnd}T23:59:59.999Z`
+
+    const [curNonAmazon, curAmazon, prevOrders, curSpend, prevSpend] = await Promise.all([
+      fetchAllOrders(start, end, undefined).then(orders => orders.filter(o => o.source !== 'amazon')),
+      fetchAllOrders(amazonStart, amazonEnd, 'amazon'),
       fetchAllOrders(prevStart, prevEnd),
       serviceClient.from('ad_spend').select('spend')
         .eq('org_id', org_id).gte('date', spendStart).lte('date', spendEnd),
       serviceClient.from('ad_spend').select('spend')
         .eq('org_id', org_id).gte('date', prevStart).lte('date', prevEnd),
     ])
+    const curOrders = [...curNonAmazon, ...curAmazon]
 
     return NextResponse.json({
       curOrders,
