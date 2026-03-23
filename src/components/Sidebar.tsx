@@ -133,7 +133,7 @@ export default function Sidebar() {
     <>
       {/* Logo */}
       <div style={{ padding: '28px 24px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3162 909" style={{ height: 28, display: 'block' }}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3162 909" style={{ height: 38, display: 'block' }}>
           <g transform="scale(8.11041548093341) translate(10, 10)">
             <g transform="matrix(1.0466,0,0,1.0466,-6.28,-6.28)" fill="#ffffff">
               <g transform="translate(0,-952.36218)">
