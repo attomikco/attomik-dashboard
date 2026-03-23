@@ -265,7 +265,7 @@ export default function ProjectsPage() {
   }
 
   const inp: React.CSSProperties = {
-    padding: '8px 10px', border: `1px solid ${C.border}`, borderRadius: 6,
+    padding: '8px 24px 8px 10px', border: `1px solid ${C.border}`, borderRadius: 6,
     fontFamily: 'Barlow, sans-serif', fontSize: '0.875rem', outline: 'none',
     background: C.paper, color: C.ink,
   }
