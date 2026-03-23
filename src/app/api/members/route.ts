@@ -69,13 +69,18 @@ export async function PUT(request: Request) {
     const serviceClient = createServiceClient()
     const now = new Date().toISOString()
 
+    // Check if user has actually signed in before
+    const { data: { users } } = await serviceClient.auth.admin.listUsers()
+    const targetUser = users?.find(u => u.id === user_id)
+    const hasSignedIn = !!targetUser?.last_sign_in_at
+
     await serviceClient.from('org_memberships').upsert({
       user_id,
       org_id,
       role,
-      status: 'joined',
+      status: hasSignedIn ? 'joined' : 'invited',
       invited_at: now,
-      joined_at: now,
+      joined_at: hasSignedIn ? now : null,
     }, { onConflict: 'user_id,org_id' })
 
     return NextResponse.json({ success: true })
