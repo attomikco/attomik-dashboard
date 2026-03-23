@@ -96,6 +96,40 @@ export async function POST(request: Request) {
       data = inserted ?? []
     }
 
+    // Store line items from CSV for product breakdown
+    const lineItems = rows.map(row => {
+      const name = row['Name']?.trim()
+      if (!name) return null
+      const rawDate = row['Created at'] || row['Paid at']
+      const parsedDate = rawDate ? new Date(rawDate) : new Date()
+      const createdAt = isNaN(parsedDate.getTime()) ? new Date().toISOString() : parsedDate.toISOString()
+      const qty = parseInt(row['Lineitem quantity'] ?? '1') || 1
+      const price = clean(row['Lineitem price'] ?? '0')
+      const product = row['Lineitem name'] ?? row['Lineitem sku'] ?? ''
+      if (!product) return null
+      return {
+        org_id: orgId!,
+        order_external_id: `shopify_${name}`,
+        product_title: product,
+        variant_title: row['Lineitem variant'] ?? null,
+        sku: row['Lineitem sku'] ?? null,
+        quantity: qty,
+        price,
+        created_at: createdAt,
+      }
+    }).filter(Boolean) as any[]
+
+    if (lineItems.length > 0) {
+      // Delete existing line items for these orders
+      const liExternalIds = [...new Set(lineItems.map(li => li.order_external_id))]
+      for (let i = 0; i < liExternalIds.length; i += 500) {
+        await serviceClient.from('order_items').delete().eq('org_id', orgId!).in('order_external_id', liExternalIds.slice(i, i + 500))
+      }
+      for (let i = 0; i < lineItems.length; i += 500) {
+        await serviceClient.from('order_items').insert(lineItems.slice(i, i + 500))
+      }
+    }
+
     const totalRevenue  = (deduped as any[]).reduce((s: number, r: any) => s + r.total_price, 0)
     const totalDiscount = (deduped as any[]).reduce((s: number, r: any) => s + r.discount_amount, 0)
     const totalRefunded = (deduped as any[]).reduce((s: number, r: any) => s + r.refunded_amount, 0)
