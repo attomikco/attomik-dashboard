@@ -141,7 +141,11 @@ Write a 3-sentence summary: (1) brand + period + biggest growth headline with nu
     }
 
     const data = await response.json()
-    const text = data.content?.[0]?.text ?? 'No insights generated.'
+    const text = data.content?.[0]?.text
+    if (!text) {
+      console.error('Empty Claude response:', JSON.stringify(data).slice(0, 500))
+      return NextResponse.json({ insight: 'AI returned empty response. Try again.' })
+    }
 
     // Log the generation
     if (user) {
