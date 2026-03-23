@@ -54,9 +54,10 @@ export default function ProjectsPage() {
   const [membersLoading, setMembersLoading] = useState<Record<string, boolean>>({})
   const [channels, setChannels] = useState<Record<string, Record<string, boolean>>>({})
   const [savingChannels, setSavingChannels] = useState<string | null>(null)
-  const [settingsState, setSettingsState] = useState<Record<string, { name: string; timezone: string }>>({})
+  const [settingsState, setSettingsState] = useState<Record<string, { name: string; timezone: string; logo_url: string; header_url: string }>>({})
   const [savingSettings, setSavingSettings] = useState<string | null>(null)
   const [settingsSaved, setSettingsSaved] = useState<string | null>(null)
+  const [uploadingImage, setUploadingImage] = useState<Record<string, boolean>>({})
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteName, setInviteName] = useState('')
   const [inviteRole, setInviteRole] = useState('viewer')
@@ -75,13 +76,13 @@ export default function ProjectsPage() {
   const fetchOrgs = async () => {
     setLoading(true)
     const { data } = await supabase.from('organizations')
-      .select('id, name, slug, created_at, shopify_domain, channels, timezone').order('name')
+      .select('id, name, slug, created_at, shopify_domain, channels, timezone, logo_url, header_url').order('name')
     setOrgs(data ?? [])
     const chMap: Record<string, Record<string, boolean>> = {}
     const sMap: Record<string, { name: string; timezone: string }> = {}
     ;(data ?? []).forEach((o: Org) => {
       chMap[o.id] = o.channels ?? {}
-      sMap[o.id] = { name: o.name, timezone: o.timezone ?? 'America/New_York' }
+      sMap[o.id] = { name: o.name, timezone: o.timezone ?? 'America/New_York', logo_url: (o as any).logo_url ?? '', header_url: (o as any).header_url ?? '' }
     })
     setChannels(chMap)
     setSettingsState(sMap)
@@ -114,6 +115,22 @@ export default function ProjectsPage() {
     setSavingSettings(null)
     setSettingsSaved(orgId)
     setTimeout(() => setSettingsSaved(null), 2000)
+  }
+
+  const uploadImage = async (orgId: string, file: File, type: 'logo' | 'header') => {
+    const key = `${orgId}-${type}`
+    setUploadingImage(p => ({ ...p, [key]: true }))
+    const ext = file.name.split('.').pop()
+    const path = `${orgId}/${type}.${ext}`
+    const { error } = await supabase.storage.from('org-assets').upload(path, file, { upsert: true })
+    if (!error) {
+      const { data } = supabase.storage.from('org-assets').getPublicUrl(path)
+      const url = data.publicUrl
+      const field = type === 'logo' ? 'logo_url' : 'header_url'
+      await supabase.from('organizations').update({ [field]: url }).eq('id', orgId)
+      setSettingsState(p => ({ ...p, [orgId]: { ...p[orgId], [field]: url } }))
+    }
+    setUploadingImage(p => ({ ...p, [key]: false }))
   }
 
   const handleInvite = async (e: React.FormEvent, orgId: string) => {
@@ -408,6 +425,53 @@ export default function ProjectsPage() {
                               {settingsSaved === org.id && (
                                 <span style={{ fontSize: '0.875rem', color: '#007a48', fontFamily: 'Barlow, sans-serif' }}>✓ Saved</span>
                               )}
+                            </div>
+
+                            {/* Branding */}
+                            <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 16, marginTop: 4 }}>
+                              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'Barlow, sans-serif', marginBottom: 14 }}>Branding</div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                                {/* Logo */}
+                                <div>
+                                  <label style={{ fontSize: '0.72rem', fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8, fontFamily: 'Barlow, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Square Logo</label>
+                                  <div
+                                    onClick={() => document.getElementById(`logo-${org.id}`)?.click()}
+                                    style={{ width: 72, height: 72, borderRadius: 10, border: `2px dashed ${C.border}`, background: C.cream, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 8, cursor: 'pointer' }}>
+                                    {settingsState[org.id]?.logo_url
+                                      ? <img src={settingsState[org.id].logo_url} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                      : <span style={{ fontSize: '0.65rem', color: '#bbb', fontFamily: 'Barlow, sans-serif', textAlign: 'center', padding: 6 }}>Click to upload</span>
+                                    }
+                                  </div>
+                                  <input id={`logo-${org.id}`} type="file" accept="image/*" style={{ display: 'none' }}
+                                    onChange={e => e.target.files?.[0] && uploadImage(org.id, e.target.files[0], 'logo')} />
+                                  <button onClick={() => document.getElementById(`logo-${org.id}`)?.click()}
+                                    disabled={uploadingImage[`${org.id}-logo`]}
+                                    style={{ padding: '5px 12px', background: C.ink, color: C.paper, border: 'none', borderRadius: 6, fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}>
+                                    {uploadingImage[`${org.id}-logo`] ? 'Uploading…' : settingsState[org.id]?.logo_url ? 'Replace' : 'Upload'}
+                                  </button>
+                                  <p style={{ fontSize: '0.65rem', color: '#bbb', marginTop: 4, fontFamily: 'Barlow, sans-serif' }}>Square, PNG/JPG</p>
+                                </div>
+                                {/* Header */}
+                                <div>
+                                  <label style={{ fontSize: '0.72rem', fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8, fontFamily: 'Barlow, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Header Image</label>
+                                  <div
+                                    onClick={() => document.getElementById(`header-${org.id}`)?.click()}
+                                    style={{ width: '100%', height: 72, borderRadius: 10, border: `2px dashed ${C.border}`, background: C.cream, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 8, cursor: 'pointer' }}>
+                                    {settingsState[org.id]?.header_url
+                                      ? <img src={settingsState[org.id].header_url} alt="Header" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                      : <span style={{ fontSize: '0.65rem', color: '#bbb', fontFamily: 'Barlow, sans-serif' }}>Click to upload</span>
+                                    }
+                                  </div>
+                                  <input id={`header-${org.id}`} type="file" accept="image/*" style={{ display: 'none' }}
+                                    onChange={e => e.target.files?.[0] && uploadImage(org.id, e.target.files[0], 'header')} />
+                                  <button onClick={() => document.getElementById(`header-${org.id}`)?.click()}
+                                    disabled={uploadingImage[`${org.id}-header`]}
+                                    style={{ padding: '5px 12px', background: C.ink, color: C.paper, border: 'none', borderRadius: 6, fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}>
+                                    {uploadingImage[`${org.id}-header`] ? 'Uploading…' : settingsState[org.id]?.header_url ? 'Replace' : 'Upload'}
+                                  </button>
+                                  <p style={{ fontSize: '0.65rem', color: '#bbb', marginTop: 4, fontFamily: 'Barlow, sans-serif' }}>Wide, 1200×300px recommended</p>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         )}
