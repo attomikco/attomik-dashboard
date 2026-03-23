@@ -86,6 +86,9 @@ export default function ProjectsPage() {
   const [chatLogs, setChatLogs] = useState<any[]>([])
   const [chatLogsLoading, setChatLogsLoading] = useState(false)
   const [showChatLogs, setShowChatLogs] = useState(false)
+  const [pageTab, setPageTab] = useState<'projects' | 'team' | 'logs'>('projects')
+  const [logsPage, setLogsPage] = useState(0)
+  const LOGS_PER_PAGE = 25
   const supabase = createClient()
   const router = useRouter()
 
@@ -177,9 +180,9 @@ export default function ProjectsPage() {
     setChatLogsLoading(false)
   }
 
-  const toggleChatLogs = () => {
-    if (!showChatLogs && chatLogs.length === 0) loadChatLogs()
-    setShowChatLogs(p => !p)
+  const switchToTab = (tab: 'projects' | 'team' | 'logs') => {
+    setPageTab(tab)
+    if (tab === 'logs' && chatLogs.length === 0) loadChatLogs()
   }
 
   const assignProject = async (userId: string, orgId: string, role: string) => {
@@ -290,17 +293,36 @@ export default function ProjectsPage() {
     <div style={{ background: C.paper, minHeight: '100vh' }}>
 
       {/* Topbar */}
-      <div style={{ padding: '16px 24px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: C.paper, zIndex: 50 }}>
-        <div>
-          <h1 style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'Barlow, sans-serif' }}>Projects</h1>
-          <p style={{ fontSize: '0.8rem', color: C.muted, marginTop: 2, fontFamily: 'Barlow, sans-serif' }}>{orgs.length} client{orgs.length !== 1 ? 's' : ''}</p>
+      <div style={{ borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.paper, zIndex: 50 }}>
+        <div style={{ padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <h1 style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'Barlow, sans-serif' }}>Admin</h1>
+          </div>
+          {pageTab === 'projects' && (
+            <button onClick={() => setShowNewForm(p => !p)} style={{ padding: '8px 16px', background: C.ink, color: C.accent, fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+              + New Project
+            </button>
+          )}
         </div>
-        <button onClick={() => setShowNewForm(p => !p)} style={{ padding: '8px 16px', background: C.ink, color: C.accent, fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
-          + New Project
-        </button>
+        <div style={{ display: 'flex', padding: '0 24px', gap: 0 }}>
+          {(['projects', 'team', 'logs'] as const).map(tab => (
+            <button key={tab} onClick={() => switchToTab(tab)} style={{
+              padding: '10px 20px', border: 'none', background: 'transparent',
+              fontFamily: 'Barlow, sans-serif', fontSize: '0.85rem', fontWeight: 600,
+              color: pageTab === tab ? C.ink : C.muted, cursor: 'pointer',
+              borderBottom: `2px solid ${pageTab === tab ? C.accent : 'transparent'}`,
+              marginBottom: -1, transition: '0.15s', textTransform: 'capitalize',
+            }}>
+              {tab === 'logs' ? 'AI Chat Logs' : tab === 'team' ? `Team (${teamMembers.length})` : `Projects (${orgs.length})`}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div style={{ padding: '24px clamp(16px,4vw,40px) 80px' }}>
+
+        {/* ── PROJECTS TAB ── */}
+        {pageTab === 'projects' && <>
 
         {/* New project form */}
         {showNewForm && (
@@ -334,20 +356,12 @@ export default function ProjectsPage() {
           </div>
         )}
 
-        {/* Team table */}
+        </>}
+
+        {/* ── TEAM TAB ── */}
+        {pageTab === 'team' && <>
         <div style={{ marginBottom: 24 }}>
-          <button
-            onClick={() => setShowTeam(p => !p)}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 12px', fontFamily: 'Barlow, sans-serif' }}
-          >
-            <Users size={16} color={C.muted} />
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: C.ink, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Team {!teamLoading && `(${teamMembers.length})`}
-            </span>
-            <ChevronDown size={14} color={C.muted} style={{ transform: showTeam ? 'rotate(0)' : 'rotate(-90deg)', transition: '0.15s' }} />
-          </button>
-          {showTeam && (
-            teamLoading ? (
+          {teamLoading ? (
               <div style={{ color: C.muted, fontSize: '0.8rem', fontFamily: 'Barlow, sans-serif', padding: '12px 0' }}>Loading team...</div>
             ) : (<>
               {/* Invite new user form */}
@@ -513,21 +527,15 @@ export default function ProjectsPage() {
                   </tbody>
                 </table>
               </div>
-            </>)
-          )}
+            </>)}
         </div>
 
-        {/* Chat Logs */}
+        </>}
+
+        {/* ── LOGS TAB ── */}
+        {pageTab === 'logs' && <>
         <div style={{ marginBottom: 24 }}>
-          <button onClick={toggleChatLogs} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 12px', fontFamily: 'Barlow, sans-serif' }}>
-            <MessageCircle size={16} color={C.muted} />
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: C.ink, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              AI Chat Logs {chatLogs.length > 0 && `(${chatLogs.length})`}
-            </span>
-            <ChevronDown size={14} color={C.muted} style={{ transform: showChatLogs ? 'rotate(0)' : 'rotate(-90deg)', transition: '0.15s' }} />
-          </button>
-          {showChatLogs && (
-            chatLogsLoading ? (
+          {chatLogsLoading ? (
               <div style={{ color: C.muted, fontSize: '0.8rem', fontFamily: 'Barlow, sans-serif', padding: '12px 0' }}>Loading logs...</div>
             ) : chatLogs.length === 0 ? (
               <div style={{ color: '#ccc', fontSize: '0.8rem', fontFamily: 'Barlow, sans-serif' }}>No chat activity yet.</div>
@@ -542,7 +550,7 @@ export default function ProjectsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {chatLogs.map((log: any, i: number) => (
+                    {chatLogs.slice(logsPage * LOGS_PER_PAGE, (logsPage + 1) * LOGS_PER_PAGE).map((log: any, i: number) => (
                       <tr key={log.id} style={{ borderTop: i > 0 ? `1px solid ${C.border}` : 'none' }}
                         onMouseEnter={e => (e.currentTarget.style.background = '#fafafa')}
                         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
@@ -564,10 +572,27 @@ export default function ProjectsPage() {
                   </tbody>
                 </table>
               </div>
-            )
+            )}
+          {chatLogs.length > LOGS_PER_PAGE && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '16px 0' }}>
+              <button onClick={() => setLogsPage(p => Math.max(0, p - 1))} disabled={logsPage === 0}
+                style={{ padding: '6px 14px', background: logsPage === 0 ? C.cream : C.ink, color: logsPage === 0 ? C.muted : C.accent, border: 'none', borderRadius: 6, fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.78rem', cursor: logsPage === 0 ? 'not-allowed' : 'pointer' }}>
+                Previous
+              </button>
+              <span style={{ fontSize: '0.78rem', color: C.muted, fontFamily: 'Barlow, sans-serif' }}>
+                Page {logsPage + 1} of {Math.ceil(chatLogs.length / LOGS_PER_PAGE)}
+              </span>
+              <button onClick={() => setLogsPage(p => p + 1)} disabled={(logsPage + 1) * LOGS_PER_PAGE >= chatLogs.length}
+                style={{ padding: '6px 14px', background: (logsPage + 1) * LOGS_PER_PAGE >= chatLogs.length ? C.cream : C.ink, color: (logsPage + 1) * LOGS_PER_PAGE >= chatLogs.length ? C.muted : C.accent, border: 'none', borderRadius: 6, fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.78rem', cursor: (logsPage + 1) * LOGS_PER_PAGE >= chatLogs.length ? 'not-allowed' : 'pointer' }}>
+                Next
+              </button>
+            </div>
           )}
         </div>
+        </>}
 
+        {/* ── PROJECTS LIST (inside projects tab) ── */}
+        {pageTab === 'projects' && (<>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '80px 0', color: C.muted, fontFamily: 'Barlow, sans-serif' }}>Loading…</div>
         ) : (
@@ -848,6 +873,7 @@ export default function ProjectsPage() {
             })}
           </div>
         )}
+        </>)}
       </div>
 
       <style>{`
