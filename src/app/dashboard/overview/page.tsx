@@ -51,6 +51,8 @@ interface OrgKpi {
   prevAdSpend: number
   roas: number
   prevRoas: number
+  shopifyRev: number
+  amazonRev: number
   loading: boolean
 }
 
@@ -117,7 +119,8 @@ export default function OverviewPage() {
 
       const initial: OrgKpi[] = orgList.map(o => ({
         ...o, revenue: 0, prevRevenue: 0, orders: 0, prevOrders: 0,
-        aov: 0, prevAov: 0, adSpend: 0, prevAdSpend: 0, roas: 0, prevRoas: 0, loading: true,
+        aov: 0, prevAov: 0, adSpend: 0, prevAdSpend: 0, roas: 0, prevRoas: 0,
+        shopifyRev: 0, amazonRev: 0, loading: true,
       }))
       setOrgs(initial)
       setLoadingOrgs(false)
@@ -221,9 +224,11 @@ export default function OverviewPage() {
         const prevAdSpend = (prevSpend.data ?? []).reduce((s, r) => s + Number(r.spend), 0)
         const roas        = adSpend > 0 ? revenue / adSpend : 0
         const prevRoas    = prevAdSpend > 0 ? prevRevenue / prevAdSpend : 0
+        const shopifyRev  = cur.filter(o => o.source === 'shopify').reduce((s, o) => s + Number(o.total_price || 0), 0)
+        const amazonRev   = cur.filter(o => o.source === 'amazon').reduce((s, o) => s + Number(o.total_price || 0), 0)
 
         if (!cancelled) setOrgs(prev => prev.map(o => o.id === org.id
-          ? { ...o, revenue, prevRevenue, orders, prevOrders: prevOrdCnt, aov, prevAov, adSpend, prevAdSpend, roas, prevRoas, loading: false }
+          ? { ...o, revenue, prevRevenue, orders, prevOrders: prevOrdCnt, aov, prevAov, adSpend, prevAdSpend, roas, prevRoas, shopifyRev, amazonRev, loading: false }
           : o
         ))
       } catch {
@@ -379,6 +384,20 @@ export default function OverviewPage() {
                                 <span style={{ fontWeight: 800, fontSize: '0.95rem', fontFamily: 'Barlow, sans-serif' }}>{fmt$(org.revenue)}</span>
                                 <DeltaBadge value={pct(org.revenue, org.prevRevenue)} />
                               </div>
+                              {org.revenue > 0 && (
+                                <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                                  {org.shopifyRev > 0 && (
+                                    <span style={{ fontSize: '0.68rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', padding: '2px 7px', borderRadius: 4, background: '#f0fdf4', color: '#166534', whiteSpace: 'nowrap' }}>
+                                      Shopify {fmt$(org.shopifyRev)} · {(org.shopifyRev / org.revenue * 100).toFixed(0)}%
+                                    </span>
+                                  )}
+                                  {org.amazonRev > 0 && (
+                                    <span style={{ fontSize: '0.68rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', padding: '2px 7px', borderRadius: 4, background: '#fef3c7', color: '#92400e', whiteSpace: 'nowrap' }}>
+                                      Amazon {fmt$(org.amazonRev)} · {(org.amazonRev / org.revenue * 100).toFixed(0)}%
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                               <MiniBar value={org.revenue} max={maxRevenue} />
                             </>
                         }
@@ -490,6 +509,20 @@ export default function OverviewPage() {
                         </div>
                       ))}
                     </div>
+                    {org.revenue > 0 && (org.shopifyRev > 0 || org.amazonRev > 0) && (
+                      <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                        {org.shopifyRev > 0 && (
+                          <span style={{ fontSize: '0.68rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', padding: '2px 7px', borderRadius: 4, background: '#f0fdf4', color: '#166534' }}>
+                            Shopify {fmt$(org.shopifyRev)} · {(org.shopifyRev / org.revenue * 100).toFixed(0)}%
+                          </span>
+                        )}
+                        {org.amazonRev > 0 && (
+                          <span style={{ fontSize: '0.68rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', padding: '2px 7px', borderRadius: 4, background: '#fef3c7', color: '#92400e' }}>
+                            Amazon {fmt$(org.amazonRev)} · {(org.amazonRev / org.revenue * 100).toFixed(0)}%
+                          </span>
+                        )}
+                      </div>
+                    )}
                   )}
                 </div>
               ))}
