@@ -34,6 +34,9 @@ export default function SettingsPage() {
   const [disconnecting, setDisconnecting] = useState(false)
   const [cleaning, setCleaning]       = useState(false)
   const [cleanResult, setCleanResult] = useState<number | null>(null)
+  const [gaPropertyId, setGaPropertyId] = useState('')
+  const [savingGa, setSavingGa]       = useState(false)
+  const [gaMsg, setGaMsg]             = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => { loadData() }, [])
 
@@ -54,6 +57,8 @@ export default function SettingsPage() {
       if (activeOrg?.name) document.title = `${activeOrg.name} Settings | Attomik`
       if (activeOrg?.shopify_domain) setDomain(activeOrg.shopify_domain)
       else setDomain('')
+      if (activeOrg?.ga_property_id) setGaPropertyId(activeOrg.ga_property_id)
+      else setGaPropertyId('')
     }
   }
 
@@ -285,6 +290,58 @@ export default function SettingsPage() {
               </span>
             </div>
           )}
+        </Section>
+
+        <Section title="Google Analytics">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 8, background: '#4285f4', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+              <span style={{ color: '#fff', fontWeight: 700, fontSize: '0.8rem' }}>GA</span>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Google Analytics 4</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
+                {gaPropertyId ? `Connected · Property ${gaPropertyId}` : 'Not connected'}
+              </div>
+            </div>
+            <span style={{
+              fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+              padding: '3px 10px', borderRadius: 20,
+              background: gaPropertyId ? '#e6fff5' : '#fee2e2',
+              color: gaPropertyId ? '#007a48' : '#b91c1c',
+            }}>
+              {gaPropertyId ? '● Connected' : '○ Not connected'}
+            </span>
+          </div>
+
+          {gaMsg && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 8, marginBottom: 16, background: gaMsg.type === 'success' ? '#e6fff5' : '#fee2e2', border: `1px solid ${gaMsg.type === 'success' ? '#00cc78' : '#fca5a5'}` }}>
+              {gaMsg.type === 'success' ? <CheckCircle size={16} color="#007a48" /> : <XCircle size={16} color="#b91c1c" />}
+              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: gaMsg.type === 'success' ? '#007a48' : '#b91c1c' }}>{gaMsg.text}</span>
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
+            <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>GA4 Property ID</label>
+              <input type="text" placeholder="e.g. 482126930" value={gaPropertyId} onChange={e => setGaPropertyId(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', outline: 'none' }} />
+              <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 6, lineHeight: 1.5 }}>
+                Find in: Google Analytics → Admin → Property Settings → Property ID. Make sure the Attomik service account has Viewer access to this property.
+              </p>
+            </div>
+          </div>
+
+          <button onClick={async () => {
+            setSavingGa(true); setGaMsg(null)
+            const { error } = await supabase.from('organizations').update({ ga_property_id: gaPropertyId || null }).eq('id', orgId())
+            setSavingGa(false)
+            if (error) setGaMsg({ type: 'error', text: error.message })
+            else setGaMsg({ type: 'success', text: gaPropertyId ? 'GA4 Property ID saved' : 'GA4 disconnected' })
+            loadData()
+          }} disabled={savingGa}
+            style={{ padding: '10px 20px', background: savingGa ? 'var(--cream)' : 'var(--ink)', color: savingGa ? 'var(--muted)' : 'var(--accent)', fontFamily: 'var(--font-barlow)', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: savingGa ? 'not-allowed' : 'pointer' }}>
+            {savingGa ? 'Saving…' : gaPropertyId ? 'Save Property ID' : 'Disconnect GA4'}
+          </button>
         </Section>
 
         <Section title="Other integrations">
