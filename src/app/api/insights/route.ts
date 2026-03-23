@@ -149,14 +149,16 @@ Write a 3-sentence summary: (1) brand + period + biggest growth headline with nu
 
     // Log the generation
     if (user) {
-      const serviceClient = createServiceClient()
-      await serviceClient.from('chat_logs').insert({
-        user_id: user.id,
-        question: `Generate ${platform ?? 'ecommerce'} insights`,
-        answer: text,
-        org_name: orgName,
-        type: 'insights',
-      }).catch(() => {})
+      try {
+        const svc = createServiceClient()
+        await svc.from('chat_logs').insert({
+          user_id: user.id,
+          question: `Generate ${platform ?? 'ecommerce'} insights`,
+          answer: text,
+          org_name: orgName,
+          type: 'insights',
+        })
+      } catch {}
     }
 
     return NextResponse.json({ insight: text })

@@ -96,14 +96,16 @@ QUESTION: ${question}`
     const answer = data.content?.[0]?.text ?? 'No answer generated.'
 
     // Log the question and answer
-    await serviceClient.from('chat_logs').insert({
-      user_id: user.id,
-      org_id: metrics.orgId ?? null,
-      question,
-      answer,
-      org_name: orgName,
-      type: 'chat',
-    }).then(() => {}).catch(() => {})
+    try {
+      await serviceClient.from('chat_logs').insert({
+        user_id: user.id,
+        org_id: metrics.orgId ?? null,
+        question,
+        answer,
+        org_name: orgName,
+        type: 'chat',
+      })
+    } catch {}
 
     return NextResponse.json({ answer })
   } catch (err: any) {
