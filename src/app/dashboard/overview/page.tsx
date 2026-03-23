@@ -302,7 +302,7 @@ export default function OverviewPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: C.cream }}>
-                    {['Project', 'Revenue', 'Orders', 'AOV', 'Ad Spend', 'ROAS', ''].map((h, i) => (
+                    {['Project', 'Total Sales', 'Orders', 'AOV', 'Ad Spend', 'ROAS', ''].map((h, i) => (
                       <th key={i} style={{
                         padding: '11px 20px', textAlign: h === '' ? 'right' : 'left',
                         fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase',
@@ -334,7 +334,7 @@ export default function OverviewPage() {
                         </div>
                       </td>
 
-                      {/* Revenue */}
+                      {/* Total Sales */}
                       <td style={{ padding: '16px 20px', minWidth: 130 }}>
                         {org.loading
                           ? <div style={{ height: 14, width: 80, background: '#f0f0f0', borderRadius: 3 }} className="animate-pulse" />
