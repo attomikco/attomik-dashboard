@@ -3,24 +3,28 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 export async function POST(request: Request) {
   try {
-    // Auth + rate limit
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (user) {
-      const serviceClient = createServiceClient()
-      const todayStart = new Date(); todayStart.setHours(0,0,0,0)
-      const { count } = await serviceClient.from('chat_logs')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('type', 'insights')
-        .gte('created_at', todayStart.toISOString())
-      if ((count ?? 0) >= 5) {
-        return NextResponse.json({ error: 'Daily limit reached (5 summaries/day). Try again tomorrow.' }, { status: 429 })
-      }
-    }
-
     const { metrics, period, orgName, preset, platform } = await request.json()
+
+    // Auth + rate limit (non-blocking — don't break insights if auth fails)
+    let user: any = null
+    try {
+      const supabase = createClient()
+      const { data } = await supabase.auth.getUser()
+      user = data?.user
+
+      if (user) {
+        const serviceClient = createServiceClient()
+        const todayStart = new Date(); todayStart.setHours(0,0,0,0)
+        const { count } = await serviceClient.from('chat_logs')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('type', 'insights')
+          .gte('created_at', todayStart.toISOString())
+        if ((count ?? 0) >= 5) {
+          return NextResponse.json({ error: 'Daily limit reached (5 summaries/day). Try again tomorrow.' }, { status: 429 })
+        }
+      }
+    } catch {} // auth/rate limit is best-effort
 
     const currentLabels = ['Month to date', 'Week to date', 'Today', 'Quarter to date']
     const isCurrent = currentLabels.some(l => preset?.toLowerCase().includes(l.toLowerCase().split(' ')[0]))
