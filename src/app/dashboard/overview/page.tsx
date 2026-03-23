@@ -132,11 +132,13 @@ export default function OverviewPage() {
   const fetchAllKpis = async (orgList: OrgKpi[], currentRange: DateRange, cancelled: boolean) => {
     if (cancelled) return
 
-    // Re-compute start/end using each org's timezone for relative presets
-    // This ensures "today" means today in Pacific for La Monjita, Eastern for others
-    const getOrgRange = (tz: string) => {
+    const resolveOrgRange = (tz: string) => {
       const today = dateInTz(tz)
-      const monthStart = (() => { const p = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()); const m = Object.fromEntries(p.filter(x=>x.type!=='literal').map(x=>[x.type,x.value])); return `${m.year}-${m.month}-01` })()
+      const monthStart = (() => {
+        const p = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date())
+        const m = Object.fromEntries(p.filter(x => x.type !== 'literal').map(x => [x.type, x.value]))
+        return `${m.year}-${m.month}-01`
+      })()
       switch (currentRange.label) {
         case 'Today':          return { start: today, end: today }
         case 'Yesterday':      return { start: dateInTz(tz,-1), end: dateInTz(tz,-1) }
@@ -146,7 +148,7 @@ export default function OverviewPage() {
         case 'Last 90 days':   return { start: dateInTz(tz,-90), end: today }
         case 'Last 12 months': return { start: dateInTz(tz,-365), end: today }
         case 'This year':      return { start: today.slice(0,4)+'-01-01', end: today }
-        default: return { start: currentRange.start, end: currentRange.end }
+        default:               return { start: currentRange.start, end: currentRange.end }
       }
     }
     const curStart = currentRange.start
@@ -158,7 +160,7 @@ export default function OverviewPage() {
     await Promise.all(orgList.map(async (org) => {
       try {
         const tz = (org as any).timezone ?? 'America/New_York'
-        const { start: orgCurStart, end: orgCurEnd } = getOrgRange(tz)
+        const { start: orgCurStart, end: orgCurEnd } = resolveOrgRange(tz)
         const toUTC = (dateStr: string, endOfDay = false) => {
           const time = endOfDay ? '23:59:59' : '00:00:00'
           const utcMidnight = new Date(`${dateStr}T${time}Z`)

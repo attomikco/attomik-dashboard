@@ -198,18 +198,23 @@ export default function AnalyticsPage() {
       .from('organizations').select('channels, timezone, name').eq('id', orgId).single()
     if (orgData?.name) { setOrgName(orgData.name); document.title = `${orgData.name} Analytics | Attomik` }
     const orgTimezone = orgData?.timezone ?? 'America/New_York'
-    // Re-set range to use org timezone if still on default preset
-    setRange(prev => {
-      if (prev.label === 'Month to date') {
-        return { start: monthStartInTz(orgTimezone), end: dateInTz(orgTimezone), label: 'Month to date' }
+    // Compute org-timezone-aware dates for this fetch (don't mutate range state)
+    const orgToday = dateInTz(orgTimezone)
+    const orgMonthStart = monthStartInTz(orgTimezone)
+    const resolvedRange = (() => {
+      switch (range.label) {
+        case 'Month to date':  return { start: orgMonthStart, end: orgToday }
+        case 'Today':          return { start: orgToday, end: orgToday }
+        case 'Yesterday':      return { start: dateInTz(orgTimezone, -1), end: dateInTz(orgTimezone, -1) }
+        case 'Last 7 days':    return { start: dateInTz(orgTimezone, -7), end: orgToday }
+        case 'Last 30 days':   return { start: dateInTz(orgTimezone, -30), end: orgToday }
+        case 'Last 90 days':   return { start: dateInTz(orgTimezone, -90), end: orgToday }
+        case 'Last 12 months': return { start: dateInTz(orgTimezone, -365), end: orgToday }
+        case 'This year':      return { start: orgToday.slice(0,4) + '-01-01', end: orgToday }
+        default: return { start: range.start, end: range.end }
       }
-      if (prev.label === 'Today') return { start: dateInTz(orgTimezone), end: dateInTz(orgTimezone), label: 'Today' }
-      if (prev.label === 'Yesterday') return { start: dateInTz(orgTimezone, -1), end: dateInTz(orgTimezone, -1), label: 'Yesterday' }
-      if (prev.label === 'Last 7 days') return { start: dateInTz(orgTimezone, -7), end: dateInTz(orgTimezone), label: 'Last 7 days' }
-      if (prev.label === 'Last 30 days') return { start: dateInTz(orgTimezone, -30), end: dateInTz(orgTimezone), label: 'Last 30 days' }
-      if (prev.label === 'This year') return { start: dateInTz(orgTimezone).slice(0,4) + '-01-01', end: dateInTz(orgTimezone), label: 'This year' }
-      return prev
-    })
+    })()
+
     const ch = orgData?.channels ?? {}
     // If channels column is null/empty object (never configured), show all
     // If it has keys (even all false), respect the individual values
@@ -240,9 +245,9 @@ export default function AnalyticsPage() {
       return new Date(utcMidnight.getTime() + diffMs).toISOString()
     }
 
-    const thisStart = toUTC(range.start, false)
-    const thisEnd   = toUTC(range.end, true)
-    const { prevStart, prevEnd } = getPrevPeriod(range.start, range.end)
+    const thisStart = toUTC(resolvedRange.start, false)
+    const thisEnd   = toUTC(resolvedRange.end, true)
+    const { prevStart, prevEnd } = getPrevPeriod(resolvedRange.start, resolvedRange.end)
     const prevStartISO = toUTC(prevStart, false)
     const prevEndISO   = toUTC(prevEnd, true)
     const sixMonthsAgo = '2020-01-01T00:00:00.000Z' // fetch full history for accurate returning customer calc
@@ -269,7 +274,7 @@ export default function AnalyticsPage() {
     const [cur, prev, curS, prevS, allOrdRaw, allSpRaw] = await Promise.all([
       fetchAllOrders(thisStart, thisEnd, orderCols),
       fetchAllOrders(prevStartISO, prevEndISO, orderCols),
-      supabase.from('ad_spend').select('spend,platform,impressions,clicks,conversions,date').eq('org_id', orgId).gte('date', range.start).lte('date', range.end).limit(5000),
+      supabase.from('ad_spend').select('spend,platform,impressions,clicks,conversions,date').eq('org_id', orgId).gte('date', resolvedRange.start).lte('date', resolvedRange.end).limit(5000),
       supabase.from('ad_spend').select('spend,platform').eq('org_id', orgId).gte('date', prevStart).lte('date', prevEnd).limit(5000),
       fetchAllOrders(sixMonthsAgo, new Date().toISOString(), orderColsLight),
       supabase.from('ad_spend').select('spend,date').eq('org_id', orgId).gte('date', sixMonthsAgo.split('T')[0]).limit(5000),
@@ -382,8 +387,8 @@ export default function AnalyticsPage() {
     const metaRoasP = metaSpP > 0 ? totalRevP / metaSpP : 0
 
     const days: Record<string, any> = {}
-    const rangeEndDate = new Date(range.end); rangeEndDate.setHours(23, 59, 59)
-    for (let d = new Date(range.start); d <= rangeEndDate; d.setDate(d.getDate() + 1)) {
+    const rangeEndDate = new Date(resolvedRange.end); rangeEndDate.setHours(23, 59, 59)
+    for (let d = new Date(resolvedRange.start); d <= rangeEndDate; d.setDate(d.getDate() + 1)) {
       const k = d.toISOString().split('T')[0]
       days[k] = { date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), revenue: 0, shopify: 0, amazon: 0, spend: 0, roas: 0 }
     }
@@ -405,7 +410,7 @@ export default function AnalyticsPage() {
 
     // Pacing: cumulative revenue by day index within the period
     // Day 1 = first day of current period, Day 1 of prev = first day of prev period
-    const curStart = new Date(range.start)
+    const curStart = new Date(resolvedRange.start)
     const prevStartDate = new Date(prevStart)
 
     const curDayRevs: Record<number, number> = {}
@@ -420,7 +425,7 @@ export default function AnalyticsPage() {
       if (dayIdx >= 1) prevDayRevs[dayIdx] = (prevDayRevs[dayIdx] || 0) + Number(o.total_price)
     })
 
-    const totalDays = Math.round((new Date(range.end).getTime() - curStart.getTime()) / 864e5) + 1
+    const totalDays = Math.round((new Date(resolvedRange.end).getTime() - curStart.getTime()) / 864e5) + 1
     const prevTotalDays = Math.round((new Date(prevEnd).getTime() - prevStartDate.getTime()) / 864e5) + 1
     const maxDay = Math.max(totalDays, prevTotalDays, 28)
 
@@ -471,7 +476,7 @@ export default function AnalyticsPage() {
     const sortedMonths = Object.keys(monthMap).sort()
     // Use same CAC formula as KPI card: new = never ordered in any prior month
     // Only show last 6 months relative to selected range end
-    const rangeEndMonth = range.end.slice(0, 7)
+    const rangeEndMonth = resolvedRange.end.slice(0, 7)
     const last6Months = sortedMonths.filter(k => k <= rangeEndMonth).slice(-6)
 
     setCacData(last6Months.map((key) => {
