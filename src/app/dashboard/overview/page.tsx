@@ -192,8 +192,8 @@ export default function OverviewPage() {
 
         const ch = (org as any).channels ?? {}
         const isConfigured = Object.keys(ch).length > 0
-        const showShopify = !isConfigured || ch.shopify || false
-        const showAmazon  = !isConfigured || ch.amazon  || false
+        const showShopify = !isConfigured || ch.shopify !== false
+        const showAmazon  = !isConfigured || ch.amazon  !== false
 
         const filterEnabled = (orders: any[]) => orders.filter(o =>
           o.status !== 'refunded' && (

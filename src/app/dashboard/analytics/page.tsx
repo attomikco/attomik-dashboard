@@ -220,10 +220,10 @@ export default function AnalyticsPage() {
     // If channels column is null/empty object (never configured), show all
     // If it has keys (even all false), respect the individual values
     const isConfigured = Object.keys(ch).length > 0
-    const showShopify = !isConfigured || ch.shopify  || false
-    const showAmazon  = !isConfigured || ch.amazon   || false
-    const showMeta    = !isConfigured || ch.meta     || false
-    const showGoogle  = !isConfigured || ch.google   || false
+    const showShopify = !isConfigured || ch.shopify !== false
+    const showAmazon  = !isConfigured || ch.amazon  !== false
+    const showMeta    = !isConfigured || ch.meta    !== false
+    const showGoogle  = !isConfigured || ch.google  !== false
     const showAds     = showMeta || showGoogle
     setChannels(ch)
 
