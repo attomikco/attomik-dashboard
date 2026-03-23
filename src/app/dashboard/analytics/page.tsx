@@ -12,6 +12,7 @@ import PacingChart from '@/components/PacingChart'
 import DayOfWeekHeatmap from '@/components/DayOfWeekHeatmap'
 import CacTrendChart from '@/components/CacTrendChart'
 import RetentionChart from '@/components/RetentionChart'
+import ReturnGrowthChart from '@/components/ReturnGrowthChart'
 import AIInsights from '@/components/AIInsights'
 import AskAttomik from '@/components/AskAttomik'
 
@@ -854,11 +855,18 @@ export default function AnalyticsPage() {
             <KpiCard label="Returning Customer Rate"             value={fmtPct(d.shRcrC)} change={pct(d.shRcrC, d.shRcrP)} />
             <KpiCard label="CAC"                     value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors />
           </div>
-          {d.monthlyRetention?.length > 0 && (
+          {d.monthlyRetention?.length > 0 && (<>
             <ChartCard title="Customer Retention" subtitle="Returning (green) vs New (gray) customers · Return rate line · Last 6 months">
               <RetentionChart data={d.monthlyRetention} />
             </ChartCard>
-          )}
+            <div style={{ marginTop: 16 }}>
+              <ChartCard title="Returning Customers Growth" subtitle="Number of returning customers per month · Last 6 months">
+                <div style={{ width: '100%', height: 180 }}>
+                  <ReturnGrowthChart data={d.monthlyRetention} />
+                </div>
+              </ChartCard>
+            </div>
+          </>)}
           <div style={{ marginBottom: 32 }} />
 
           {/* ── TRAFFIC (GA4) ── */}
