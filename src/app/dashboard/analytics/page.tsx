@@ -354,8 +354,11 @@ export default function AnalyticsPage() {
     const totalSpP  = pSpend.reduce((s, o) => s + Number(o.spend), 0)
     const roasC = totalSpC > 0 ? totalRevC / totalSpC : 0
     const roasP = totalSpP > 0 ? totalRevP / totalSpP : 0
-    const ordC  = enabledOrders.length
-    const ordP  = enabledOrdersP.length
+    // Order count: for Amazon daily aggregates, use units field; for Shopify, count 1 per row
+    const countOrders = (orders: any[]) => orders.reduce((s, o) =>
+      s + (o.source === 'amazon' ? (Number(o.units) || 1) : 1), 0)
+    const ordC  = countOrders(enabledOrders)
+    const ordP  = countOrders(enabledOrdersP)
     const netRevC = enabledOrders.reduce((s, o) => s + Number(o.subtotal || o.total_price || 0), 0)
     const netRevP = enabledOrdersP.reduce((s, o) => s + Number(o.subtotal || o.total_price || 0), 0)
     const aovC  = ordC > 0 ? netRevC / ordC : 0

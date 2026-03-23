@@ -196,8 +196,9 @@ export default function OverviewPage() {
 
         const revenue     = cur.reduce((s, o)  => s + Number(o.total_price || 0), 0)
         const prevRevenue = prev.reduce((s, o) => s + Number(o.total_price || 0), 0)
-        const orders      = cur.length
-        const prevOrdCnt  = prev.length
+        const countOrd = (ords: any[]) => ords.reduce((s: number, o: any) => s + (o.source === 'amazon' ? (Number(o.units) || 1) : 1), 0)
+        const orders      = countOrd(cur)
+        const prevOrdCnt  = countOrd(prev)
         // AOV uses subtotal (net after discounts) to match analytics exactly
         const netRev      = cur.reduce((s, o)  => s + Number(o.subtotal || o.total_price || 0), 0)
         const prevNetRev  = prev.reduce((s, o) => s + Number(o.subtotal || o.total_price || 0), 0)

@@ -58,7 +58,7 @@ export async function POST(request: Request) {
       const all: any[] = []
       while (true) {
         let query = serviceClient.from('orders')
-          .select('total_price, subtotal, status, source')
+          .select('total_price, subtotal, status, source, units')
           .eq('org_id', org_id).gte('created_at', gte).lte('created_at', lte)
           .order('created_at', { ascending: true })
         if (source) query = query.eq('source', source)
