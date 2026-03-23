@@ -349,12 +349,6 @@ export default function AnalyticsPage() {
     const retRevC = enabledOrders.filter(o => o.customer_email && prevEmails.has(o.customer_email)).reduce((s, o) => s + Number(o.total_price), 0)
     const newRevC  = enabledOrders.filter(o => o.customer_email && !prevEmails.has(o.customer_email)).reduce((s, o) => s + Number(o.total_price), 0)
 
-    // CLTV (Shopify only) — ACL (2) × Customer Value, where CV = APFR × AOV
-    const apfrC = shCustC > 0 ? shOrdC / shCustC : 0
-    const apfrP = shCustP > 0 ? shOrdP / shCustP : 0
-    const cltvC = 2 * apfrC * shAovC
-    const cltvP = 2 * apfrP * shAovP
-
     const shGrossC    = shopC.reduce((s, o) => s + (Number(o.subtotal)||0) + (Number(o.discount_amount)||0), 0)
     const shGrossP    = shopP.reduce((s, o) => s + (Number(o.subtotal)||0) + (Number(o.discount_amount)||0), 0)
     const shDiscountC = shopC.reduce((s, o) => s + Number(o.discount_amount||0), 0)
@@ -388,6 +382,13 @@ export default function AnalyticsPage() {
     const shCurEmails = new Set(shopC.map(o => o.customer_email).filter(Boolean))
     const shRcrC = shCustC > 0 ? (shRetCustC / shCustC) * 100 : 0
     const shRcrP = shCustP > 0 ? (shRetCustP / shCustP) * 100 : 0
+
+    // CLTV (Shopify only) — ACL (2) × Customer Value, where CV = APFR × AOV
+    const apfrC = shCustC > 0 ? shOrdC / shCustC : 0
+    const apfrP = shCustP > 0 ? shOrdP / shCustP : 0
+    const cltvC = 2 * apfrC * shAovC
+    const cltvP = 2 * apfrP * shAovP
+
     const metaSpC    = cSpend.filter(o => o.platform === 'meta').reduce((s, o) => s + Number(o.spend), 0)
     const metaSpP    = pSpend.filter(o => o.platform === 'meta').reduce((s, o) => s + Number(o.spend), 0)
     const shRoasC    = metaSpC > 0 ? shNetC / metaSpC : 0
