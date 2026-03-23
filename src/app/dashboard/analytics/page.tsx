@@ -207,11 +207,17 @@ export default function AnalyticsPage() {
     const orgId = localStorage.getItem('activeOrgId')
     if (!orgId) { setLoading(false); return }
 
-    // Fetch user name for personalized greeting
-    const { data: { user: authUser } } = await supabase.auth.getUser()
-    if (authUser && !userName) {
-      const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', authUser.id).single()
-      if (prof?.full_name) setUserName(prof.full_name)
+    // Fetch user name for personalized greeting (use view-as name if active)
+    const viewAsName = localStorage.getItem('viewAsUserName')
+    if (viewAsName) {
+      setUserName(viewAsName)
+    } else {
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (authUser && !userName) {
+        const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', authUser.id).single()
+        if (prof?.full_name) setUserName(prof.full_name)
+      }
+    }
     }
 
     // Fetch org config (channels + timezone)
