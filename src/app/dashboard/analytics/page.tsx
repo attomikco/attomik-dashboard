@@ -86,7 +86,8 @@ function SectionHeader({ title, color = C.accent, platform }: { title: string; c
   )
 }
 
-function MetricRow({ items }: { items: { label: string; value: string; sub?: string; invertColors?: boolean }[] }) {
+function MetricRow({ items }: { items: { label: string; value: string; sub?: string; invertColors?: boolean; tooltip?: string }[] }) {
+  const [hoveredTip, setHoveredTip] = useState<number | null>(null)
   return (
     <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginBottom: 12 }}>
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${items.length}, minmax(130px, 1fr))`, gap: 1, background: C.border, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', minWidth: items.length > 3 ? 520 : 'auto' }}>
@@ -98,8 +99,24 @@ function MetricRow({ items }: { items: { label: string; value: string; sub?: str
           const subColor = isGood === true ? '#007a48' : isGood === false ? '#b91c1c' : '#999'
           const subBg = isGood === true ? '#e6fff5' : isGood === false ? '#fee2e2' : 'transparent'
           return (
-            <div key={i} style={{ background: C.paper, padding: '18px 20px' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontFamily: 'var(--font-barlow), Barlow, sans-serif', whiteSpace: 'nowrap' }}>{item.label}</div>
+            <div key={i} style={{ background: C.paper, padding: '18px 20px', position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.75rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontFamily: 'var(--font-barlow), Barlow, sans-serif', whiteSpace: 'nowrap' }}>
+                {item.label}
+                {item.tooltip && (
+                  <span
+                    onMouseEnter={() => setHoveredTip(i)}
+                    onMouseLeave={() => setHoveredTip(null)}
+                    style={{ cursor: 'help', color: '#ccc', fontSize: '0.7rem', fontWeight: 400, lineHeight: 1, flexShrink: 0 }}
+                  >
+                    ⓘ
+                  </span>
+                )}
+              </div>
+              {hoveredTip === i && item.tooltip && (
+                <div style={{ position: 'absolute', top: 6, left: 16, right: 16, background: '#000', color: '#fff', padding: '8px 12px', borderRadius: 6, fontSize: '0.72rem', fontWeight: 400, lineHeight: 1.5, fontFamily: 'var(--font-barlow), Barlow, sans-serif', zIndex: 10, textTransform: 'none', letterSpacing: 0, boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
+                  {item.tooltip}
+                </div>
+              )}
               <div style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.03em', color: C.ink, whiteSpace: 'nowrap' }}>{item.value}</div>
               {item.sub && (
                 <div style={{ display: 'inline-flex', alignItems: 'center', marginTop: 6, padding: '2px 8px', borderRadius: 4, background: subBg, fontSize: '0.8rem', fontWeight: 600, color: subColor, fontFamily: 'var(--font-barlow), Barlow, sans-serif', whiteSpace: 'nowrap' }}>
@@ -332,11 +349,11 @@ export default function AnalyticsPage() {
     const retRevC = enabledOrders.filter(o => o.customer_email && prevEmails.has(o.customer_email)).reduce((s, o) => s + Number(o.total_price), 0)
     const newRevC  = enabledOrders.filter(o => o.customer_email && !prevEmails.has(o.customer_email)).reduce((s, o) => s + Number(o.total_price), 0)
 
-    // CLTV placeholder — AOV * purchase frequency (orders per customer)
-    const purchaseFreqC = totalCustC > 0 ? ordC / totalCustC : 0
-    const purchaseFreqP = newCustP > 0 ? ordP / newCustP : 0
-    const cltvC = aovC * purchaseFreqC
-    const cltvP = aovP * purchaseFreqP
+    // CLTV (Shopify only) — ACL (2) × Customer Value, where CV = APFR × AOV
+    const apfrC = shCustC > 0 ? shOrdC / shCustC : 0
+    const apfrP = shCustP > 0 ? shOrdP / shCustP : 0
+    const cltvC = 2 * apfrC * shAovC
+    const cltvP = 2 * apfrP * shAovP
 
     const shGrossC    = shopC.reduce((s, o) => s + (Number(o.subtotal)||0) + (Number(o.discount_amount)||0), 0)
     const shGrossP    = shopP.reduce((s, o) => s + (Number(o.subtotal)||0) + (Number(o.discount_amount)||0), 0)
@@ -649,31 +666,35 @@ export default function AnalyticsPage() {
                   label: 'Shopify',
                   value: fmt$(d.shTotalC),
                   sub: d.shTotalP > 0 ? chg(d.shTotalC, d.shTotalP) : '',
+                  tooltip: 'Total revenue from Shopify orders in this period',
                 }] : []),
                 ...(d.shTotalC > 0 && d.totalRevC > 0 ? [{
                   label: 'Shopify % of Total',
                   value: `${shPctC.toFixed(1)}%`,
                   sub: shPctP > 0 ? chg(shPctC, shPctP) : '',
+                  tooltip: 'Shopify revenue as a percentage of total revenue across all channels',
                 }] : []),
                 ...(d.amzRevC > 0 ? [{
                   label: 'Amazon',
                   value: fmt$(d.amzRevC),
                   sub: d.amzRevP > 0 ? chg(d.amzRevC, d.amzRevP) : '',
+                  tooltip: 'Total revenue from Amazon orders in this period',
                 }] : []),
                 ...(d.amzRevC > 0 && d.totalRevC > 0 ? [{
                   label: 'Amazon % of Total',
                   value: `${amzPctC.toFixed(1)}%`,
                   sub: amzPctP > 0 ? chg(amzPctC, amzPctP) : '',
+                  tooltip: 'Amazon revenue as a percentage of total revenue across all channels',
                 }] : []),
               ]} />
             )
           })()}
 
           {/* ── CLTV & CLTV/CAC ── */}
-          {d.aovC > 0 && (
+          {d.cltvC > 0 && (
             <MetricRow items={[
-              { label: 'CLTV', value: fmt$(d.cltvC), sub: d.cltvP > 0 ? chg(d.cltvC, d.cltvP) : '' },
-              ...(d.cacC > 0 ? [{ label: 'CLTV / CAC', value: `${(d.cltvC / d.cacC).toFixed(2)}x`, sub: d.cltvP > 0 && d.cacP > 0 ? chg(d.cltvC / d.cacC, d.cltvP / d.cacP) : '' }] : []),
+              { label: 'CLTV', value: fmt$(d.cltvC), sub: d.cltvP > 0 ? chg(d.cltvC, d.cltvP) : '', tooltip: 'Customer Lifetime Value (Shopify only). ACL (2) × AOV × Purchase Frequency, where Purchase Frequency = Orders / Unique Customers' },
+              ...(d.cacC > 0 ? [{ label: 'CLTV / CAC', value: `${(d.cltvC / d.cacC).toFixed(2)}x`, sub: d.cltvP > 0 && d.cacP > 0 ? chg(d.cltvC / d.cacC, d.cltvP / d.cacP) : '', tooltip: 'Ratio of Customer Lifetime Value to Customer Acquisition Cost. Values above 3x indicate healthy unit economics' }] : []),
             ]} />
           )}
 
