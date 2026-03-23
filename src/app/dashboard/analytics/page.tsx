@@ -720,8 +720,14 @@ export default function AnalyticsPage() {
               metaRoas: d.metaRoasC > 0 ? d.metaRoasC.toFixed(2) : null,
               metaImpr: d.metaImprC, metaClicks: d.metaClkC, metaConv: d.metaConvC,
               trafficSessions: trafficData?.sessions ?? null,
+              trafficSessionsP: trafficData?.sessionsP ?? null,
               trafficUsers: trafficData?.users ?? null,
+              trafficUsersP: trafficData?.usersP ?? null,
               trafficNewUsers: trafficData?.newUsers ?? null,
+              trafficNewUsersP: trafficData?.newUsersP ?? null,
+              convRateSessions: trafficData && trafficData.sessions > 0 ? (d.ordC / trafficData.sessions * 100).toFixed(2) : null,
+              convRateUsers: trafficData && trafficData.users > 0 ? (d.ordC / trafficData.users * 100).toFixed(2) : null,
+              convRateNewUsers: trafficData && trafficData.newUsers > 0 ? (d.ordC / trafficData.newUsers * 100).toFixed(2) : null,
             }}
           />
 

@@ -10,36 +10,55 @@ export async function POST(request: Request) {
     const { question, metrics, orgName, period } = await request.json()
     if (!question) return NextResponse.json({ error: 'Question required' }, { status: 400 })
 
-    const prompt = `You are an expert ecommerce analyst for ${orgName}. A team member is asking you a question about their dashboard metrics. Answer conversationally, referencing specific numbers from the data below. Be concise (2-4 sentences), insightful, and growth-focused.
+    const fmtChg = (v: any) => v ? `${Number(v) > 0 ? '+' : ''}${v}%` : ''
 
-CURRENT DASHBOARD DATA (${period}):
+    const prompt = `You are a supportive, growth-focused ecommerce analyst for ${orgName}. A team member is asking about their dashboard. Answer conversationally with specific numbers. Be encouraging — always lead with what's going well, acknowledge growth, and frame challenges as opportunities. Keep it to 2-4 sentences.
+
+DASHBOARD DATA (${period}):
 
 OVERALL:
-- Total Sales: ${metrics.totalRev} (${metrics.totalRevChg > 0 ? '+' : ''}${metrics.totalRevChg}% vs prior)
-- Ad Spend: ${metrics.totalSp} (${metrics.totalSpChg > 0 ? '+' : ''}${metrics.totalSpChg}% vs prior)
+- Total Sales: ${metrics.totalRev} (${fmtChg(metrics.totalRevChg)} vs prior)
+- Ad Spend: ${metrics.totalSp} (${fmtChg(metrics.totalSpChg)} vs prior)
 - ROAS: ${metrics.roas}x (was ${metrics.roasP}x)
-- Orders: ${metrics.orders} (${metrics.ordersChg > 0 ? '+' : ''}${metrics.ordersChg}% vs prior)
-- AOV: ${metrics.aov} (${metrics.aovChg > 0 ? '+' : ''}${metrics.aovChg}% vs prior)
-- CAC: ${metrics.cac} (${metrics.cacChg > 0 ? '+' : ''}${metrics.cacChg}% vs prior)
+- Orders: ${metrics.orders} (${fmtChg(metrics.ordersChg)} vs prior)
+- AOV: ${metrics.aov} (${fmtChg(metrics.aovChg)} vs prior)
+- CAC: ${metrics.cac} (${fmtChg(metrics.cacChg)} vs prior — lower is better)
 
 CUSTOMERS:
 - New: ${metrics.newCust}, Returning: ${metrics.retCust}, Return Rate: ${metrics.retRate}%
 
-${metrics.shopifyRev ? `SHOPIFY: ${metrics.shopifyRev} (${metrics.shopifyPctOfTotal}% of total${metrics.shopifyRevChg ? `, ${metrics.shopifyRevChg > 0 ? '+' : ''}${metrics.shopifyRevChg}%` : ''})
+${metrics.shopifyRev ? `SHOPIFY: ${metrics.shopifyRev} (${metrics.shopifyPctOfTotal}% of total, ${fmtChg(metrics.shopifyRevChg)} vs prior)
 - Orders: ${metrics.shopifyOrders}, Customers: ${metrics.shopifyCust}, AOV: ${metrics.shopifyAov}
-- Discount Rate: ${metrics.discountRate}%, Refund Rate: ${metrics.refundRate}%` : ''}
+- Discount Rate: ${metrics.discountRate}%, Refund Rate: ${metrics.refundRate}%
+${metrics.shopifyRoas ? `- Shopify ROAS: ${metrics.shopifyRoas}x` : ''}` : ''}
 
-${metrics.amazonRev ? `AMAZON: ${metrics.amazonRev} (${metrics.amazonPctOfTotal}% of total${metrics.amazonRevChg ? `, ${metrics.amazonRevChg > 0 ? '+' : ''}${metrics.amazonRevChg}%` : ''})` : ''}
+${metrics.amazonRev ? `AMAZON: ${metrics.amazonRev} (${metrics.amazonPctOfTotal}% of total, ${fmtChg(metrics.amazonRevChg)} vs prior)
+- Units: ${metrics.amazonUnits ?? 'N/A'}${metrics.amazonAov ? `, AOV: ${metrics.amazonAov}` : ''}` : ''}
 
-${metrics.cltv ? `UNIT ECONOMICS: CLTV ${metrics.cltv}${metrics.cltvChg ? ` (${metrics.cltvChg > 0 ? '+' : ''}${metrics.cltvChg}%)` : ''}, CLTV/CAC: ${metrics.cltvCacRatio ?? 'N/A'}x` : ''}
+${metrics.cltv ? `UNIT ECONOMICS:
+- CLTV (Shopify): ${metrics.cltv} (${fmtChg(metrics.cltvChg)} vs prior)
+- CLTV/CAC: ${metrics.cltvCacRatio ?? 'N/A'}x` : ''}
 
-${metrics.metaSp ? `META ADS: Spend ${metrics.metaSp}, ROAS ${metrics.metaRoas ?? 'N/A'}x, Impressions ${metrics.metaImpr}, Clicks ${metrics.metaClicks}, Purchases ${metrics.metaConv}` : ''}
+${metrics.metaSp ? `META ADS:
+- Spend: ${metrics.metaSp}${metrics.metaSpChg ? ` (${fmtChg(metrics.metaSpChg)})` : ''}, ROAS: ${metrics.metaRoas ?? 'N/A'}x
+- Impressions: ${metrics.metaImpr}, Clicks: ${metrics.metaClicks}, Purchases: ${metrics.metaConv}` : ''}
 
-${metrics.trafficSessions ? `TRAFFIC (GA4): Sessions ${metrics.trafficSessions}, Users ${metrics.trafficUsers}, New Users ${metrics.trafficNewUsers}` : ''}
+${metrics.trafficSessions ? `TRAFFIC (GA4):
+- Sessions: ${metrics.trafficSessions}${metrics.trafficSessionsP ? ` (prev: ${metrics.trafficSessionsP})` : ''}
+- Users: ${metrics.trafficUsers}${metrics.trafficUsersP ? ` (prev: ${metrics.trafficUsersP})` : ''}
+- New Users: ${metrics.trafficNewUsers}${metrics.trafficNewUsersP ? ` (prev: ${metrics.trafficNewUsersP})` : ''}
+- Conv. Rate (Sessions): ${metrics.convRateSessions ?? 'N/A'}%
+- Conv. Rate (Users): ${metrics.convRateUsers ?? 'N/A'}%
+- Conv. Rate (New Users): ${metrics.convRateNewUsers ?? 'N/A'}%` : ''}
 
-QUESTION: ${question}
+TONE RULES:
+- Lead with positives and growth — always acknowledge what's improving
+- Frame metric increases as momentum, not just numbers
+- If something went up that's normally "bad" (like CAC), explain WHY it makes sense in context (e.g. scaling spend)
+- Never be alarmist — frame challenges as areas to optimize
+- Be specific with numbers, conversational in tone
 
-Answer directly and reference the specific numbers. Don't repeat the question. Be helpful and conversational.`
+QUESTION: ${question}`
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
