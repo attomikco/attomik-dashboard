@@ -79,7 +79,7 @@ CUSTOMERS:
 
 ${metrics.cltv ? `UNIT ECONOMICS:
 - CLTV (Shopify): ${metrics.cltv}${metrics.cltvChg ? ` (${Number(metrics.cltvChg) > 0 ? '+' : ''}${metrics.cltvChg}% vs prior)` : ''}
-- CLTV/CAC Ratio: ${metrics.cltvCacRatio ? `${metrics.cltvCacRatio}x` : 'N/A'} (healthy = above 3x)` : ''}
+- CLTV/CAC Ratio: ${metrics.cltvCacRatio ? `${metrics.cltvCacRatio}x` : 'N/A'}` : ''}
 
 ${metrics.metaSp ? `META ADS:
 - Meta Spend: ${metrics.metaSp}${metrics.metaSpChg ? ` (${Number(metrics.metaSpChg) > 0 ? '+' : ''}${metrics.metaSpChg}% vs prior)` : ''}
@@ -87,14 +87,16 @@ ${metrics.metaSp ? `META ADS:
 - Impressions: ${metrics.metaImpr}, Clicks: ${metrics.metaClicks}, Purchases: ${metrics.metaConv}` : ''}
 
 IMPORTANT FRAMING RULES:
-- If a metric is low in absolute terms but improving vs prior, frame it as positive momentum
-- Always reference the direction of change, not just the current level
-- Only flag something as a concern if it's BOTH poor AND not improving vs prior
-- If ROAS is improving, say so — even if still below breakeven
+- Focus on GROWTH and TRAJECTORY — what's improving, what's trending up
+- Always lead with wins and positive momentum
+- If a metric is low in absolute terms but improving vs prior, that IS the story — frame it positively
+- Do NOT judge metrics against industry benchmarks or thresholds (e.g. never say "below 3x" for CLTV/CAC). Only compare vs the brand's own prior period
+- Do NOT give recommendations, action items, or "should" statements — this is a summary, not a strategy doc
+- Only mention a concern if a metric is declining AND it's significant — keep it brief
 - Mention channel mix insights if multiple channels have data
-- Reference CLTV/CAC ratio health if available
+- Be concise and celebratory where growth exists
 
-Write a 4-sentence summary: (1) brand + period + biggest headline, (2) 2-3 wins or improving trends with numbers, (3) one honest concern if applicable, (4) one specific action. Flowing prose, under 150 words.`
+Write a 3-sentence summary: (1) brand + period + biggest growth headline with numbers, (2) 2-3 additional wins or improving trends with specific numbers, (3) brief note on any notable metric shifts. Flowing prose, growth-focused tone, under 120 words.`
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
