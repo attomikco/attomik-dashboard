@@ -327,7 +327,6 @@ export default function AnalyticsPage() {
 
     const cSpend = curS.data ?? [], pSpend = prevS.data ?? []
     const allOrd = allOrdRaw ?? []
-    console.log(`[analytics] allOrd: ${allOrd.length} orders, emails: ${new Set(allOrd.map(o => o.customer_email).filter(Boolean)).size}`)
     const allSp = allSpRaw?.data ?? []
     const shopAllC = cur.filter(o => o.source === 'shopify')
     const shopAllP = prev.filter(o => o.source === 'shopify')
@@ -452,13 +451,14 @@ export default function AnalyticsPage() {
     const subLtvC = 2 * subAovC * subFreqC
     const subLtvP = 2 * subAovP * subFreqP
 
-    // Monthly subscription data (last 6 months)
+    // Monthly subscription data (last 6 months) — use UTC boundaries
     const monthlySubscribers: { month: string; subscribers: number; revenue: number; pctOfRev: number }[] = []
     for (let m = 5; m >= 0; m--) {
       const dt = new Date(); dt.setMonth(dt.getMonth() - m)
-      const mStart = new Date(dt.getFullYear(), dt.getMonth(), 1).toISOString()
-      const mEnd = new Date(dt.getFullYear(), dt.getMonth() + 1, 0, 23, 59, 59).toISOString()
-      const mLabel = new Date(dt.getFullYear(), dt.getMonth(), 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+      const y = dt.getFullYear(), mo = dt.getMonth()
+      const mStart = `${y}-${String(mo + 1).padStart(2, '0')}-01T00:00:00.000Z`
+      const mEnd = mo === 11 ? `${y + 1}-01-01T00:00:00.000Z` : `${y}-${String(mo + 2).padStart(2, '0')}-01T00:00:00.000Z`
+      const mLabel = new Date(y, mo).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
       const mOrd = allOrd.filter(o => o.source === 'shopify' && o.is_subscription && o.created_at >= mStart && o.created_at < mEnd)
       const mSubs = new Set(mOrd.map(o => o.customer_email).filter(Boolean)).size
       const mRev = mOrd.reduce((s, o) => s + Number(o.total_price || 0), 0)
@@ -643,13 +643,15 @@ export default function AnalyticsPage() {
     // Monthly retention data (last 6 months)
     const monthlyRetention: { month: string; total: number; returning: number; new: number; retRate: number }[] = []
     for (let m = 5; m >= 0; m--) {
-      const d = new Date()
-      d.setMonth(d.getMonth() - m)
-      const mStart = new Date(d.getFullYear(), d.getMonth(), 1)
-      const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59)
-      const mStartISO = mStart.toISOString()
-      const mEndISO = mEnd.toISOString()
-      const mLabel = mStart.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+      const dt = new Date()
+      dt.setMonth(dt.getMonth() - m)
+      const y = dt.getFullYear(), mo = dt.getMonth()
+      // Use UTC boundaries to match how created_at is stored
+      const mStartISO = `${y}-${String(mo + 1).padStart(2, '0')}-01T00:00:00.000Z`
+      const mEndISO = mo === 11
+        ? `${y + 1}-01-01T00:00:00.000Z`
+        : `${y}-${String(mo + 2).padStart(2, '0')}-01T00:00:00.000Z`
+      const mLabel = new Date(y, mo).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
 
       const mOrds = allOrd.filter(o => o.created_at >= mStartISO && o.created_at < mEndISO)
       const mCusts = new Set(mOrds.map(o => o.customer_email).filter(Boolean))
