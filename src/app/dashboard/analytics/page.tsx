@@ -327,6 +327,7 @@ export default function AnalyticsPage() {
 
     const cSpend = curS.data ?? [], pSpend = prevS.data ?? []
     const allOrd = allOrdRaw ?? []
+    console.log(`[analytics] allOrd: ${allOrd.length} orders, emails: ${new Set(allOrd.map(o => o.customer_email).filter(Boolean)).size}`)
     const allSp = allSpRaw?.data ?? []
     const shopAllC = cur.filter(o => o.source === 'shopify')
     const shopAllP = prev.filter(o => o.source === 'shopify')
