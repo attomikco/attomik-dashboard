@@ -73,7 +73,18 @@ export default function Sidebar() {
       const found = memberOrgs.find((o: any) => o.id === savedOrgId)
       const defaultOrg = found ?? memberOrgs[0] ?? null
       setActiveOrg(defaultOrg)
-      if (defaultOrg) localStorage.setItem('activeOrgId', defaultOrg.id)
+      if (defaultOrg) {
+        localStorage.setItem('activeOrgId', defaultOrg.id)
+      } else {
+        // No memberships — user was removed from all projects
+        localStorage.removeItem('activeOrgId')
+      }
+      // If saved org was removed, clear it so dashboard doesn't show stale data
+      if (savedOrgId && !found && defaultOrg) {
+        localStorage.setItem('activeOrgId', defaultOrg.id)
+        window.location.reload()
+        return
+      }
       // Store highest role across all orgs for nav visibility
       const highestRole = (memberships ?? []).reduce((best: string, m: any) => {
         return (ROLE_RANK[m.role] ?? 0) > (ROLE_RANK[best] ?? 0) ? m.role : best
