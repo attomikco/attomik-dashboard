@@ -65,6 +65,7 @@ export async function POST(request: Request) {
         const { data } = await serviceClient.from('orders')
           .select('total_price, subtotal, status, source')
           .eq('org_id', org_id).gte('created_at', gte).lte('created_at', lte)
+          .order('created_at', { ascending: true })
           .range(from, from + size - 1)
         if (!data || data.length === 0) break
         all.push(...data)
