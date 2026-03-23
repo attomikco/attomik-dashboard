@@ -83,6 +83,10 @@ export default function ProductsBreakdownPage() {
   const top5 = [...products].sort((a, b) => b.revenue - a.revenue).slice(0, 5)
   const maxRevenue = top5.length > 0 ? top5[0].revenue : 0
 
+  // Top 5 products by units for the bar chart
+  const top5Units = [...products].sort((a, b) => b.units - a.units).slice(0, 5)
+  const maxUnits = top5Units.length > 0 ? top5Units[0].units : 0
+
   const SortHeader = ({ field, label, align = 'left' }: { field: SortField; label: string; align?: string }) => (
     <th
       onClick={() => toggleSort(field)}
@@ -149,24 +153,47 @@ export default function ProductsBreakdownPage() {
             </div>
           </div>
 
-          {/* Top 5 Products bar chart */}
+          {/* Top 5 charts grid */}
           {top5.length > 0 && (
-            <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: 20, marginBottom: 24 }}>
-              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Barlow, sans-serif', marginBottom: 16 }}>Top Products by Revenue</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {top5.map((p, i) => (
-                  <div key={`top-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 160, minWidth: 100, fontFamily: 'Barlow, sans-serif', fontSize: '0.82rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }} title={p.product}>
-                      {p.product}
+            <div className="chart-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+              {/* Top 5 by Revenue */}
+              <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: 20 }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Barlow, sans-serif', marginBottom: 16 }}>Top 5 Products by Revenue</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {top5.map((p, i) => (
+                    <div key={`top-rev-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 120, minWidth: 80, fontFamily: 'Barlow, sans-serif', fontSize: '0.82rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }} title={p.product}>
+                        {p.product}
+                      </div>
+                      <div style={{ flex: 1, height: 24, background: '#f0f0f0', borderRadius: 4, overflow: 'hidden' }}>
+                        <div style={{ width: maxRevenue > 0 ? `${(p.revenue / maxRevenue) * 100}%` : '0%', height: '100%', background: C.accent, borderRadius: 4, transition: 'width 0.3s ease' }} />
+                      </div>
+                      <div style={{ fontFamily: 'Barlow, sans-serif', fontSize: '0.82rem', fontWeight: 700, minWidth: 70, textAlign: 'right', flexShrink: 0 }}>
+                        {fmt$(p.revenue)}
+                      </div>
                     </div>
-                    <div style={{ flex: 1, height: 24, background: '#f0f0f0', borderRadius: 4, overflow: 'hidden' }}>
-                      <div style={{ width: maxRevenue > 0 ? `${(p.revenue / maxRevenue) * 100}%` : '0%', height: '100%', background: C.accent, borderRadius: 4, transition: 'width 0.3s ease' }} />
+                  ))}
+                </div>
+              </div>
+
+              {/* Top 5 by Units */}
+              <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: 20 }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Barlow, sans-serif', marginBottom: 16 }}>Top 5 Products by Units Sold</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {top5Units.map((p, i) => (
+                    <div key={`top-units-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 120, minWidth: 80, fontFamily: 'Barlow, sans-serif', fontSize: '0.82rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }} title={p.product}>
+                        {p.product}
+                      </div>
+                      <div style={{ flex: 1, height: 24, background: '#f0f0f0', borderRadius: 4, overflow: 'hidden' }}>
+                        <div style={{ width: maxUnits > 0 ? `${(p.units / maxUnits) * 100}%` : '0%', height: '100%', background: '#a78bfa', borderRadius: 4, transition: 'width 0.3s ease' }} />
+                      </div>
+                      <div style={{ fontFamily: 'Barlow, sans-serif', fontSize: '0.82rem', fontWeight: 700, minWidth: 50, textAlign: 'right', flexShrink: 0 }}>
+                        {fmtN(p.units)}
+                      </div>
                     </div>
-                    <div style={{ fontFamily: 'Barlow, sans-serif', fontSize: '0.82rem', fontWeight: 700, minWidth: 70, textAlign: 'right', flexShrink: 0 }}>
-                      {fmt$(p.revenue)}
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           )}
@@ -242,6 +269,9 @@ export default function ProductsBreakdownPage() {
             left: 0;
             right: 0;
             z-index: 100;
+          }
+          .chart-grid {
+            grid-template-columns: 1fr !important;
           }
         }
       `}</style>

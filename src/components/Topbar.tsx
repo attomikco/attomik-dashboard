@@ -8,16 +8,17 @@ interface TopbarProps {
   period?: string
   onPeriodChange?: (p: string) => void
   action?: { label: string; href?: string; onClick?: () => void }
+  className?: string
 }
 
 const periods = ['7D', '30D', '90D', '1Y']
 
-export default function Topbar({ title, subtitle, period, onPeriodChange, action }: TopbarProps) {
+export default function Topbar({ title, subtitle, period, onPeriodChange, action, className }: TopbarProps) {
   const router = useRouter()
 
   return (
-    <div style={{
-      padding: '20px 40px',
+    <div className={className} style={{
+      padding: 'clamp(14px, 3vw, 20px) clamp(16px, 4vw, 40px)',
       borderBottom: '1px solid var(--border)',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       position: 'sticky', top: 0, background: 'var(--paper)', zIndex: 50,

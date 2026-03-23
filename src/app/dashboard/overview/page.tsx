@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, Building2, TrendingUp, TrendingDown } from 'lucide-react'
+import { ArrowRight, ChevronRight, Building2, TrendingUp, TrendingDown } from 'lucide-react'
 import DateRangePicker, { DateRange } from '@/components/DateRangePicker'
 
 // ── helpers ──────────────────────────────────────────────────────────
@@ -436,9 +436,7 @@ export default function OverviewPage() {
 
                       {/* Arrow */}
                       <td style={{ padding: '16px 20px', textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.8rem', fontWeight: 700, color: C.muted, fontFamily: 'Barlow, sans-serif' }}>
-                          Open <ArrowRight size={13} />
-                        </div>
+                        <ChevronRight size={16} color={C.muted} />
                       </td>
                     </tr>
                   ))}

@@ -126,8 +126,8 @@ export default function ImportPage() {
 
   return (
     <div>
-      <Topbar title="Import Data" subtitle="Upload exports from each platform" />
-      <div style={{ padding: '32px 40px 48px', maxWidth: 720 }}>
+      <Topbar title="Import Data" subtitle="Upload exports from each platform" className="analytics-topbar" />
+      <div className="import-content" style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 48px', maxWidth: 720 }}>
         {loading ? (
           <div style={{ color: '#666', fontFamily: 'Barlow, sans-serif' }}>Loading…</div>
         ) : (
@@ -153,6 +153,13 @@ export default function ImportPage() {
           </>
         )}
       </div>
+
+      <style>{`
+        @media (max-width: 768px) {
+          .analytics-topbar { position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; padding: 14px 16px 14px 60px !important; z-index: 100 !important; }
+          .import-content { padding-top: 80px !important; }
+        }
+      `}</style>
     </div>
   )
 }
