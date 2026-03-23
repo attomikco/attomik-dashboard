@@ -107,18 +107,56 @@ export default function SettingsPage() {
     setSaving(false)
   }
 
+  const [syncProgress, setSyncProgress] = useState('')
+
   const handleSync = async (fullSync = false) => {
     setSyncing(true)
     setSyncResult(null)
     setSyncError(null)
-    const res = await fetch('/api/sync/shopify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ org_id: orgId(), full_sync: fullSync }),
-    })
-    const data = await res.json()
-    if (!res.ok) setSyncError(data.error || 'Sync failed')
-    else setSyncResult(data)
+    setSyncProgress('')
+
+    if (fullSync) {
+      // Batched full sync — month by month to avoid timeout
+      let totalSynced = 0
+      const startYear = 2020
+      const now = new Date()
+      const endYear = now.getFullYear()
+      const endMonth = now.getMonth()
+
+      for (let y = startYear; y <= endYear; y++) {
+        const maxM = y === endYear ? endMonth : 11
+        for (let m = 0; m <= maxM; m++) {
+          const syncStart = `${y}-${String(m + 1).padStart(2, '0')}-01T00:00:00Z`
+          const syncEnd = m === 11
+            ? `${y + 1}-01-01T00:00:00Z`
+            : `${y}-${String(m + 2).padStart(2, '0')}-01T00:00:00Z`
+          const label = new Date(y, m).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+          setSyncProgress(`Syncing ${label}...`)
+
+          try {
+            const res = await fetch('/api/sync/shopify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ org_id: orgId(), full_sync: true, sync_start: syncStart, sync_end: syncEnd }),
+            })
+            const data = await res.json()
+            if (res.ok) totalSynced += data.synced ?? 0
+          } catch {}
+        }
+      }
+
+      setSyncResult({ synced: totalSynced, inserted: totalSynced, message: `Full sync complete — ${totalSynced} orders imported` })
+      setSyncProgress('')
+    } else {
+      const res = await fetch('/api/sync/shopify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ org_id: orgId() }),
+      })
+      const data = await res.json()
+      if (!res.ok) setSyncError(data.error || 'Sync failed')
+      else setSyncResult(data)
+    }
     setSyncing(false)
   }
 
@@ -262,7 +300,12 @@ export default function SettingsPage() {
             </>)}
           </div>
 
-          {org?.shopify_synced_at && (
+          {syncProgress && (
+            <p style={{ fontSize: '0.8rem', color: 'var(--accent)', fontWeight: 600, fontFamily: 'var(--font-barlow)', marginBottom: 4 }}>
+              {syncProgress}
+            </p>
+          )}
+          {org?.shopify_synced_at && !syncProgress && (
             <p style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
               Last synced: {new Date(org.shopify_synced_at).toLocaleString()}
             </p>

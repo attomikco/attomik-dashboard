@@ -29,7 +29,7 @@ async function getShopifyToken(domain: string, clientId: string, clientSecret: s
 
 export async function POST(request: Request) {
   try {
-    const { org_id, full_sync } = await request.json()
+    const { org_id, full_sync, sync_start, sync_end } = await request.json()
     if (!org_id) return NextResponse.json({ error: 'org_id required' }, { status: 400 })
 
     const supabase = createServiceClient()
@@ -59,37 +59,39 @@ export async function POST(request: Request) {
     const headers = { 'X-Shopify-Access-Token': token }
     const apiBase = `https://${domain}/admin/api/2024-01`
 
+    const fields = 'id,name,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds,source_name,tags'
     const isFirstSync = !lastSynced || full_sync
     const updatedAtMin = isFirstSync ? null : new Date(lastSynced).toISOString()
 
     // Paginate through all orders
     const allOrders: any[] = []
-    if (isFirstSync) {
-      // For full sync: paginate through ALL orders year by year from 2020 to now
-      const years = []
-      const startYear = 2020
-      const endYear = new Date().getFullYear()
-      for (let y = startYear; y <= endYear; y++) years.push(y)
-
-      for (const year of years) {
-        const yearStart = `${year}-01-01T00:00:00Z`
-        const yearEnd   = year === endYear ? new Date().toISOString() : `${year + 1}-01-01T00:00:00Z`
-        let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&created_at_min=${yearStart}&created_at_max=${yearEnd}&fields=id,name,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds,source_name,tags`
-
-        while (url) {
-          const res = await fetch(url, { headers })
-          if (!res.ok) throw new Error(`Shopify API error: ${res.status}`)
-          const { orders } = await res.json()
-          allOrders.push(...orders)
-          const linkHeader = res.headers.get('Link') ?? ''
-          const nextMatch = linkHeader.match(/<([^>]+)>;\s*rel="next"/)
-          url = nextMatch ? nextMatch[1] : null
-        }
+    if (sync_start && sync_end) {
+      // Batch sync: specific date range (called repeatedly by frontend)
+      let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&created_at_min=${sync_start}&created_at_max=${sync_end}&fields=${fields}`
+      while (url) {
+        const res = await fetch(url, { headers })
+        if (!res.ok) throw new Error(`Shopify API error: ${res.status}`)
+        const { orders } = await res.json()
+        allOrders.push(...orders)
+        const linkHeader = res.headers.get('Link') ?? ''
+        const nextMatch = linkHeader.match(/<([^>]+)>;\s*rel="next"/)
+        url = nextMatch ? nextMatch[1] : null
+      }
+    } else if (isFirstSync) {
+      // Full sync without batching — single pass (may timeout on large stores)
+      let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&created_at_min=2020-01-01T00:00:00Z&fields=${fields}`
+      while (url) {
+        const res = await fetch(url, { headers })
+        if (!res.ok) throw new Error(`Shopify API error: ${res.status}`)
+        const { orders } = await res.json()
+        allOrders.push(...orders)
+        const linkHeader = res.headers.get('Link') ?? ''
+        const nextMatch = linkHeader.match(/<([^>]+)>;\s*rel="next"/)
+        url = nextMatch ? nextMatch[1] : null
       }
     } else {
       // Incremental sync: just fetch since last sync
-      let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&updated_at_min=${updatedAtMin}&fields=id,name,email,financial_status,created_at,updated_at,total_price,subtotal_price,total_discounts,total_tax,total_shipping_price_set,customer,line_items,refunds,source_name,tags`
-
+      let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&updated_at_min=${updatedAtMin}&fields=${fields}`
       while (url) {
         const res = await fetch(url, { headers })
         if (!res.ok) throw new Error(`Shopify API error: ${res.status}`)
