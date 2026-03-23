@@ -386,14 +386,20 @@ export default function AnalyticsPage() {
     const metaRoasC = metaSpC > 0 ? totalRevC / metaSpC : 0
     const metaRoasP = metaSpP > 0 ? totalRevP / metaSpP : 0
 
+    // Convert a UTC ISO timestamp to YYYY-MM-DD in the org's timezone
+    const utcToOrgDate = (iso: string) =>
+      new Date(iso).toLocaleDateString('en-CA', { timeZone: orgTimezone })
+
     const days: Record<string, any> = {}
-    const rangeEndDate = new Date(resolvedRange.end); rangeEndDate.setHours(23, 59, 59)
-    for (let d = new Date(resolvedRange.start); d <= rangeEndDate; d.setDate(d.getDate() + 1)) {
-      const k = d.toISOString().split('T')[0]
-      days[k] = { date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), revenue: 0, shopify: 0, amazon: 0, spend: 0, roas: 0 }
+    // Build day keys in org timezone so chart matches KPI dates exactly
+    for (let d = new Date(resolvedRange.start + 'T12:00:00'); ; d.setDate(d.getDate() + 1)) {
+      const k = d.toLocaleDateString('en-CA', { timeZone: orgTimezone })
+      const label = d.toLocaleDateString('en-US', { timeZone: orgTimezone, month: 'short', day: 'numeric' })
+      days[k] = { date: label, revenue: 0, shopify: 0, amazon: 0, spend: 0, roas: 0 }
+      if (k >= resolvedRange.end) break
     }
     enabledOrders.filter(o => o.status !== 'refunded').forEach(o => {
-      const k = o.created_at.split('T')[0]
+      const k = utcToOrgDate(o.created_at)
       if (!days[k]) return
       days[k].revenue += Number(o.total_price)
       if (o.source === 'shopify') days[k].shopify += Number(o.total_price)
@@ -415,13 +421,16 @@ export default function AnalyticsPage() {
 
     const curDayRevs: Record<number, number> = {}
     cur.forEach(o => {
-      const dayIdx = Math.floor((new Date(o.created_at).getTime() - curStart.getTime()) / 864e5) + 1
+      // Use org timezone date to compute day index so pacing matches KPI
+      const orderDate = new Date(o.created_at).toLocaleDateString('en-CA', { timeZone: orgTimezone })
+      const dayIdx = Math.round((new Date(orderDate).getTime() - curStart.getTime()) / 864e5) + 1
       if (dayIdx >= 1) curDayRevs[dayIdx] = (curDayRevs[dayIdx] || 0) + Number(o.total_price)
     })
 
     const prevDayRevs: Record<number, number> = {}
     prev.forEach(o => {
-      const dayIdx = Math.floor((new Date(o.created_at).getTime() - prevStartDate.getTime()) / 864e5) + 1
+      const orderDate = new Date(o.created_at).toLocaleDateString('en-CA', { timeZone: orgTimezone })
+      const dayIdx = Math.round((new Date(orderDate).getTime() - prevStartDate.getTime()) / 864e5) + 1
       if (dayIdx >= 1) prevDayRevs[dayIdx] = (prevDayRevs[dayIdx] || 0) + Number(o.total_price)
     })
 
@@ -456,10 +465,11 @@ export default function AnalyticsPage() {
     const dowMap: Record<number, { revenue: number; orders: number; weeks: Set<string> }> = {}
     for (let i = 0; i < 7; i++) dowMap[i] = { revenue: 0, orders: 0, weeks: new Set() }
     cur.forEach(o => {
-      const d = new Date(o.created_at)
-      dowMap[d.getDay()].revenue += Number(o.total_price)
-      dowMap[d.getDay()].orders  += Number(o.units) || 1
-      dowMap[d.getDay()].weeks.add(`${d.getFullYear()}-${Math.floor(d.getDate()/7)}`)
+      // Use org timezone for day-of-week so Mon/Tue etc match local business days
+      const localDate = new Date(new Date(o.created_at).toLocaleDateString('en-CA', { timeZone: orgTimezone }) + 'T12:00:00')
+      dowMap[localDate.getDay()].revenue += Number(o.total_price)
+      dowMap[localDate.getDay()].orders  += Number(o.units) || 1
+      dowMap[localDate.getDay()].weeks.add(`${localDate.getFullYear()}-${Math.floor(localDate.getDate()/7)}`)
     })
     setDowData(Object.entries(dowMap).map(([dow, v]) => ({ dayOfWeek: Number(dow), revenue: v.revenue, orders: v.orders, weeks: Math.max(v.weeks.size, 1) })))
 
