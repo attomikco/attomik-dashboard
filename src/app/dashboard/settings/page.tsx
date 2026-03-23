@@ -118,7 +118,7 @@ export default function SettingsPage() {
     if (fullSync) {
       // Batched full sync — month by month to avoid timeout
       let totalSynced = 0
-      const startYear = 2020
+      const startYear = 2024
       const now = new Date()
       const endYear = now.getFullYear()
       const endMonth = now.getMonth()

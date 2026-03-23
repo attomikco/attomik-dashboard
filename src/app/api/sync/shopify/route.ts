@@ -79,7 +79,7 @@ export async function POST(request: Request) {
       }
     } else if (isFirstSync) {
       // Full sync without batching — single pass (may timeout on large stores)
-      let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&created_at_min=2020-01-01T00:00:00Z&fields=${fields}`
+      let url: string | null = `${apiBase}/orders.json?limit=250&status=any&order=created_at+asc&created_at_min=2024-01-01T00:00:00Z&fields=${fields}`
       while (url) {
         const res = await fetch(url, { headers })
         if (!res.ok) throw new Error(`Shopify API error: ${res.status}`)
