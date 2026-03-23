@@ -31,6 +31,7 @@ interface OrgKpi {
   name: string
   slug: string
   timezone?: string
+  channels?: Record<string, boolean>
   revenue: number
   prevRevenue: number
   orders: number
@@ -93,12 +94,12 @@ export default function OverviewPage() {
     let orgList: { id: string; name: string; slug: string }[] = []
 
     if (prof?.is_superadmin) {
-      const { data } = await supabase.from('organizations').select('id, name, slug, timezone').order('name')
+      const { data } = await supabase.from('organizations').select('id, name, slug, timezone, channels').order('name')
       orgList = data ?? []
     } else {
       const { data: memberships } = await supabase
         .from('org_memberships')
-        .select('org_id, organizations(id, name, slug, timezone)')
+        .select('org_id, organizations(id, name, slug, timezone, channels)')
         .eq('user_id', user.id)
       orgList = (memberships ?? []).map((m: any) => m.organizations).filter(Boolean)
     }
@@ -139,12 +140,12 @@ export default function OverviewPage() {
           return new Date(utcMidnight.getTime() + diffMs).toISOString()
         }
         const [curOrders, prevOrders, curSpend, prevSpend] = await Promise.all([
-          supabase.from('orders').select('total_price, status')
+          supabase.from('orders').select('total_price, subtotal, status, source')
             .eq('org_id', org.id)
             .gte('created_at', toUTC(curStart, false))
             .lte('created_at', toUTC(curEnd, true))
             .limit(5000),
-          supabase.from('orders').select('total_price, status')
+          supabase.from('orders').select('total_price, subtotal, status, source')
             .eq('org_id', org.id)
             .gte('created_at', toUTC(prevStart, false))
             .lte('created_at', toUTC(prevEnd, true))
@@ -155,15 +156,31 @@ export default function OverviewPage() {
             .eq('org_id', org.id).gte('date', prevStart).lte('date', prevEnd),
         ])
 
-        const cur  = (curOrders.data  ?? []).filter(o => o.status !== 'refunded')
-        const prev = (prevOrders.data ?? []).filter(o => o.status !== 'refunded')
+        const ch = (org as any).channels ?? {}
+        const isConfigured = Object.keys(ch).length > 0
+        const showShopify = !isConfigured || ch.shopify || false
+        const showAmazon  = !isConfigured || ch.amazon  || false
+
+        const filterEnabled = (orders: any[]) => orders.filter(o =>
+          o.status !== 'refunded' && (
+            (showShopify && o.source === 'shopify') ||
+            (showAmazon  && o.source === 'amazon')  ||
+            (showShopify && !['shopify','amazon'].includes(o.source))
+          )
+        )
+
+        const cur  = filterEnabled(curOrders.data  ?? [])
+        const prev = filterEnabled(prevOrders.data ?? [])
 
         const revenue     = cur.reduce((s, o)  => s + Number(o.total_price || 0), 0)
         const prevRevenue = prev.reduce((s, o) => s + Number(o.total_price || 0), 0)
         const orders      = cur.length
         const prevOrdCnt  = prev.length
-        const aov         = orders > 0 ? revenue / orders : 0
-        const prevAov     = prevOrdCnt > 0 ? prevRevenue / prevOrdCnt : 0
+        // AOV uses subtotal (net after discounts) to match analytics exactly
+        const netRev      = cur.reduce((s, o)  => s + Number(o.subtotal || o.total_price || 0), 0)
+        const prevNetRev  = prev.reduce((s, o) => s + Number(o.subtotal || o.total_price || 0), 0)
+        const aov         = orders > 0 ? netRev / orders : 0
+        const prevAov     = prevOrdCnt > 0 ? prevNetRev / prevOrdCnt : 0
         const adSpend     = (curSpend.data  ?? []).reduce((s, r) => s + Number(r.spend), 0)
         const prevAdSpend = (prevSpend.data ?? []).reduce((s, r) => s + Number(r.spend), 0)
         const roas        = adSpend > 0 ? revenue / adSpend : 0
@@ -245,7 +262,7 @@ export default function OverviewPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 28 }}
                className="summary-grid">
             {[
-              { label: 'Total Revenue',  value: fmt$(totalRevenue), delta: pct(totalRevenue, totalPrevRev) },
+              { label: 'Total Sales',  value: fmt$(totalRevenue), delta: pct(totalRevenue, totalPrevRev) },
               { label: 'Total Orders',   value: fmtN(totalOrders),  delta: pct(totalOrders, totalPrevOrd) },
               { label: 'Total Ad Spend', value: fmt$(totalSpend),   delta: pct(totalSpend, totalPrevSp), invert: true },
               { label: 'Blended ROAS',   value: blendedRoas > 0 ? `${blendedRoas.toFixed(2)}x` : '—', delta: pct(blendedRoas, prevRoas) },
@@ -263,7 +280,7 @@ export default function OverviewPage() {
         {!loadingOrgs && orgs.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.7rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'Barlow, sans-serif' }}>Sort</span>
-            <SortBtn field="revenue"  label="Revenue"  />
+            <SortBtn field="revenue"  label="Total Sales"  />
             <SortBtn field="orders"   label="Orders"   />
             <SortBtn field="roas"     label="ROAS"     />
             <SortBtn field="adSpend"  label="Ad Spend" />
@@ -425,7 +442,7 @@ export default function OverviewPage() {
                   ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       {[
-                        { label: 'Revenue', value: fmt$(org.revenue),  delta: pct(org.revenue, org.prevRevenue) },
+                        { label: 'Total Sales', value: fmt$(org.revenue),  delta: pct(org.revenue, org.prevRevenue) },
                         { label: 'Orders',  value: fmtN(org.orders),   delta: pct(org.orders, org.prevOrders) },
                         { label: 'AOV',     value: org.aov > 0 ? fmt$(org.aov) : '—', delta: org.aov > 0 ? pct(org.aov, org.prevAov) : null },
                         { label: 'ROAS',    value: org.roas > 0 ? `${org.roas.toFixed(2)}x` : '—', delta: org.roas > 0 ? pct(org.roas, org.prevRoas) : null },
