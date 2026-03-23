@@ -48,13 +48,17 @@ export async function POST(request: Request) {
     const serviceClient = createServiceClient()
 
     // Use plain dates for ad_spend (date column, not timestamp)
-    // Fall back to splitting ISO string if plain dates not provided
     const spendStart = adSpendStart ?? start.split('T')[0]
     const spendEnd = adSpendEnd ?? end.split('T')[0]
 
+    // For orders: use the EARLIER of midnight UTC or the timezone-adjusted start
+    // This ensures Amazon daily records (stored at midnight UTC) are always captured
+    const orderStart = `${spendStart}T00:00:00.000Z` < start ? `${spendStart}T00:00:00.000Z` : start
+    const orderEnd = `${spendEnd}T23:59:59.999Z` > end ? `${spendEnd}T23:59:59.999Z` : end
+
     const [curOrders, prevOrders, curSpend, prevSpend] = await Promise.all([
       serviceClient.from('orders').select('total_price, subtotal, status, source')
-        .eq('org_id', org_id).gte('created_at', start).lte('created_at', end).limit(5000),
+        .eq('org_id', org_id).gte('created_at', orderStart).lte('created_at', orderEnd).limit(5000),
       serviceClient.from('orders').select('total_price, subtotal, status, source')
         .eq('org_id', org_id).gte('created_at', prevStart).lte('created_at', prevEnd).limit(5000),
       serviceClient.from('ad_spend').select('spend')
