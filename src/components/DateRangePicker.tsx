@@ -21,19 +21,19 @@ const daysAgo = (n: number) => {
 
 function monthStart(offset = 0) {
   const d = new Date()
-  return new Date(d.getFullYear(), d.getMonth() + offset, 1).toISOString().split('T')[0]
+  return new Date(d.getFullYear(), d.getMonth() + offset, 1).toLocaleDateString('en-CA')
 }
 function monthEnd(offset = 0) {
   const d = new Date()
-  return new Date(d.getFullYear(), d.getMonth() + offset + 1, 0).toISOString().split('T')[0]
+  return new Date(d.getFullYear(), d.getMonth() + offset + 1, 0).toLocaleDateString('en-CA')
 }
 function yearStart(offset = 0) {
   const d = new Date()
-  return new Date(d.getFullYear() + offset, 0, 1).toISOString().split('T')[0]
+  return new Date(d.getFullYear() + offset, 0, 1).toLocaleDateString('en-CA')
 }
 function yearEnd(offset = 0) {
   const d = new Date()
-  return new Date(d.getFullYear() + offset, 11, 31).toISOString().split('T')[0]
+  return new Date(d.getFullYear() + offset, 11, 31).toLocaleDateString('en-CA')
 }
 
 const PRESETS: { label: string; getRange: () => { start: string; end: string } }[] = [

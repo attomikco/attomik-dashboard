@@ -18,18 +18,20 @@ function fmt$(n: number) {
 }
 function fmtN(n: number) { return n >= 1_000 ? `${(n / 1_000).toFixed(1)}k` : String(n) }
 function pct(a: number, b: number) { return b === 0 ? (a > 0 ? 100 : 0) : ((a - b) / b) * 100 }
-function localToday() {
+function dateInTz(tz: string, offsetDays = 0): string {
   const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  if (offsetDays) d.setDate(d.getDate() + offsetDays)
+  return d.toLocaleDateString('en-CA', { timeZone: tz })
 }
+// For prev period calcs we still need a simple offset helper (using UTC is fine for prev period)
 const daysAgo = (n: number) => {
   const d = new Date(); d.setDate(d.getDate() - n)
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  return d.toLocaleDateString('en-CA')
 }
 
 const defaultRange: DateRange = {
   start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toLocaleDateString('en-CA'),
-  end: localToday(),
+  end: new Date().toLocaleDateString('en-CA'),
   label: 'Month to date',
 }
 
@@ -130,6 +132,23 @@ export default function OverviewPage() {
   const fetchAllKpis = async (orgList: OrgKpi[], currentRange: DateRange, cancelled: boolean) => {
     if (cancelled) return
 
+    // Re-compute start/end using each org's timezone for relative presets
+    // This ensures "today" means today in Pacific for La Monjita, Eastern for others
+    const getOrgRange = (tz: string) => {
+      const today = dateInTz(tz)
+      const monthStart = (() => { const p = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()); const m = Object.fromEntries(p.filter(x=>x.type!=='literal').map(x=>[x.type,x.value])); return `${m.year}-${m.month}-01` })()
+      switch (currentRange.label) {
+        case 'Today':          return { start: today, end: today }
+        case 'Yesterday':      return { start: dateInTz(tz,-1), end: dateInTz(tz,-1) }
+        case 'Last 7 days':    return { start: dateInTz(tz,-7), end: today }
+        case 'Last 30 days':   return { start: dateInTz(tz,-30), end: today }
+        case 'Month to date':  return { start: monthStart, end: today }
+        case 'Last 90 days':   return { start: dateInTz(tz,-90), end: today }
+        case 'Last 12 months': return { start: dateInTz(tz,-365), end: today }
+        case 'This year':      return { start: today.slice(0,4)+'-01-01', end: today }
+        default: return { start: currentRange.start, end: currentRange.end }
+      }
+    }
     const curStart = currentRange.start
     const curEnd   = currentRange.end
     const diffDays = Math.round((new Date(curEnd).getTime() - new Date(curStart).getTime()) / 864e5) + 1
@@ -139,6 +158,7 @@ export default function OverviewPage() {
     await Promise.all(orgList.map(async (org) => {
       try {
         const tz = (org as any).timezone ?? 'America/New_York'
+        const { start: orgCurStart, end: orgCurEnd } = getOrgRange(tz)
         const toUTC = (dateStr: string, endOfDay = false) => {
           const time = endOfDay ? '23:59:59' : '00:00:00'
           const utcMidnight = new Date(`${dateStr}T${time}Z`)
@@ -156,8 +176,8 @@ export default function OverviewPage() {
         const [curOrders, prevOrders, curSpend, prevSpend] = await Promise.all([
           supabase.from('orders').select('total_price, subtotal, status, source')
             .eq('org_id', org.id)
-            .gte('created_at', toUTC(curStart, false))
-            .lte('created_at', toUTC(curEnd, true))
+            .gte('created_at', toUTC(orgCurStart, false))
+            .lte('created_at', toUTC(orgCurEnd, true))
             .limit(5000),
           supabase.from('orders').select('total_price, subtotal, status, source')
             .eq('org_id', org.id)

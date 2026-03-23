@@ -150,13 +150,23 @@ function ChartCard({ title, subtitle, children, dark }: { title: string; subtitl
   )
 }
 
-function localToday() {
+// Get YYYY-MM-DD date string in a specific timezone
+function dateInTz(tz: string, offsetDays = 0): string {
   const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  if (offsetDays) d.setDate(d.getDate() + offsetDays)
+  return d.toLocaleDateString('en-CA', { timeZone: tz })
 }
+function monthStartInTz(tz: string): string {
+  const d = new Date()
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d)
+  const p = Object.fromEntries(parts.filter(x => x.type !== 'literal').map(x => [x.type, x.value]))
+  return `${p.year}-${p.month}-01`
+}
+
+// Default range uses UTC until we know the org timezone (updated after fetch)
 const defaultRange: DateRange = {
   start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toLocaleDateString('en-CA'),
-  end: localToday(),
+  end: new Date().toLocaleDateString('en-CA'),
   label: 'Month to date',
 }
 
@@ -188,6 +198,18 @@ export default function AnalyticsPage() {
       .from('organizations').select('channels, timezone, name').eq('id', orgId).single()
     if (orgData?.name) { setOrgName(orgData.name); document.title = `${orgData.name} Analytics | Attomik` }
     const orgTimezone = orgData?.timezone ?? 'America/New_York'
+    // Re-set range to use org timezone if still on default preset
+    setRange(prev => {
+      if (prev.label === 'Month to date') {
+        return { start: monthStartInTz(orgTimezone), end: dateInTz(orgTimezone), label: 'Month to date' }
+      }
+      if (prev.label === 'Today') return { start: dateInTz(orgTimezone), end: dateInTz(orgTimezone), label: 'Today' }
+      if (prev.label === 'Yesterday') return { start: dateInTz(orgTimezone, -1), end: dateInTz(orgTimezone, -1), label: 'Yesterday' }
+      if (prev.label === 'Last 7 days') return { start: dateInTz(orgTimezone, -7), end: dateInTz(orgTimezone), label: 'Last 7 days' }
+      if (prev.label === 'Last 30 days') return { start: dateInTz(orgTimezone, -30), end: dateInTz(orgTimezone), label: 'Last 30 days' }
+      if (prev.label === 'This year') return { start: dateInTz(orgTimezone).slice(0,4) + '-01-01', end: dateInTz(orgTimezone), label: 'This year' }
+      return prev
+    })
     const ch = orgData?.channels ?? {}
     // If channels column is null/empty object (never configured), show all
     // If it has keys (even all false), respect the individual values
