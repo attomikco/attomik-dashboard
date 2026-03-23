@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { UserPlus, Trash2, ArrowLeft, Building2, CheckCircle, AlertCircle } from 'lucide-react'
+import { UserPlus, Trash2, ArrowLeft, Building2, CheckCircle, AlertCircle, Eye } from 'lucide-react'
 
 interface Member { id: string; full_name: string | null; email: string | null; role: string; status: string; invited_at: string | null; joined_at: string | null; last_seen_at: string | null; is_superadmin?: boolean }
 interface Org { id: string; name: string; slug: string; created_at: string; shopify_domain: string | null; meta_ad_account_id: string | null; channels: Record<string, boolean>; timezone: string | null; logo_url: string | null; header_url: string | null }
@@ -418,7 +418,23 @@ export default function ProjectDetailPage() {
                               ? `Invited ${new Date(m.invited_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
                               : '—'}
                         </td>
-                        <td style={{ padding: '13px 24px', textAlign: 'right' }}>
+                        <td style={{ padding: '13px 24px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          {!m.is_superadmin && m.status === 'joined' && (
+                            <button
+                              onClick={() => {
+                                localStorage.setItem('viewAsUserId', m.id)
+                                localStorage.setItem('viewAsUserName', m.full_name || m.email || 'User')
+                                localStorage.setItem('activeOrgId', org!.id)
+                                window.location.href = '/dashboard/analytics'
+                              }}
+                              title={`View as ${m.full_name || m.email}`}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', padding: 4, transition: '0.15s', marginRight: 4 }}
+                              onMouseEnter={e => (e.currentTarget.style.color = '#000')}
+                              onMouseLeave={e => (e.currentTarget.style.color = '#ccc')}
+                            >
+                              <Eye size={15} />
+                            </button>
+                          )}
                           <button onClick={() => handleRemoveMember(m.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', padding: 4, transition: '0.15s' }} onMouseEnter={e => (e.currentTarget.style.color = '#b91c1c')} onMouseLeave={e => (e.currentTarget.style.color = '#ccc')}>
                             <Trash2 size={15} />
                           </button>

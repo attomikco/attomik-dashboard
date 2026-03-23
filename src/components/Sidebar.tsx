@@ -30,6 +30,7 @@ export default function Sidebar() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [viewAsName, setViewAsName] = useState<string | null>(null)
   const dropRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -49,7 +50,11 @@ export default function Sidebar() {
     if (!user) return
     const { data: prof } = await supabase.from('profiles').select('full_name, role, is_superadmin').eq('id', user.id).single()
     setProfile(prof)
-    if (prof?.is_superadmin) {
+    const viewAsUserId = localStorage.getItem('viewAsUserId')
+    const viewAsUserNameStored = localStorage.getItem('viewAsUserName')
+    if (viewAsUserId && viewAsUserNameStored) setViewAsName(viewAsUserNameStored)
+
+    if (prof?.is_superadmin && !viewAsUserId) {
       // Superadmin sees all orgs
       const { data: allOrgs } = await supabase.from('organizations').select('id, name, slug').order('name')
       setOrgs(allOrgs ?? [])
@@ -58,6 +63,25 @@ export default function Sidebar() {
       const defaultOrg = found ?? allOrgs?.[0] ?? null
       setActiveOrg(defaultOrg)
       if (defaultOrg) localStorage.setItem('activeOrgId', defaultOrg.id)
+    } else if (prof?.is_superadmin && viewAsUserId) {
+      // Superadmin in "View as" mode — load target user's memberships
+      const { data: memberships } = await supabase
+        .from('org_memberships')
+        .select('org_id, role, organizations(id, name, slug)')
+        .eq('user_id', viewAsUserId)
+      const memberOrgs = (memberships ?? [])
+        .map((m: any) => m.organizations)
+        .filter(Boolean)
+        .sort((a: any, b: any) => a.name.localeCompare(b.name))
+      setOrgs(memberOrgs)
+      const savedOrgId = localStorage.getItem('activeOrgId')
+      const found = memberOrgs.find((o: any) => o.id === savedOrgId)
+      const defaultOrg = found ?? memberOrgs[0] ?? null
+      setActiveOrg(defaultOrg)
+      if (defaultOrg) localStorage.setItem('activeOrgId', defaultOrg.id)
+      // Use the target user's role for nav filtering
+      const memberRole = (memberships ?? []).find((m: any) => m.org_id === defaultOrg?.id)?.role ?? 'viewer'
+      setProfile(prev => prev ? { ...prev, memberRole, is_superadmin: false } : prev)
     } else {
       // Regular user: load their memberships
       const { data: memberships } = await supabase
@@ -101,6 +125,8 @@ export default function Sidebar() {
   }
 
   const handleSignOut = async () => {
+    localStorage.removeItem('viewAsUserId')
+    localStorage.removeItem('viewAsUserName')
     await supabase.auth.signOut()
     router.push('/auth/login')
   }
@@ -131,6 +157,24 @@ export default function Sidebar() {
           <X size={20} />
         </button>
       </div>
+
+      {/* View as banner */}
+      {viewAsName && (
+        <div style={{ padding: '10px 12px', background: '#fef3c7', borderBottom: '1px solid #f59e0b' }}>
+          <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Barlow, sans-serif', marginBottom: 4 }}>Viewing as</div>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#78350f', fontFamily: 'Barlow, sans-serif', marginBottom: 8 }}>{viewAsName}</div>
+          <button
+            onClick={() => {
+              localStorage.removeItem('viewAsUserId')
+              localStorage.removeItem('viewAsUserName')
+              window.location.href = '/dashboard/overview'
+            }}
+            style={{ width: '100%', padding: '6px 10px', background: '#000', color: '#00ff97', fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.75rem', border: 'none', borderRadius: 5, cursor: 'pointer' }}
+          >
+            Exit view
+          </button>
+        </div>
+      )}
 
       {/* Org switcher */}
       {orgs.length > 0 && (
