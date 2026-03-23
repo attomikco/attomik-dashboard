@@ -190,7 +190,7 @@ export default function AnalyticsPage() {
   const [dowData, setDowData] = useState<any[]>([])
   const [cacData, setCacData] = useState<any[]>([])
   const [channels, setChannels] = useState<Record<string, boolean>>({})
-  const [trafficData, setTrafficData] = useState<{ users: number; sessions: number; newUsers: number; daily: { date: string; users: number; sessions: number }[] } | null>(null)
+  const [trafficData, setTrafficData] = useState<{ users: number; sessions: number; newUsers: number; usersP: number; sessionsP: number; newUsersP: number } | null>(null)
   const [orgName, setOrgName] = useState<string>('your store')
   const [lastSynced, setLastSynced] = useState<string | null>(null)
   const [estEOM, setEstEOM] = useState<number | null>(null)
@@ -226,16 +226,24 @@ export default function AnalyticsPage() {
       }
     })()
 
-    // Fetch GA4 traffic data if property is configured (fire and forget)
+    // Fetch GA4 traffic data if property is configured (current + previous period)
     if (orgData?.ga_property_id) {
-      fetch('/api/analytics/traffic', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ org_id: orgId, startDate: resolvedRange.start, endDate: resolvedRange.end }),
-      })
-        .then(r => r.ok ? r.json() : null)
-        .then(d => { if (d) setTrafficData(d) })
-        .catch(() => setTrafficData(null))
+      const fetchTraffic = (start: string, end: string) =>
+        fetch('/api/analytics/traffic', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ org_id: orgId, startDate: start, endDate: end }),
+        }).then(r => r.ok ? r.json() : null)
+
+      Promise.all([
+        fetchTraffic(resolvedRange.start, resolvedRange.end),
+        fetchTraffic(prevStart, prevEnd),
+      ]).then(([cur, prev]) => {
+        if (cur) setTrafficData({
+          sessions: cur.sessions, users: cur.users, newUsers: cur.newUsers,
+          sessionsP: prev?.sessions ?? 0, usersP: prev?.users ?? 0, newUsersP: prev?.newUsers ?? 0,
+        })
+      }).catch(() => setTrafficData(null))
     } else {
       setTrafficData(null)
     }
@@ -733,12 +741,14 @@ export default function AnalyticsPage() {
             <>
               <SectionHeader title="Traffic" color="#4285f4" platform="google analytics" />
               <MetricRow items={[
-                { label: 'Sessions', value: fmtN(trafficData.sessions) },
-                { label: 'Users', value: fmtN(trafficData.users) },
-                { label: 'New Users', value: fmtN(trafficData.newUsers) },
-                { label: 'Conv. Rate (Sessions)', value: trafficData.sessions > 0 ? fmtPct(d.ordC / trafficData.sessions * 100) : '—', desc: 'Orders ÷ Sessions' },
-                { label: 'Conv. Rate (Users)', value: trafficData.users > 0 ? fmtPct(d.ordC / trafficData.users * 100) : '—', desc: 'Orders ÷ Users' },
-                { label: 'Conv. Rate (New Users)', value: trafficData.newUsers > 0 ? fmtPct(d.ordC / trafficData.newUsers * 100) : '—', desc: 'Orders ÷ New Users' },
+                { label: 'Sessions', value: fmtN(trafficData.sessions), sub: trafficData.sessionsP > 0 ? chg(trafficData.sessions, trafficData.sessionsP) : '' },
+                { label: 'Users', value: fmtN(trafficData.users), sub: trafficData.usersP > 0 ? chg(trafficData.users, trafficData.usersP) : '' },
+                { label: 'New Users', value: fmtN(trafficData.newUsers), sub: trafficData.newUsersP > 0 ? chg(trafficData.newUsers, trafficData.newUsersP) : '' },
+              ]} />
+              <MetricRow items={[
+                ...(trafficData.sessions > 0 ? [{ label: 'Conv. Rate (Sessions)', value: fmtPct(d.ordC / trafficData.sessions * 100), sub: trafficData.sessionsP > 0 && d.ordP > 0 ? chg(d.ordC / trafficData.sessions * 100, d.ordP / trafficData.sessionsP * 100) : '', desc: 'Orders ÷ Sessions' }] : []),
+                ...(trafficData.users > 0 ? [{ label: 'Conv. Rate (Users)', value: fmtPct(d.ordC / trafficData.users * 100), sub: trafficData.usersP > 0 && d.ordP > 0 ? chg(d.ordC / trafficData.users * 100, d.ordP / trafficData.usersP * 100) : '', desc: 'Orders ÷ Users' }] : []),
+                ...(trafficData.newUsers > 0 ? [{ label: 'Conv. Rate (New Users)', value: fmtPct(d.ordC / trafficData.newUsers * 100), sub: trafficData.newUsersP > 0 && d.ordP > 0 ? chg(d.ordC / trafficData.newUsers * 100, d.ordP / trafficData.newUsersP * 100) : '', desc: 'Orders ÷ New Users' }] : []),
               ]} />
             </>
           )}
