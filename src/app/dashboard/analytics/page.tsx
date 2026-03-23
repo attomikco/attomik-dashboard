@@ -364,20 +364,22 @@ export default function AnalyticsPage() {
     const netRevP = enabledOrdersP.reduce((s, o) => s + Number(o.subtotal || o.total_price || 0), 0)
     const aovC  = ordC > 0 ? netRevC / ordC : 0
     const aovP  = ordP > 0 ? netRevP / ordP : 0
-    const prevEmails = new Set(enabledOrdersP.map(o => o.customer_email).filter(Boolean))
+    // Returning = ordered ANY time before the current period (uses full history)
+    const allEmailsBeforeCur = new Set(allOrd.filter(o => o.created_at < thisStart).map(o => o.customer_email).filter(Boolean))
+    const allEmailsBeforePrev = new Set(allOrd.filter(o => o.created_at < prevStartISO).map(o => o.customer_email).filter(Boolean))
     const curEmails  = [...new Set(enabledOrders.map(o => o.customer_email).filter(Boolean))]
-    const newCustC   = curEmails.filter(e => !prevEmails.has(e)).length
-    const newCustP   = [...new Set(prev.map(o => o.customer_email).filter(Boolean))].length
+    const prevEmailsList = [...new Set(enabledOrdersP.map(o => o.customer_email).filter(Boolean))]
+    const retCustC   = curEmails.filter(e => allEmailsBeforeCur.has(e)).length
+    const newCustC   = curEmails.filter(e => !allEmailsBeforeCur.has(e)).length
+    const totalCustC = curEmails.length
+    const retCustP   = prevEmailsList.filter(e => allEmailsBeforePrev.has(e)).length
+    const newCustP   = prevEmailsList.filter(e => !allEmailsBeforePrev.has(e)).length
+    const rcrC = totalCustC > 0 ? (retCustC / totalCustC) * 100 : 0
+    const rcrP = prevEmailsList.length > 0 ? (retCustP / prevEmailsList.length) * 100 : 0
     const cacC = ordC > 0 ? totalSpC / ordC : 0
     const cacP = ordP > 0 ? totalSpP / ordP : 0
-    const retCustC   = curEmails.filter(e => prevEmails.has(e)).length
-    const totalCustC = curEmails.length
-    const rcrC = totalCustC > 0 ? (retCustC / totalCustC) * 100 : 0
-    const prevPrevEmails = new Set(cur.map(o => o.customer_email).filter(Boolean))
-    const retCustP = [...new Set(prev.map(o => o.customer_email).filter(Boolean))].filter(e => prevPrevEmails.has(e)).length
-    const rcrP = newCustP > 0 ? (retCustP / newCustP) * 100 : 0
-    const retRevC = enabledOrders.filter(o => o.customer_email && prevEmails.has(o.customer_email)).reduce((s, o) => s + Number(o.total_price), 0)
-    const newRevC  = enabledOrders.filter(o => o.customer_email && !prevEmails.has(o.customer_email)).reduce((s, o) => s + Number(o.total_price), 0)
+    const retRevC = enabledOrders.filter(o => o.customer_email && allEmailsBeforeCur.has(o.customer_email)).reduce((s, o) => s + Number(o.total_price), 0)
+    const newRevC  = enabledOrders.filter(o => o.customer_email && !allEmailsBeforeCur.has(o.customer_email)).reduce((s, o) => s + Number(o.total_price), 0)
 
     const shGrossC    = shopC.reduce((s, o) => s + (Number(o.subtotal)||0) + (Number(o.discount_amount)||0), 0)
     const shGrossP    = shopP.reduce((s, o) => s + (Number(o.subtotal)||0) + (Number(o.discount_amount)||0), 0)
