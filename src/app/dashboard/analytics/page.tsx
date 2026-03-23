@@ -98,11 +98,11 @@ function MetricRow({ items }: { items: { label: string; value: string; sub?: str
           const subColor = isGood === true ? '#007a48' : isGood === false ? '#b91c1c' : '#999'
           const subBg = isGood === true ? '#e6fff5' : isGood === false ? '#fee2e2' : 'transparent'
           return (
-            <div key={i} style={{ background: C.paper, padding: '18px 20px' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontFamily: 'var(--font-barlow), Barlow, sans-serif', whiteSpace: 'nowrap' }}>
+            <div key={i} style={{ background: C.paper, padding: '18px 20px', minWidth: 0 }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>
                 {item.label}
               </div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.03em', color: C.ink, whiteSpace: 'nowrap' }}>{item.value}</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.03em', color: C.ink }}>{item.value}</div>
               {item.sub && (
                 <div style={{ display: 'inline-flex', alignItems: 'center', marginTop: 6, padding: '2px 8px', borderRadius: 4, background: subBg, fontSize: '0.8rem', fontWeight: 600, color: subColor, fontFamily: 'var(--font-barlow), Barlow, sans-serif', whiteSpace: 'nowrap' }}>
                   {item.sub}
@@ -617,7 +617,7 @@ export default function AnalyticsPage() {
   return (
     <div style={{ background: C.paper, minHeight: '100vh' }}>
       {/* Sticky topbar */}
-      <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, position: 'sticky', top: 0, background: C.paper, zIndex: 50 }}>
+      <div className="analytics-topbar" style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, position: 'sticky', top: 0, background: C.paper, zIndex: 50 }}>
         <div style={{ minWidth: 0, flex: 1 }}>
           <h1 style={{ fontSize: 'clamp(1.1rem, 4vw, 2rem)', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'var(--font-barlow), Barlow, sans-serif', color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{orgName} — Analytics</h1>
           <p style={{ fontSize: '0.75rem', color: C.muted, marginTop: 2, fontFamily: 'var(--font-barlow), Barlow, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -737,23 +737,6 @@ export default function AnalyticsPage() {
             ]} />
           )}
 
-          {/* ── TRAFFIC (GA4) ── */}
-          {trafficData && (
-            <>
-              <SectionHeader title="Traffic" color="#4285f4" platform="google analytics" />
-              <MetricRow items={[
-                { label: 'Sessions', value: fmtN(trafficData.sessions), sub: trafficData.sessionsP > 0 ? chg(trafficData.sessions, trafficData.sessionsP) : '' },
-                { label: 'Users', value: fmtN(trafficData.users), sub: trafficData.usersP > 0 ? chg(trafficData.users, trafficData.usersP) : '' },
-                { label: 'New Users', value: fmtN(trafficData.newUsers), sub: trafficData.newUsersP > 0 ? chg(trafficData.newUsers, trafficData.newUsersP) : '' },
-              ]} />
-              <MetricRow items={[
-                ...(trafficData.sessions > 0 ? [{ label: 'Conv. Rate (Sessions)', value: fmtPct(d.ordC / trafficData.sessions * 100), sub: trafficData.sessionsP > 0 && d.ordP > 0 ? chg(d.ordC / trafficData.sessions * 100, d.ordP / trafficData.sessionsP * 100) : '', desc: 'Orders ÷ Sessions' }] : []),
-                ...(trafficData.users > 0 ? [{ label: 'Conv. Rate (Users)', value: fmtPct(d.ordC / trafficData.users * 100), sub: trafficData.usersP > 0 && d.ordP > 0 ? chg(d.ordC / trafficData.users * 100, d.ordP / trafficData.usersP * 100) : '', desc: 'Orders ÷ Users' }] : []),
-                ...(trafficData.newUsers > 0 ? [{ label: 'Conv. Rate (New Users)', value: fmtPct(d.ordC / trafficData.newUsers * 100), sub: trafficData.newUsersP > 0 && d.ordP > 0 ? chg(d.ordC / trafficData.newUsers * 100, d.ordP / trafficData.newUsersP * 100) : '', desc: 'Orders ÷ New Users' }] : []),
-              ]} />
-            </>
-          )}
-
           {/* ── CHARTS ROW 1 ── */}
           <div className="chart-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
             <ChartCard title="Revenue & ROAS" subtitle="Revenue bars (dark) · ROAS line (bright)">
@@ -799,6 +782,23 @@ export default function AnalyticsPage() {
             <KpiCard label="Returning Customer Rate"             value={fmtPct(d.shRcrC)} change={pct(d.shRcrC, d.shRcrP)} />
             <KpiCard label="CAC"                     value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors />
           </div>
+
+          {/* ── TRAFFIC (GA4) ── */}
+          {trafficData && (
+            <>
+              <SectionHeader title="Traffic" color="#4285f4" platform="google analytics" />
+              <MetricRow items={[
+                { label: 'Sessions', value: fmtN(trafficData.sessions), sub: trafficData.sessionsP > 0 ? chg(trafficData.sessions, trafficData.sessionsP) : '' },
+                { label: 'Users', value: fmtN(trafficData.users), sub: trafficData.usersP > 0 ? chg(trafficData.users, trafficData.usersP) : '' },
+                { label: 'New Users', value: fmtN(trafficData.newUsers), sub: trafficData.newUsersP > 0 ? chg(trafficData.newUsers, trafficData.newUsersP) : '' },
+              ]} />
+              <MetricRow items={[
+                ...(trafficData.sessions > 0 ? [{ label: 'Conv. Rate (Sessions)', value: fmtPct(d.ordC / trafficData.sessions * 100), sub: trafficData.sessionsP > 0 && d.ordP > 0 ? chg(d.ordC / trafficData.sessions * 100, d.ordP / trafficData.sessionsP * 100) : '', desc: 'Orders ÷ Sessions' }] : []),
+                ...(trafficData.users > 0 ? [{ label: 'Conv. Rate (Users)', value: fmtPct(d.ordC / trafficData.users * 100), sub: trafficData.usersP > 0 && d.ordP > 0 ? chg(d.ordC / trafficData.users * 100, d.ordP / trafficData.usersP * 100) : '', desc: 'Orders ÷ Users' }] : []),
+                ...(trafficData.newUsers > 0 ? [{ label: 'Conv. Rate (New Users)', value: fmtPct(d.ordC / trafficData.newUsers * 100), sub: trafficData.newUsersP > 0 && d.ordP > 0 ? chg(d.ordC / trafficData.newUsers * 100, d.ordP / trafficData.newUsersP * 100) : '', desc: 'Orders ÷ New Users' }] : []),
+              ]} />
+            </>
+          )}
 
           {/* ── SHOPIFY ── */}
           {d.showShopify && <SectionHeader title="Shopify" color="#96bf48" platform="shopify" />}
@@ -899,6 +899,7 @@ export default function AnalyticsPage() {
 
       <style>{`
         @media (max-width: 768px) {
+          .analytics-topbar { top: 56px !important; }
           .kpi-grid-3 { grid-template-columns: 1fr 1fr !important; }
           .kpi-grid-4 { grid-template-columns: 1fr 1fr !important; }
           .chart-grid { grid-template-columns: 1fr !important; }
