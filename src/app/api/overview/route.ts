@@ -56,11 +56,27 @@ export async function POST(request: Request) {
     const orderStart = `${spendStart}T00:00:00.000Z` < start ? `${spendStart}T00:00:00.000Z` : start
     const orderEnd = `${spendEnd}T23:59:59.999Z` > end ? `${spendEnd}T23:59:59.999Z` : end
 
+    // Paginated fetch to get ALL orders (Supabase caps at 1000 per query)
+    const fetchAllOrders = async (gte: string, lte: string) => {
+      const size = 1000
+      let from = 0
+      const all: any[] = []
+      while (true) {
+        const { data } = await serviceClient.from('orders')
+          .select('total_price, subtotal, status, source')
+          .eq('org_id', org_id).gte('created_at', gte).lte('created_at', lte)
+          .range(from, from + size - 1)
+        if (!data || data.length === 0) break
+        all.push(...data)
+        if (data.length < size) break
+        from += size
+      }
+      return all
+    }
+
     const [curOrders, prevOrders, curSpend, prevSpend] = await Promise.all([
-      serviceClient.from('orders').select('total_price, subtotal, status, source')
-        .eq('org_id', org_id).gte('created_at', orderStart).lte('created_at', orderEnd).limit(5000),
-      serviceClient.from('orders').select('total_price, subtotal, status, source')
-        .eq('org_id', org_id).gte('created_at', prevStart).lte('created_at', prevEnd).limit(5000),
+      fetchAllOrders(orderStart, orderEnd),
+      fetchAllOrders(prevStart, prevEnd),
       serviceClient.from('ad_spend').select('spend')
         .eq('org_id', org_id).gte('date', spendStart).lte('date', spendEnd),
       serviceClient.from('ad_spend').select('spend')
@@ -68,8 +84,8 @@ export async function POST(request: Request) {
     ])
 
     return NextResponse.json({
-      curOrders: curOrders.data ?? [],
-      prevOrders: prevOrders.data ?? [],
+      curOrders,
+      prevOrders,
       curSpend: curSpend.data ?? [],
       prevSpend: prevSpend.data ?? [],
     })
