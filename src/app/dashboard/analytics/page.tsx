@@ -275,7 +275,7 @@ export default function AnalyticsPage() {
       fetchAllOrders(thisStart, thisEnd, orderCols),
       fetchAllOrders(prevStartISO, prevEndISO, orderCols),
       supabase.from('ad_spend').select('spend,platform,impressions,clicks,conversions,date').eq('org_id', orgId).gte('date', resolvedRange.start).lte('date', resolvedRange.end).limit(5000),
-      supabase.from('ad_spend').select('spend,platform').eq('org_id', orgId).gte('date', prevStart).lte('date', prevEnd).limit(5000),
+      supabase.from('ad_spend').select('spend,platform,impressions,clicks,conversions').eq('org_id', orgId).gte('date', prevStart).lte('date', prevEnd).limit(5000),
       fetchAllOrders(sixMonthsAgo, new Date().toISOString(), orderColsLight),
       supabase.from('ad_spend').select('spend,date').eq('org_id', orgId).gte('date', sixMonthsAgo.split('T')[0]).limit(5000),
     ])
@@ -383,6 +383,9 @@ export default function AnalyticsPage() {
     const metaImprC = cSpend.filter(o => o.platform === 'meta').reduce((s, o) => s + Number(o.impressions), 0)
     const metaClkC  = cSpend.filter(o => o.platform === 'meta').reduce((s, o) => s + Number(o.clicks), 0)
     const metaConvC = cSpend.filter(o => o.platform === 'meta').reduce((s, o) => s + Number(o.conversions), 0)
+    const metaImprP = pSpend.filter((o: any) => o.platform === 'meta').reduce((s: number, o: any) => s + Number(o.impressions ?? 0), 0)
+    const metaClkP  = pSpend.filter((o: any) => o.platform === 'meta').reduce((s: number, o: any) => s + Number(o.clicks ?? 0), 0)
+    const metaConvP = pSpend.filter((o: any) => o.platform === 'meta').reduce((s: number, o: any) => s + Number(o.conversions ?? 0), 0)
     const metaRoasC = metaSpC > 0 ? totalRevC / metaSpC : 0
     const metaRoasP = metaSpP > 0 ? totalRevP / metaSpP : 0
 
@@ -558,7 +561,7 @@ export default function AnalyticsPage() {
       shRetCustC, shRetCustP, shRcrC, shRcrP, shRoasC, shRoasP,
       shDiscRateC, shDiscRateP, shRefRateC, shRefRateP,
       amzRevC, amzRevP, amzUnitC, amzUnitP, amzDaysC: amzC.length, amzDaysP: amzP.length, amzAovC, amzAovP,
-      metaSpC, metaSpP, metaImprC, metaClkC, metaConvC, metaRoasC, metaRoasP,
+      metaSpC, metaSpP, metaImprC, metaImprP, metaClkC, metaClkP, metaConvC, metaConvP, metaRoasC, metaRoasP,
       weekRevs, weekSpend, weekOrders, weekCac, weekAov, weekRoas, weekNewCusts, weekRetCusts, weekRetRate,
     })
     setLoading(false)
@@ -761,9 +764,9 @@ export default function AnalyticsPage() {
             { label: 'Total Spend', value: fmt$(d.totalSpC),  sub: chg(d.totalSpC, d.totalSpP), invertColors: true },
             { label: 'Meta Spend',  value: fmt$(d.metaSpC),   sub: chg(d.metaSpC, d.metaSpP), invertColors: true },
             { label: 'Meta ROAS',   value: d.metaRoasC > 0 ? fmtX(d.metaRoasC) : '—', sub: d.metaRoasP > 0 ? chg(d.metaRoasC, d.metaRoasP) : '' },
-            { label: 'Impressions', value: fmtN(d.metaImprC) },
-            { label: 'Clicks',      value: fmtN(d.metaClkC) },
-            { label: 'Purchases',   value: fmtN(d.metaConvC) },
+            { label: 'Impressions', value: fmtN(d.metaImprC), sub: d.metaImprP > 0 ? chg(d.metaImprC, d.metaImprP) : '' },
+            { label: 'Clicks',      value: fmtN(d.metaClkC),  sub: d.metaClkP > 0 ? chg(d.metaClkC, d.metaClkP) : '' },
+            { label: 'Purchases',   value: fmtN(d.metaConvC), sub: d.metaConvP > 0 ? chg(d.metaConvC, d.metaConvP) : '' },
           ]} />
           </> }
 
