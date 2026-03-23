@@ -298,11 +298,6 @@ export default function ProjectsPage() {
           <div>
             <h1 style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'Barlow, sans-serif' }}>Admin</h1>
           </div>
-          {pageTab === 'projects' && (
-            <button onClick={() => setShowNewForm(p => !p)} style={{ padding: '8px 16px', background: C.ink, color: C.accent, fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
-              + New Project
-            </button>
-          )}
         </div>
         <div style={{ display: 'flex', padding: '0 24px', gap: 0 }}>
           {(['projects', 'team', 'logs'] as const).map(tab => (
@@ -323,6 +318,12 @@ export default function ProjectsPage() {
 
         {/* ── PROJECTS TAB ── */}
         {pageTab === 'projects' && <>
+
+        <div style={{ marginBottom: 12 }}>
+          <button onClick={() => setShowNewForm(p => !p)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: showNewForm ? C.cream : C.ink, color: showNewForm ? C.ink : C.accent, fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.8rem', border: 'none', borderRadius: 6, cursor: 'pointer', marginBottom: showNewForm ? 10 : 0 }}>
+            <Building2 size={13} /> {showNewForm ? 'Cancel' : '+ New Project'}
+          </button>
+        </div>
 
         {/* New project form */}
         {showNewForm && (
