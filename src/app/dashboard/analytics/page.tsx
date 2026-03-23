@@ -747,50 +747,6 @@ export default function AnalyticsPage() {
             </ChartCard>
           </div>
 
-          {/* ── SCOREBOARD ── */}
-          <SectionHeader title="Scoreboard" />
-          <MoMSummaryTable
-            currentLabel={range.label}
-            previousLabel={prevLabel}
-            rows={[
-              { label: 'Revenue & Profitability', current: -1, previous: 0, format: 'currency' },
-              { label: 'Total Sales',         current: d.totalRevC,   previous: d.totalRevP,   format: 'currency',    sparkline: d.weekRevs },
-              ...(d.showAds ? [{ label: 'Total Ad Spend', current: d.totalSpC, previous: d.totalSpP, format: 'currency' as const, invertColors: true, sparkline: d.weekSpend }] : []),
-              ...(d.showAds ? [{ label: 'ROAS', current: d.roasC, previous: d.roasP, format: 'multiplier' as const, sparkline: d.weekRoas }] : []),
-              { label: 'AOV',                 current: d.aovC,        previous: d.aovP,        format: 'currency' as const, sparkline: d.weekAov },
-              ...(d.showAds ? [{ label: 'CAC', current: d.cacC, previous: d.cacP, format: 'currency' as const, invertColors: true, sparkline: d.weekCac }] : []),
-              { label: 'Orders & Customers',  current: -1, previous: 0, format: 'number' },
-              { label: 'Total Orders',        current: d.ordC,        previous: d.ordP,        format: 'number' as const,   sparkline: d.weekOrders },
-              { label: 'New Customers',       current: d.newCustC,    previous: d.newCustP,    format: 'number' as const,     sparkline: d.weekNewCusts },
-              { label: 'Returning Customers', current: d.retCustC,    previous: 0,             format: 'number' as const,     sparkline: d.weekRetCusts },
-              { label: 'Returning Customer Rate',         current: d.shRcrC,      previous: d.shRcrP,      format: 'percent' as const,    sparkline: d.weekRetRate },
-              ...(d.showShopify ? [
-                { label: 'Shopify',          current: -1,            previous: 0,             format: 'currency' as const },
-                { label: 'Gross Sales',      current: d.shGrossC,    previous: d.shGrossP,    format: 'currency' as const },
-                { label: 'Discounts',        current: d.shDiscountC, previous: d.shDiscountP, format: 'currency' as const, invertColors: true },
-                { label: 'Returns',          current: d.shReturnsC,  previous: d.shReturnsP,  format: 'currency' as const, invertColors: true },
-                { label: 'Net Sales',        current: d.shNetC,      previous: d.shNetP,      format: 'currency' as const },
-                { label: 'Shipping Charges', current: d.shShippingC, previous: d.shShippingP, format: 'currency' as const },
-                { label: 'Taxes',            current: d.shTaxC,      previous: d.shTaxP,      format: 'currency' as const },
-                { label: 'Total Sales',      current: d.shTotalC,    previous: d.shTotalP,    format: 'currency' as const },
-                { label: 'Discount Rate',    current: d.shDiscRateC, previous: d.shDiscRateP, format: 'percent' as const,  invertColors: true },
-                { label: 'Refund Rate',      current: d.shRefRateC,  previous: d.shRefRateP,  format: 'percent' as const,  invertColors: true },
-              ] : []),
-              ...(d.showAmazon ? [
-                { label: 'Amazon',        current: -1,           previous: 0,            format: 'currency' as const },
-                { label: 'Gross Sales',   current: d.amzRevC,    previous: d.amzRevP,    format: 'currency' as const },
-                { label: 'Units Ordered', current: d.amzUnitC,   previous: d.amzUnitP,   format: 'number' as const },
-                { label: 'AOV',           current: d.amzAovC,    previous: d.amzAovP,    format: 'currency' as const },
-              ] : []),
-              ...(d.showMeta ? [
-                { label: 'Meta Ads',  current: -1,          previous: 0,           format: 'currency' as const },
-                { label: 'Spend',     current: d.metaSpC,   previous: d.metaSpP,   format: 'currency' as const, invertColors: true },
-                { label: 'ROAS',      current: d.metaRoasC, previous: d.metaRoasP, format: 'multiplier' as const },
-                { label: 'Purchases', current: d.metaConvC, previous: 0,           format: 'number' as const },
-              ] : []),
-            ]}
-          />
-
           {/* ── CUSTOMER REVENUE ── */}
           <SectionHeader title="Customer Revenue" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
@@ -849,6 +805,50 @@ export default function AnalyticsPage() {
             { label: 'Purchases',   value: fmtN(d.metaConvC), sub: d.metaConvP > 0 ? chg(d.metaConvC, d.metaConvP) : '' },
           ]} />
           </> }
+
+          {/* ── SCOREBOARD ── */}
+          <SectionHeader title="Scoreboard" />
+          <MoMSummaryTable
+            currentLabel={range.label}
+            previousLabel={prevLabel}
+            rows={[
+              { label: 'Revenue & Profitability', current: -1, previous: 0, format: 'currency' },
+              { label: 'Total Sales',         current: d.totalRevC,   previous: d.totalRevP,   format: 'currency',    sparkline: d.weekRevs },
+              ...(d.showAds ? [{ label: 'Total Ad Spend', current: d.totalSpC, previous: d.totalSpP, format: 'currency' as const, invertColors: true, sparkline: d.weekSpend }] : []),
+              ...(d.showAds ? [{ label: 'ROAS', current: d.roasC, previous: d.roasP, format: 'multiplier' as const, sparkline: d.weekRoas }] : []),
+              { label: 'AOV',                 current: d.aovC,        previous: d.aovP,        format: 'currency' as const, sparkline: d.weekAov },
+              ...(d.showAds ? [{ label: 'CAC', current: d.cacC, previous: d.cacP, format: 'currency' as const, invertColors: true, sparkline: d.weekCac }] : []),
+              { label: 'Orders & Customers',  current: -1, previous: 0, format: 'number' },
+              { label: 'Total Orders',        current: d.ordC,        previous: d.ordP,        format: 'number' as const,   sparkline: d.weekOrders },
+              { label: 'New Customers',       current: d.newCustC,    previous: d.newCustP,    format: 'number' as const,     sparkline: d.weekNewCusts },
+              { label: 'Returning Customers', current: d.retCustC,    previous: 0,             format: 'number' as const,     sparkline: d.weekRetCusts },
+              { label: 'Returning Customer Rate',         current: d.shRcrC,      previous: d.shRcrP,      format: 'percent' as const,    sparkline: d.weekRetRate },
+              ...(d.showShopify ? [
+                { label: 'Shopify',          current: -1,            previous: 0,             format: 'currency' as const },
+                { label: 'Gross Sales',      current: d.shGrossC,    previous: d.shGrossP,    format: 'currency' as const },
+                { label: 'Discounts',        current: d.shDiscountC, previous: d.shDiscountP, format: 'currency' as const, invertColors: true },
+                { label: 'Returns',          current: d.shReturnsC,  previous: d.shReturnsP,  format: 'currency' as const, invertColors: true },
+                { label: 'Net Sales',        current: d.shNetC,      previous: d.shNetP,      format: 'currency' as const },
+                { label: 'Shipping Charges', current: d.shShippingC, previous: d.shShippingP, format: 'currency' as const },
+                { label: 'Taxes',            current: d.shTaxC,      previous: d.shTaxP,      format: 'currency' as const },
+                { label: 'Total Sales',      current: d.shTotalC,    previous: d.shTotalP,    format: 'currency' as const },
+                { label: 'Discount Rate',    current: d.shDiscRateC, previous: d.shDiscRateP, format: 'percent' as const,  invertColors: true },
+                { label: 'Refund Rate',      current: d.shRefRateC,  previous: d.shRefRateP,  format: 'percent' as const,  invertColors: true },
+              ] : []),
+              ...(d.showAmazon ? [
+                { label: 'Amazon',        current: -1,           previous: 0,            format: 'currency' as const },
+                { label: 'Gross Sales',   current: d.amzRevC,    previous: d.amzRevP,    format: 'currency' as const },
+                { label: 'Units Ordered', current: d.amzUnitC,   previous: d.amzUnitP,   format: 'number' as const },
+                { label: 'AOV',           current: d.amzAovC,    previous: d.amzAovP,    format: 'currency' as const },
+              ] : []),
+              ...(d.showMeta ? [
+                { label: 'Meta Ads',  current: -1,          previous: 0,           format: 'currency' as const },
+                { label: 'Spend',     current: d.metaSpC,   previous: d.metaSpP,   format: 'currency' as const, invertColors: true },
+                { label: 'ROAS',      current: d.metaRoasC, previous: d.metaRoasP, format: 'multiplier' as const },
+                { label: 'Purchases', current: d.metaConvC, previous: 0,           format: 'number' as const },
+              ] : []),
+            ]}
+          />
 
         </>)}
       </div>
