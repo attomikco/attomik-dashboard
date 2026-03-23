@@ -227,6 +227,7 @@ export default function AnalyticsPage() {
     })()
 
     // Fetch GA4 traffic data if property is configured (current + previous period)
+    const gaPrev = getPrevPeriod(resolvedRange.start, resolvedRange.end)
     if (orgData?.ga_property_id) {
       const fetchTraffic = (start: string, end: string) =>
         fetch('/api/analytics/traffic', {
@@ -237,7 +238,7 @@ export default function AnalyticsPage() {
 
       Promise.all([
         fetchTraffic(resolvedRange.start, resolvedRange.end),
-        fetchTraffic(prevStart, prevEnd),
+        fetchTraffic(gaPrev.prevStart, gaPrev.prevEnd),
       ]).then(([cur, prev]) => {
         if (cur) setTrafficData({
           sessions: cur.sessions, users: cur.users, newUsers: cur.newUsers,
