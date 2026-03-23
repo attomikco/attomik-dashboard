@@ -3,11 +3,12 @@
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { BarChart2, Users, Upload, Settings, LogOut, Building2, ChevronDown, FolderOpen, TrendingUp, Menu, X, LayoutGrid, Eye } from 'lucide-react'
+import { BarChart2, Users, Upload, Settings, LogOut, Building2, ChevronDown, FolderOpen, TrendingUp, Menu, X, LayoutGrid, Eye, Package } from 'lucide-react'
 
 const navItems = [
   { label: 'Overview',   href: '/dashboard/overview',  icon: LayoutGrid,  minRole: 'viewer' },
   { label: 'Analytics',  href: '/dashboard/analytics', icon: BarChart2,   minRole: 'viewer' },
+  { label: 'Products',   href: '/dashboard/products-breakdown', icon: Package, minRole: 'viewer' },
   { label: 'Meta Ads',   href: '/dashboard/meta',      icon: TrendingUp,  minRole: 'viewer' },
   { label: 'Import CSV', href: '/dashboard/import',    icon: Upload,      minRole: 'member' },
   { label: 'Settings',   href: '/dashboard/settings',  icon: Settings,    minRole: 'admin'  },

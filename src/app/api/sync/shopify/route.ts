@@ -159,6 +159,32 @@ export async function POST(request: Request) {
 
     if (error) throw error
 
+    // Store line items for product breakdown
+    const lineItems = allOrders.flatMap((o: any) =>
+      (o.line_items ?? []).map((li: any) => ({
+        org_id,
+        order_external_id: `shopify_${o.name || o.id}`,
+        product_title: li.title ?? 'Unknown',
+        variant_title: li.variant_title ?? null,
+        sku: li.sku ?? null,
+        quantity: li.quantity ?? 1,
+        price: parseFloat(li.price) || 0,
+        created_at: o.created_at,
+      }))
+    )
+
+    if (lineItems.length > 0) {
+      // Delete existing line items for these orders to avoid duplicates on re-sync
+      const externalIds = [...new Set(lineItems.map(li => li.order_external_id))]
+      for (let i = 0; i < externalIds.length; i += 500) {
+        await supabase.from('order_items').delete().eq('org_id', org_id).in('order_external_id', externalIds.slice(i, i + 500))
+      }
+      // Insert in batches
+      for (let i = 0; i < lineItems.length; i += 500) {
+        await supabase.from('order_items').insert(lineItems.slice(i, i + 500))
+      }
+    }
+
     await supabase.from('organizations')
       .update({ shopify_synced_at: new Date().toISOString() })
       .eq('id', org_id)

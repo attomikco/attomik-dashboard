@@ -93,6 +93,29 @@ async function syncOrg(orgId: string, org: any, supabase: any): Promise<{ orgId:
       .select('id')
     if (error) throw error
 
+    // Store line items
+    const lineItems = allOrders.flatMap((o: any) =>
+      (o.line_items ?? []).map((li: any) => ({
+        org_id: orgId,
+        order_external_id: `shopify_${o.name || o.id}`,
+        product_title: li.title ?? 'Unknown',
+        variant_title: li.variant_title ?? null,
+        sku: li.sku ?? null,
+        quantity: li.quantity ?? 1,
+        price: parseFloat(li.price) || 0,
+        created_at: o.created_at,
+      }))
+    )
+    if (lineItems.length > 0) {
+      const externalIds = [...new Set(lineItems.map(li => li.order_external_id))]
+      for (let i = 0; i < externalIds.length; i += 500) {
+        await supabase.from('order_items').delete().eq('org_id', orgId).in('order_external_id', externalIds.slice(i, i + 500))
+      }
+      for (let i = 0; i < lineItems.length; i += 500) {
+        await supabase.from('order_items').insert(lineItems.slice(i, i + 500))
+      }
+    }
+
     await supabase.from('organizations').update({ shopify_synced_at: new Date().toISOString() }).eq('id', orgId)
 
     return { orgId, name: org.name, synced: rows.length }

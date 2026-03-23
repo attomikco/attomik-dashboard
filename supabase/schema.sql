@@ -62,6 +62,18 @@ create table chat_logs (
   created_at timestamptz default now()
 );
 
+create table order_items (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid references organizations(id) not null,
+  order_external_id text,
+  product_title text not null,
+  variant_title text,
+  sku text,
+  quantity integer not null default 1,
+  price numeric(10,2) not null default 0,
+  created_at timestamptz not null default now()
+);
+
 -- ============================================
 -- Indexes for performance
 -- ============================================
