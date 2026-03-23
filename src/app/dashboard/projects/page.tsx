@@ -74,6 +74,15 @@ export default function ProjectsPage() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [teamLoading, setTeamLoading] = useState(true)
   const [showTeam, setShowTeam] = useState(true)
+  const [expandedMember, setExpandedMember] = useState<string | null>(null)
+  const [assigningProject, setAssigningProject] = useState<string | null>(null)
+  const [showInviteForm, setShowInviteForm] = useState(false)
+  const [teamInviteEmail, setTeamInviteEmail] = useState('')
+  const [teamInviteName, setTeamInviteName] = useState('')
+  const [teamInviteRole, setTeamInviteRole] = useState('viewer')
+  const [teamInviteOrg, setTeamInviteOrg] = useState('')
+  const [teamInviting, setTeamInviting] = useState(false)
+  const [teamInviteMsg, setTeamInviteMsg] = useState<{ text: string; ok: boolean } | null>(null)
   const supabase = createClient()
   const router = useRouter()
 
@@ -155,6 +164,59 @@ export default function ProjectsPage() {
       setSettingsState(p => ({ ...p, [orgId]: { ...p[orgId], [field]: url } }))
     }
     setUploadingImage(p => ({ ...p, [key]: false }))
+  }
+
+  const assignProject = async (userId: string, orgId: string, role: string) => {
+    setAssigningProject(`${userId}-${orgId}`)
+    await fetch('/api/members', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, org_id: orgId, role }),
+    })
+    // Update local state
+    setTeamMembers(prev => prev.map(m => {
+      if (m.id !== userId) return m
+      const hasOrg = m.orgs.some(o => o.id === orgId)
+      if (hasOrg) return m
+      const orgName = orgs.find(o => o.id === orgId)?.name ?? ''
+      return { ...m, orgs: [...m.orgs, { id: orgId, name: orgName, role }] }
+    }))
+    setAssigningProject(null)
+  }
+
+  const removeFromProject = async (userId: string, orgId: string) => {
+    await fetch('/api/members', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, org_id: orgId }),
+    })
+    setTeamMembers(prev => prev.map(m => {
+      if (m.id !== userId) return m
+      return { ...m, orgs: m.orgs.filter(o => o.id !== orgId) }
+    }))
+  }
+
+  const handleTeamInvite = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!teamInviteOrg) return
+    setTeamInviting(true)
+    setTeamInviteMsg(null)
+    try {
+      const res = await fetch('/api/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: teamInviteEmail, org_id: teamInviteOrg, role: teamInviteRole, full_name: teamInviteName }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setTeamInviteMsg({ text: data.message, ok: true })
+      setTeamInviteEmail(''); setTeamInviteName('')
+      // Refresh team data
+      fetchOrgs()
+    } catch (err: any) {
+      setTeamInviteMsg({ text: err.message, ok: false })
+    }
+    setTeamInviting(false)
   }
 
   const handleInvite = async (e: React.FormEvent, orgId: string) => {
@@ -271,7 +333,52 @@ export default function ProjectsPage() {
           {showTeam && (
             teamLoading ? (
               <div style={{ color: C.muted, fontSize: '0.8rem', fontFamily: 'Barlow, sans-serif', padding: '12px 0' }}>Loading team...</div>
-            ) : (
+            ) : (<>
+              {/* Invite new user form */}
+              <div style={{ marginBottom: 12 }}>
+                <button onClick={() => setShowInviteForm(p => !p)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: showInviteForm ? C.cream : C.ink, color: showInviteForm ? C.ink : C.accent, fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.8rem', border: 'none', borderRadius: 6, cursor: 'pointer', marginBottom: showInviteForm ? 10 : 0 }}>
+                  <UserPlus size={13} /> {showInviteForm ? 'Cancel' : 'Invite new user'}
+                </button>
+                {showInviteForm && (
+                  <div style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: 16, background: C.paper }}>
+                    {teamInviteMsg && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 10px', borderRadius: 6, marginBottom: 10, background: teamInviteMsg.ok ? '#e6fff5' : '#fee2e2', border: `1px solid ${teamInviteMsg.ok ? '#00cc78' : '#fca5a5'}` }}>
+                        {teamInviteMsg.ok ? <CheckCircle size={13} color="#007a48" /> : <AlertCircle size={13} color="#b91c1c" />}
+                        <span style={{ fontSize: '0.78rem', color: teamInviteMsg.ok ? '#007a48' : '#b91c1c', fontFamily: 'Barlow, sans-serif' }}>{teamInviteMsg.text}</span>
+                      </div>
+                    )}
+                    <form onSubmit={handleTeamInvite} style={{ display: 'flex', gap: 8, alignItems: 'end', flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: 120 }}>
+                        <label style={{ fontSize: '0.68rem', fontWeight: 600, color: C.muted, display: 'block', marginBottom: 3, fontFamily: 'Barlow, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Name</label>
+                        <input value={teamInviteName} onChange={e => setTeamInviteName(e.target.value)} placeholder="Full name" style={{ ...inp, width: '100%' }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 160 }}>
+                        <label style={{ fontSize: '0.68rem', fontWeight: 600, color: C.muted, display: 'block', marginBottom: 3, fontFamily: 'Barlow, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Email</label>
+                        <input type="email" value={teamInviteEmail} onChange={e => setTeamInviteEmail(e.target.value)} placeholder="email@company.com" required style={{ ...inp, width: '100%' }} />
+                      </div>
+                      <div style={{ minWidth: 100 }}>
+                        <label style={{ fontSize: '0.68rem', fontWeight: 600, color: C.muted, display: 'block', marginBottom: 3, fontFamily: 'Barlow, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Project</label>
+                        <select value={teamInviteOrg} onChange={e => setTeamInviteOrg(e.target.value)} required style={{ ...inp, width: '100%', cursor: 'pointer' }}>
+                          <option value="">Select…</option>
+                          {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                        </select>
+                      </div>
+                      <div style={{ minWidth: 80 }}>
+                        <label style={{ fontSize: '0.68rem', fontWeight: 600, color: C.muted, display: 'block', marginBottom: 3, fontFamily: 'Barlow, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Role</label>
+                        <select value={teamInviteRole} onChange={e => setTeamInviteRole(e.target.value)} style={{ ...inp, width: '100%', cursor: 'pointer' }}>
+                          <option value="viewer">Viewer</option>
+                          <option value="member">Member</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      </div>
+                      <button type="submit" disabled={teamInviting} style={{ padding: '8px 16px', background: teamInviting ? '#ccc' : C.ink, color: teamInviting ? C.muted : C.accent, fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.8rem', border: 'none', borderRadius: 6, cursor: teamInviting ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
+                        {teamInviting ? 'Sending…' : 'Send invite'}
+                      </button>
+                    </form>
+                  </div>
+                )}
+              </div>
+
               <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
@@ -282,10 +389,11 @@ export default function ProjectsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {teamMembers.map((m, i) => (
-                      <tr key={m.id} style={{ borderTop: i > 0 ? `1px solid ${C.border}` : 'none' }}
+                    {teamMembers.map((m, i) => (<>
+                      <tr key={m.id} style={{ borderTop: i > 0 ? `1px solid ${C.border}` : 'none', cursor: !m.is_superadmin ? 'pointer' : 'default' }}
+                        onClick={() => !m.is_superadmin && setExpandedMember(expandedMember === m.id ? null : m.id)}
                         onMouseEnter={e => (e.currentTarget.style.background = '#fafafa')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                        onMouseLeave={e => (e.currentTarget.style.background = expandedMember === m.id ? '#fafafa' : 'transparent')}>
                         <td style={{ padding: '12px 16px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <div style={{ width: 30, height: 30, borderRadius: '50%', background: C.cream, display: 'grid', placeItems: 'center', fontSize: '0.68rem', fontWeight: 700, color: C.muted, flexShrink: 0 }}>
@@ -307,6 +415,7 @@ export default function ProjectsPage() {
                                 {o.name} <span style={{ color: C.muted, fontWeight: 400 }}>· {o.role}</span>
                               </span>
                             ))}
+                            {!m.is_superadmin && m.orgs.length === 0 && <span style={{ fontSize: '0.68rem', color: '#ccc', fontFamily: 'Barlow, sans-serif' }}>No projects</span>}
                           </div>
                         </td>
                         <td style={{ padding: '12px 16px' }}>
@@ -324,10 +433,11 @@ export default function ProjectsPage() {
                               ? `Invited ${new Date(m.invited_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
                               : '—'}
                         </td>
-                        <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                          {!m.is_superadmin && m.status === 'joined' && (
+                        <td style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          {!m.is_superadmin && m.status === 'joined' && m.orgs.length > 0 && (
                             <button
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation()
                                 localStorage.setItem('viewAsUserId', m.id)
                                 localStorage.setItem('viewAsUserName', m.full_name || m.email || 'User')
                                 localStorage.setItem('activeOrgId', m.orgs[0].id)
@@ -343,7 +453,47 @@ export default function ProjectsPage() {
                           )}
                         </td>
                       </tr>
-                    ))}
+                      {/* Expanded project assignment row */}
+                      {expandedMember === m.id && !m.is_superadmin && (
+                        <tr key={`${m.id}-assign`} style={{ background: '#fafafa' }}>
+                          <td colSpan={5} style={{ padding: '12px 16px 16px 56px', borderTop: 'none' }}>
+                            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Barlow, sans-serif', marginBottom: 8 }}>Assign projects</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              {orgs.map(org => {
+                                const memberOrg = m.orgs.find(o => o.id === org.id)
+                                const isAssigned = !!memberOrg
+                                const isLoading = assigningProject === `${m.id}-${org.id}`
+                                return (
+                                  <div key={org.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: C.paper, borderRadius: 6, border: `1px solid ${isAssigned ? C.accent : C.border}` }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={isAssigned}
+                                      disabled={isLoading}
+                                      onChange={() => isAssigned ? removeFromProject(m.id, org.id) : assignProject(m.id, org.id, 'viewer')}
+                                      style={{ accentColor: C.accent, width: 15, height: 15, cursor: 'pointer' }}
+                                    />
+                                    <span style={{ flex: 1, fontSize: '0.85rem', fontWeight: isAssigned ? 600 : 400, fontFamily: 'Barlow, sans-serif', color: isAssigned ? C.ink : C.muted }}>{org.name}</span>
+                                    {isAssigned && (
+                                      <select
+                                        value={memberOrg.role}
+                                        onChange={e => { e.stopPropagation(); assignProject(m.id, org.id, e.target.value) }}
+                                        onClick={e => e.stopPropagation()}
+                                        style={{ ...inp, padding: '3px 8px', fontSize: '0.75rem', cursor: 'pointer' }}
+                                      >
+                                        <option value="viewer">Viewer</option>
+                                        <option value="member">Member</option>
+                                        <option value="admin">Admin</option>
+                                      </select>
+                                    )}
+                                    {isLoading && <span style={{ fontSize: '0.7rem', color: C.muted }}>…</span>}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>))}
                   </tbody>
                 </table>
               </div>
