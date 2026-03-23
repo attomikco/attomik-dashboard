@@ -191,6 +191,7 @@ export default function AnalyticsPage() {
   const [cacData, setCacData] = useState<any[]>([])
   const [channels, setChannels] = useState<Record<string, boolean>>({})
   const [orgName, setOrgName] = useState<string>('your store')
+  const [lastSynced, setLastSynced] = useState<string | null>(null)
   const [estEOM, setEstEOM] = useState<number | null>(null)
   const supabase = createClient()
 
@@ -203,8 +204,9 @@ export default function AnalyticsPage() {
 
     // Fetch org config (channels + timezone)
     const { data: orgData } = await supabase
-      .from('organizations').select('channels, timezone, name').eq('id', orgId).single()
+      .from('organizations').select('channels, timezone, name, shopify_synced_at').eq('id', orgId).single()
     if (orgData?.name) { setOrgName(orgData.name); document.title = `${orgData.name} Analytics | Attomik` }
+    if (orgData?.shopify_synced_at) setLastSynced(orgData.shopify_synced_at)
     const orgTimezone = orgData?.timezone ?? 'America/New_York'
     // Compute org-timezone-aware dates for this fetch (don't mutate range state)
     const orgToday = dateInTz(orgTimezone)
@@ -596,6 +598,7 @@ export default function AnalyticsPage() {
           <h1 style={{ fontSize: 'clamp(1.1rem, 4vw, 2rem)', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'var(--font-barlow), Barlow, sans-serif', color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{orgName} — Analytics</h1>
           <p style={{ fontSize: '0.75rem', color: C.muted, marginTop: 2, fontFamily: 'var(--font-barlow), Barlow, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {fmtDate(range.start)} – {fmtDate(range.end)} · vs previous {dayCount} days
+            {lastSynced && <span style={{ color: '#ccc' }}> · Synced {new Date(lastSynced).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>}
           </p>
         </div>
         <div style={{ flexShrink: 0 }}>
@@ -659,12 +662,12 @@ export default function AnalyticsPage() {
 
           {/* ── OVERVIEW KPIs ── */}
           <SectionHeader title="Overview" />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
+          <div className="kpi-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
             <KpiCard label="Total Sales"    value={fmt$(d.totalRevC)} change={pct(d.totalRevC, d.totalRevP)} />
             <KpiCard label="Total Ad Spend" value={fmt$(d.totalSpC)}  change={pct(d.totalSpC, d.totalSpP)} invertColors />
             <KpiCard label="ROAS"           value={fmtX(d.roasC)}     change={pct(d.roasC, d.roasP)} />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
+          <div className="kpi-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
             <KpiCard label="Orders" value={fmtN(d.ordC)} change={pct(d.ordC, d.ordP)} />
             <KpiCard label="CAC"    value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors />
             <KpiCard label="AOV"    value={fmt$(d.aovC)} change={pct(d.aovC, d.aovP)} />
@@ -711,7 +714,7 @@ export default function AnalyticsPage() {
           )}
 
           {/* ── CHARTS ROW 1 ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+          <div className="chart-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
             <ChartCard title="Revenue & ROAS" subtitle="Revenue bars (dark) · ROAS line (bright)">
               <RevenueRoasChart data={revenueRoasData} />
             </ChartCard>
@@ -721,7 +724,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* ── CHARTS ROW 2 ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+          <div className="chart-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
             <ChartCard title="Ad Spend vs Sales" subtitle="Spend bars · Revenue line">
               <SpendVsSalesChart data={spendSalesData} />
             </ChartCard>
@@ -731,7 +734,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* ── CHARTS ROW 3 ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+          <div className="chart-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
             <ChartCard title="Sales by Channel" subtitle={[d.showShopify ? "Shopify (green)" : "", d.showAmazon ? "Amazon (darker green)" : ""].filter(Boolean).join(" · ")}>
               <SalesByChannelChart data={channelData} />
             </ChartCard>
@@ -749,7 +752,7 @@ export default function AnalyticsPage() {
 
           {/* ── CUSTOMER REVENUE ── */}
           <SectionHeader title="Customer Revenue" />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
+          <div className="kpi-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
             <KpiCard label="New Customer Rev."       value={fmt$(d.newRevC)} subtitle={d.totalRevC > 0 ? `${((d.newRevC/d.totalRevC)*100).toFixed(1)}% of total` : ''} />
             <KpiCard label="Returning Customer Rev." value={fmt$(d.retRevC)} subtitle={d.totalRevC > 0 ? `${((d.retRevC/d.totalRevC)*100).toFixed(1)}% of total` : ''} />
             <KpiCard label="Returning Customer Rate"             value={fmtPct(d.shRcrC)} change={pct(d.shRcrC, d.shRcrP)} />
@@ -852,6 +855,18 @@ export default function AnalyticsPage() {
 
         </>)}
       </div>
+
+      <style>{`
+        @media (max-width: 768px) {
+          .kpi-grid-3 { grid-template-columns: 1fr 1fr !important; }
+          .kpi-grid-4 { grid-template-columns: 1fr 1fr !important; }
+          .chart-grid { grid-template-columns: 1fr !important; }
+        }
+        @media (max-width: 480px) {
+          .kpi-grid-3 { grid-template-columns: 1fr !important; }
+          .kpi-grid-4 { grid-template-columns: 1fr 1fr !important; }
+        }
+      `}</style>
     </div>
   )
 }

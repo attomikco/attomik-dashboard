@@ -25,14 +25,15 @@ create table profiles (
 create table orders (
   id uuid primary key default gen_random_uuid(),
   org_id uuid references organizations(id) not null,
-  external_id text unique,
+  external_id text,
   source text default 'csv' check (source in ('shopify', 'amazon', 'csv')),
   customer_email text,
   customer_name text,
   total_price numeric(10,2) not null default 0,
   status text default 'paid' check (status in ('paid', 'pending', 'refunded', 'cancelled')),
   created_at timestamptz not null default now(),
-  synced_at timestamptz default now()
+  synced_at timestamptz default now(),
+  unique(org_id, external_id)
 );
 
 create table ad_spend (
@@ -52,7 +53,7 @@ create table ad_spend (
 -- Indexes for performance
 -- ============================================
 create index orders_org_created on orders(org_id, created_at desc);
-create index orders_external_id on orders(external_id) where external_id is not null;
+create index orders_org_external on orders(org_id, external_id) where external_id is not null;
 create index ad_spend_org_date on ad_spend(org_id, date desc);
 
 -- ============================================
