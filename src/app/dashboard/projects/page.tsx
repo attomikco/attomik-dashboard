@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Building2, BarChart2, ChevronDown, ChevronRight, UserPlus, Trash2, CheckCircle, AlertCircle, X, Eye, Users } from 'lucide-react'
@@ -389,7 +389,7 @@ export default function ProjectsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {teamMembers.map((m, i) => (<>
+                    {teamMembers.map((m, i) => (<Fragment key={m.id}>
                       <tr key={m.id} style={{ borderTop: i > 0 ? `1px solid ${C.border}` : 'none', cursor: !m.is_superadmin ? 'pointer' : 'default' }}
                         onClick={() => !m.is_superadmin && setExpandedMember(expandedMember === m.id ? null : m.id)}
                         onMouseEnter={e => (e.currentTarget.style.background = '#fafafa')}
@@ -493,7 +493,7 @@ export default function ProjectsPage() {
                           </td>
                         </tr>
                       )}
-                    </>))}
+                    </Fragment>))}
                   </tbody>
                 </table>
               </div>
