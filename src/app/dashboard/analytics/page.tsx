@@ -12,6 +12,7 @@ import PacingChart from '@/components/PacingChart'
 import DayOfWeekHeatmap from '@/components/DayOfWeekHeatmap'
 import CacTrendChart from '@/components/CacTrendChart'
 import AIInsights from '@/components/AIInsights'
+import AskAttomik from '@/components/AskAttomik'
 
 function pct(current: number, prev: number) {
   if (prev === 0) return current > 0 ? 100 : 0
@@ -193,6 +194,7 @@ export default function AnalyticsPage() {
   const [trafficData, setTrafficData] = useState<{ users: number; sessions: number; newUsers: number; usersP: number; sessionsP: number; newUsersP: number } | null>(null)
   const [orgName, setOrgName] = useState<string>('your store')
   const [lastSynced, setLastSynced] = useState<string | null>(null)
+  const [userName, setUserName] = useState<string>('')
   const [estEOM, setEstEOM] = useState<number | null>(null)
   const supabase = createClient()
 
@@ -202,6 +204,13 @@ export default function AnalyticsPage() {
     setLoading(true)
     const orgId = localStorage.getItem('activeOrgId')
     if (!orgId) { setLoading(false); return }
+
+    // Fetch user name for personalized greeting
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    if (authUser && !userName) {
+      const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', authUser.id).single()
+      if (prof?.full_name) setUserName(prof.full_name)
+    }
 
     // Fetch org config (channels + timezone)
     const { data: orgData } = await supabase
@@ -681,6 +690,38 @@ export default function AnalyticsPage() {
               cltvP: d.cltvP > 0 ? fmt$(d.cltvP) : null,
               cltvChg: d.cltvP > 0 ? pct(d.cltvC, d.cltvP).toFixed(1) : null,
               cltvCacRatio: d.cltvC > 0 && d.cacC > 0 ? (d.cltvC / d.cacC).toFixed(2) : null,
+            }}
+          />
+
+          <AskAttomik
+            userName={userName}
+            orgName={orgName}
+            period={`${fmtDate(range.start)} – ${fmtDate(range.end)}`}
+            metrics={{
+              totalRev: fmt$(d.totalRevC), totalRevChg: pct(d.totalRevC, d.totalRevP).toFixed(1),
+              totalSp: fmt$(d.totalSpC), totalSpChg: pct(d.totalSpC, d.totalSpP).toFixed(1),
+              roas: d.roasC.toFixed(2), roasP: d.roasP.toFixed(2),
+              orders: d.ordC, ordersChg: pct(d.ordC, d.ordP).toFixed(1),
+              aov: fmt$(d.aovC), aovChg: pct(d.aovC, d.aovP).toFixed(1),
+              cac: fmt$(d.cacC), cacChg: pct(d.cacC, d.cacP).toFixed(1),
+              newCust: d.newCustC, retCust: d.retCustC, retRate: d.shRcrC.toFixed(1),
+              shopifyRev: d.showShopify ? fmt$(d.shTotalC) : null,
+              shopifyPctOfTotal: d.totalRevC > 0 ? (d.shTotalC / d.totalRevC * 100).toFixed(1) : null,
+              shopifyRevChg: d.shTotalP > 0 ? pct(d.shTotalC, d.shTotalP).toFixed(1) : null,
+              shopifyOrders: d.shOrdC, shopifyCust: d.shCustC, shopifyAov: fmt$(d.shAovC),
+              discountRate: d.shDiscRateC.toFixed(1), refundRate: d.shRefRateC.toFixed(1),
+              amazonRev: d.amzRevC > 0 ? fmt$(d.amzRevC) : null,
+              amazonPctOfTotal: d.totalRevC > 0 && d.amzRevC > 0 ? (d.amzRevC / d.totalRevC * 100).toFixed(1) : null,
+              amazonRevChg: d.amzRevP > 0 ? pct(d.amzRevC, d.amzRevP).toFixed(1) : null,
+              cltv: d.cltvC > 0 ? fmt$(d.cltvC) : null,
+              cltvChg: d.cltvP > 0 ? pct(d.cltvC, d.cltvP).toFixed(1) : null,
+              cltvCacRatio: d.cltvC > 0 && d.cacC > 0 ? (d.cltvC / d.cacC).toFixed(2) : null,
+              metaSp: d.showMeta ? fmt$(d.metaSpC) : null,
+              metaRoas: d.metaRoasC > 0 ? d.metaRoasC.toFixed(2) : null,
+              metaImpr: d.metaImprC, metaClicks: d.metaClkC, metaConv: d.metaConvC,
+              trafficSessions: trafficData?.sessions ?? null,
+              trafficUsers: trafficData?.users ?? null,
+              trafficNewUsers: trafficData?.newUsers ?? null,
             }}
           />
 
