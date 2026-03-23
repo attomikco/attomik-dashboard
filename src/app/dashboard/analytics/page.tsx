@@ -87,10 +87,9 @@ function SectionHeader({ title, color = C.accent, platform }: { title: string; c
 }
 
 function MetricRow({ items }: { items: { label: string; value: string; sub?: string; invertColors?: boolean; tooltip?: string }[] }) {
-  const [hoveredTip, setHoveredTip] = useState<number | null>(null)
   return (
     <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginBottom: 12 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${items.length}, minmax(130px, 1fr))`, gap: 1, background: C.border, border: `1px solid ${C.border}`, borderRadius: 10, minWidth: items.length > 3 ? 520 : 'auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${items.length}, minmax(130px, 1fr))`, gap: 1, background: C.border, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', minWidth: items.length > 3 ? 520 : 'auto' }}>
         {items.map((item, i) => {
           const isUp = item.sub?.startsWith('↑')
           const isDown = item.sub?.startsWith('↓')
@@ -99,25 +98,18 @@ function MetricRow({ items }: { items: { label: string; value: string; sub?: str
           const subColor = isGood === true ? '#007a48' : isGood === false ? '#b91c1c' : '#999'
           const subBg = isGood === true ? '#e6fff5' : isGood === false ? '#fee2e2' : 'transparent'
           return (
-            <div key={i} style={{ background: C.paper, padding: '18px 20px', position: 'relative', overflow: 'visible' }}>
+            <div key={i} style={{ background: C.paper, padding: '18px 20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.75rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontFamily: 'var(--font-barlow), Barlow, sans-serif', whiteSpace: 'nowrap' }}>
                 {item.label}
                 {item.tooltip && (
                   <span
-                    onMouseEnter={() => setHoveredTip(i)}
-                    onMouseLeave={() => setHoveredTip(null)}
-                    style={{ cursor: 'help', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: '50%', background: '#e0e0e0', color: '#888', fontSize: '0.6rem', fontWeight: 700, lineHeight: 1, flexShrink: 0 }}
+                    title={item.tooltip}
+                    style={{ cursor: 'help', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 15, height: 15, borderRadius: '50%', background: '#e8e8e8', color: '#999', fontSize: '0.58rem', fontWeight: 700, lineHeight: 1, flexShrink: 0, textTransform: 'none', letterSpacing: 0 }}
                   >
                     ?
                   </span>
                 )}
               </div>
-              {hoveredTip === i && item.tooltip && (
-                <div style={{ position: 'absolute', bottom: '100%', left: 8, marginBottom: 6, width: 240, background: '#000', color: '#fff', padding: '10px 14px', borderRadius: 8, fontSize: '0.75rem', fontWeight: 400, lineHeight: 1.5, fontFamily: 'var(--font-barlow), Barlow, sans-serif', zIndex: 50, textTransform: 'none', letterSpacing: 0, boxShadow: '0 4px 16px rgba(0,0,0,0.35)' }}>
-                  {item.tooltip}
-                  <div style={{ position: 'absolute', bottom: -5, left: 16, width: 10, height: 10, background: '#000', transform: 'rotate(45deg)' }} />
-                </div>
-              )}
               <div style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.03em', color: C.ink, whiteSpace: 'nowrap' }}>{item.value}</div>
               {item.sub && (
                 <div style={{ display: 'inline-flex', alignItems: 'center', marginTop: 6, padding: '2px 8px', borderRadius: 4, background: subBg, fontSize: '0.8rem', fontWeight: 600, color: subColor, fontFamily: 'var(--font-barlow), Barlow, sans-serif', whiteSpace: 'nowrap' }}>
