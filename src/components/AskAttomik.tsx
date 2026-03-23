@@ -46,15 +46,37 @@ export default function AskAttomik({ metrics, orgName, period, userName }: Props
   }
 
   return (
-    <div style={{ background: '#000', border: '1px solid #222', borderRadius: 10, overflow: 'hidden', marginBottom: 8 }}>
+    <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 10, overflow: 'hidden', marginBottom: 8 }}>
       {/* Header */}
       <div style={{ padding: '16px 20px 12px' }}>
-        <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff', fontFamily: 'Barlow, sans-serif', letterSpacing: '-0.02em' }}>
+        <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#000', fontFamily: 'Barlow, sans-serif', letterSpacing: '-0.02em' }}>
           Hey {firstName}, what do you want to explore?
         </div>
-        <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', fontFamily: 'Barlow, sans-serif', marginTop: 2 }}>
+        <div style={{ fontSize: '0.72rem', color: '#999', fontFamily: 'Barlow, sans-serif', marginTop: 2 }}>
           Ask anything about your {orgName} metrics
         </div>
+        {messages.length === 0 && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+            {[
+              'How are we trending this month?',
+              'Why did CAC change?',
+              'How is Amazon vs Shopify?',
+              'What\'s our best performing channel?',
+              'Break down our conversion rates',
+            ].map(q => (
+              <button key={q} onClick={() => { setInput(q); }} style={{
+                padding: '5px 12px', background: '#f2f2f2', border: '1px solid #e0e0e0', borderRadius: 20,
+                fontSize: '0.72rem', fontWeight: 500, color: '#666', fontFamily: 'Barlow, sans-serif',
+                cursor: 'pointer', transition: '0.15s', whiteSpace: 'nowrap',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#000'; e.currentTarget.style.color = '#00ff97'; e.currentTarget.style.borderColor = '#000' }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#f2f2f2'; e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#e0e0e0' }}
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Messages */}
@@ -64,15 +86,15 @@ export default function AskAttomik({ metrics, orgName, period, userName }: Props
             <div key={i} style={{ marginBottom: 12, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
               <div style={{
                 width: 24, height: 24, borderRadius: '50%', flexShrink: 0, marginTop: 2,
-                background: msg.role === 'user' ? '#333' : 'rgba(0,255,151,0.15)',
+                background: msg.role === 'user' ? '#f2f2f2' : '#000',
                 display: 'grid', placeItems: 'center',
                 fontSize: '0.6rem', fontWeight: 700,
-                color: msg.role === 'user' ? '#999' : '#00ff97',
+                color: msg.role === 'user' ? '#666' : '#00ff97',
               }}>
                 {msg.role === 'user' ? firstName[0]?.toUpperCase() : 'A'}
               </div>
               <div style={{
-                fontSize: '0.875rem', color: msg.role === 'user' ? 'rgba(255,255,255,0.7)' : '#fff',
+                fontSize: '0.875rem', color: msg.role === 'user' ? '#999' : '#000',
                 fontFamily: 'Barlow, sans-serif', lineHeight: 1.6,
                 fontWeight: msg.role === 'assistant' ? 400 : 500,
                 fontStyle: msg.role === 'user' ? 'italic' : 'normal',
@@ -83,36 +105,36 @@ export default function AskAttomik({ metrics, orgName, period, userName }: Props
           ))}
           {loading && (
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12 }}>
-              <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(0,255,151,0.15)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+              <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#000', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                 <RefreshCw size={10} color="#00ff97" style={{ animation: 'spin 1s linear infinite' }} />
               </div>
-              <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', fontFamily: 'Barlow, sans-serif' }}>Thinking...</div>
+              <div style={{ fontSize: '0.8rem', color: '#999', fontFamily: 'Barlow, sans-serif' }}>Thinking...</div>
             </div>
           )}
         </div>
       )}
 
       {/* Input */}
-      <form onSubmit={ask} style={{ display: 'flex', gap: 8, padding: '12px 20px 16px', borderTop: messages.length > 0 ? '1px solid #222' : 'none' }}>
+      <form onSubmit={ask} style={{ display: 'flex', gap: 8, padding: '12px 20px 16px', borderTop: messages.length > 0 ? '1px solid #f0f0f0' : 'none' }}>
         <input
           value={input}
           onChange={e => setInput(e.target.value)}
-          placeholder="e.g. Why did CAC increase this month?"
+          placeholder="Ask about your metrics..."
           disabled={loading}
           style={{
-            flex: 1, padding: '10px 14px', background: '#111', border: '1px solid #333',
-            borderRadius: 8, color: '#fff', fontFamily: 'Barlow, sans-serif', fontSize: '0.875rem',
+            flex: 1, padding: '10px 14px', background: '#f8f8f8', border: '1px solid #e0e0e0',
+            borderRadius: 8, color: '#000', fontFamily: 'Barlow, sans-serif', fontSize: '0.875rem',
             outline: 'none',
           }}
           onFocus={e => (e.target.style.borderColor = '#00ff97')}
-          onBlur={e => (e.target.style.borderColor = '#333')}
+          onBlur={e => (e.target.style.borderColor = '#e0e0e0')}
         />
         <button
           type="submit"
           disabled={loading || !input.trim()}
           style={{
-            padding: '10px 16px', background: loading || !input.trim() ? '#222' : '#00ff97',
-            color: loading || !input.trim() ? '#555' : '#000',
+            padding: '10px 16px', background: loading || !input.trim() ? '#f0f0f0' : '#000',
+            color: loading || !input.trim() ? '#ccc' : '#00ff97',
             border: 'none', borderRadius: 8, cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
             fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.875rem',
             display: 'flex', alignItems: 'center', gap: 6,
