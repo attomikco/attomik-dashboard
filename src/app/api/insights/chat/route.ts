@@ -10,6 +10,18 @@ export async function POST(request: Request) {
     const { question, metrics, orgName, period } = await request.json()
     if (!question) return NextResponse.json({ error: 'Question required' }, { status: 400 })
 
+    // Rate limit: 20 questions per day per user
+    const serviceClient = createServiceClient()
+    const todayStart = new Date(); todayStart.setHours(0,0,0,0)
+    const { count } = await serviceClient.from('chat_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('type', 'chat')
+      .gte('created_at', todayStart.toISOString())
+    if ((count ?? 0) >= 20) {
+      return NextResponse.json({ error: 'Daily limit reached (20 questions/day). Try again tomorrow.' }, { status: 429 })
+    }
+
     const fmtChg = (v: any) => v ? `${Number(v) > 0 ? '+' : ''}${v}%` : ''
 
     const prompt = `You are a calm, knowledgeable ecommerce analyst for ${orgName}. A team member is asking about their dashboard. Answer conversationally with specific numbers. Be matter-of-fact and positive without being over the top — state what's happening clearly, note improvements naturally, and keep a professional tone. No exclamation marks, no hype words like "fantastic" or "incredible". Keep it to 2-4 sentences.
@@ -84,14 +96,14 @@ QUESTION: ${question}`
     const answer = data.content?.[0]?.text ?? 'No answer generated.'
 
     // Log the question and answer
-    const serviceClient = createServiceClient()
     await serviceClient.from('chat_logs').insert({
       user_id: user.id,
       org_id: metrics.orgId ?? null,
       question,
       answer,
       org_name: orgName,
-    }).then(() => {}).catch(() => {}) // fire and forget
+      type: 'chat',
+    }).then(() => {}).catch(() => {})
 
     return NextResponse.json({ answer })
   } catch (err: any) {

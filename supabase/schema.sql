@@ -57,6 +57,7 @@ create table chat_logs (
   org_name text,
   question text not null,
   answer text not null,
+  type text default 'chat' check (type in ('chat', 'insights')),
   created_at timestamptz default now()
 );
 

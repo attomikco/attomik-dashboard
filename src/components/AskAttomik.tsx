@@ -38,7 +38,11 @@ export default function AskAttomik({ metrics, orgName, period, userName }: Props
         body: JSON.stringify({ question, metrics, orgName, period }),
       })
       const data = await res.json()
-      setMessages(prev => [...prev, { role: 'assistant', text: data.answer ?? 'Sorry, I couldn\'t generate an answer.' }])
+      if (res.status === 429) {
+        setMessages(prev => [...prev, { role: 'assistant', text: data.error ?? 'Daily limit reached. Try again tomorrow.' }])
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', text: data.answer ?? 'Sorry, I couldn\'t generate an answer.' }])
+      }
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', text: 'Something went wrong. Try again.' }])
     }

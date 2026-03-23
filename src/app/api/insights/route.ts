@@ -1,7 +1,25 @@
 import { NextResponse } from 'next/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 export async function POST(request: Request) {
   try {
+    // Auth + rate limit
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (user) {
+      const serviceClient = createServiceClient()
+      const todayStart = new Date(); todayStart.setHours(0,0,0,0)
+      const { count } = await serviceClient.from('chat_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('type', 'insights')
+        .gte('created_at', todayStart.toISOString())
+      if ((count ?? 0) >= 5) {
+        return NextResponse.json({ error: 'Daily limit reached (5 summaries/day). Try again tomorrow.' }, { status: 429 })
+      }
+    }
+
     const { metrics, period, orgName, preset, platform } = await request.json()
 
     const currentLabels = ['Month to date', 'Week to date', 'Today', 'Quarter to date']
@@ -120,6 +138,19 @@ Write a 3-sentence summary: (1) brand + period + biggest growth headline with nu
 
     const data = await response.json()
     const text = data.content?.[0]?.text ?? 'No insights generated.'
+
+    // Log the generation
+    if (user) {
+      const serviceClient = createServiceClient()
+      await serviceClient.from('chat_logs').insert({
+        user_id: user.id,
+        question: `Generate ${platform ?? 'ecommerce'} insights`,
+        answer: text,
+        org_name: orgName,
+        type: 'insights',
+      }).catch(() => {})
+    }
+
     return NextResponse.json({ insight: text })
 
   } catch (err: any) {

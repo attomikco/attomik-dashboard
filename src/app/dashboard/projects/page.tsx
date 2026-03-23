@@ -3,7 +3,7 @@
 import { useState, useEffect, Fragment } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { Building2, BarChart2, ChevronDown, ChevronRight, UserPlus, Trash2, CheckCircle, AlertCircle, X, Eye, Users } from 'lucide-react'
+import { Building2, BarChart2, ChevronDown, ChevronRight, UserPlus, Trash2, CheckCircle, AlertCircle, X, Eye, Users, MessageCircle } from 'lucide-react'
 
 const C = { ink: '#000', paper: '#fff', cream: '#f2f2f2', accent: '#00ff97', muted: '#666', border: '#e0e0e0' }
 
@@ -83,6 +83,9 @@ export default function ProjectsPage() {
   const [teamInviteOrg, setTeamInviteOrg] = useState('')
   const [teamInviting, setTeamInviting] = useState(false)
   const [teamInviteMsg, setTeamInviteMsg] = useState<{ text: string; ok: boolean } | null>(null)
+  const [chatLogs, setChatLogs] = useState<any[]>([])
+  const [chatLogsLoading, setChatLogsLoading] = useState(false)
+  const [showChatLogs, setShowChatLogs] = useState(false)
   const supabase = createClient()
   const router = useRouter()
 
@@ -164,6 +167,19 @@ export default function ProjectsPage() {
       setSettingsState(p => ({ ...p, [orgId]: { ...p[orgId], [field]: url } }))
     }
     setUploadingImage(p => ({ ...p, [key]: false }))
+  }
+
+  const loadChatLogs = async () => {
+    setChatLogsLoading(true)
+    const res = await fetch('/api/chat-logs')
+    const data = await res.json()
+    setChatLogs(data.logs ?? [])
+    setChatLogsLoading(false)
+  }
+
+  const toggleChatLogs = () => {
+    if (!showChatLogs && chatLogs.length === 0) loadChatLogs()
+    setShowChatLogs(p => !p)
   }
 
   const assignProject = async (userId: string, orgId: string, role: string) => {
@@ -498,6 +514,57 @@ export default function ProjectsPage() {
                 </table>
               </div>
             </>)
+          )}
+        </div>
+
+        {/* Chat Logs */}
+        <div style={{ marginBottom: 24 }}>
+          <button onClick={toggleChatLogs} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 12px', fontFamily: 'Barlow, sans-serif' }}>
+            <MessageCircle size={16} color={C.muted} />
+            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: C.ink, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              AI Chat Logs {chatLogs.length > 0 && `(${chatLogs.length})`}
+            </span>
+            <ChevronDown size={14} color={C.muted} style={{ transform: showChatLogs ? 'rotate(0)' : 'rotate(-90deg)', transition: '0.15s' }} />
+          </button>
+          {showChatLogs && (
+            chatLogsLoading ? (
+              <div style={{ color: C.muted, fontSize: '0.8rem', fontFamily: 'Barlow, sans-serif', padding: '12px 0' }}>Loading logs...</div>
+            ) : chatLogs.length === 0 ? (
+              <div style={{ color: '#ccc', fontSize: '0.8rem', fontFamily: 'Barlow, sans-serif' }}>No chat activity yet.</div>
+            ) : (
+              <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: C.cream }}>
+                      {['User', 'Project', 'Type', 'Question', 'Answer', 'Time'].map(h => (
+                        <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.muted, fontFamily: 'Barlow, sans-serif', borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {chatLogs.map((log: any, i: number) => (
+                      <tr key={log.id} style={{ borderTop: i > 0 ? `1px solid ${C.border}` : 'none' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#fafafa')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                        <td style={{ padding: '10px 12px', fontSize: '0.78rem', fontFamily: 'Barlow, sans-serif', fontWeight: 600, whiteSpace: 'nowrap' }}>{log.email}</td>
+                        <td style={{ padding: '10px 12px', fontSize: '0.75rem', fontFamily: 'Barlow, sans-serif', color: C.muted, whiteSpace: 'nowrap' }}>{log.org_name ?? '—'}</td>
+                        <td style={{ padding: '10px 12px' }}>
+                          <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 7px', borderRadius: 20, fontFamily: 'Barlow, sans-serif', textTransform: 'uppercase',
+                            background: log.type === 'insights' ? '#e6fff5' : '#f0f0ff',
+                            color: log.type === 'insights' ? '#007a48' : '#4f46e5',
+                          }}>{log.type}</span>
+                        </td>
+                        <td style={{ padding: '10px 12px', fontSize: '0.78rem', fontFamily: 'Barlow, sans-serif', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.question}>{log.question}</td>
+                        <td style={{ padding: '10px 12px', fontSize: '0.75rem', fontFamily: 'Barlow, sans-serif', color: C.muted, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.answer}>{log.answer}</td>
+                        <td style={{ padding: '10px 12px', fontSize: '0.72rem', fontFamily: 'Barlow, sans-serif', color: '#999', whiteSpace: 'nowrap' }}>
+                          {new Date(log.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
           )}
         </div>
 
