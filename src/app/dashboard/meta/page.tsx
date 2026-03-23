@@ -303,7 +303,7 @@ export default function MetaAdsPage() {
   return (
     <div>
       {/* Topbar */}
-      <div style={{ padding: '20px 40px', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: '#fff', zIndex: 50 }}>
+      <div className="analytics-topbar" style={{ padding: '20px 40px', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: '#fff', zIndex: 50 }}>
         <div>
           <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'var(--font-barlow), Barlow, sans-serif', color: '#000' }}>{orgName} — Meta Ads</h1>
           <p style={{ fontSize: '0.875rem', color: '#666', marginTop: 2, fontFamily: 'Barlow, sans-serif' }}>
@@ -313,7 +313,7 @@ export default function MetaAdsPage() {
         <DateRangePicker value={range} onChange={r => setRange(r)} />
       </div>
 
-      <div style={{ padding: '28px 40px 64px', minWidth: 0, overflowX: 'hidden' }}>
+      <div className="meta-content" style={{ padding: 'clamp(16px, 4vw, 28px) clamp(16px, 4vw, 40px) 64px', minWidth: 0, overflowX: 'hidden' }}>
         {loading ? (
           <div style={{ color: '#666', textAlign: 'center', padding: '80px 0', fontFamily: 'Barlow, sans-serif' }}>Loading…</div>
         ) : Object.keys(campaigns).length === 0 ? (
@@ -535,6 +535,20 @@ export default function MetaAdsPage() {
           </>
         )}
       </div>
+
+      <style>{`
+        @media (max-width: 768px) {
+          .analytics-topbar {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            padding: 14px 16px 14px 60px !important;
+            z-index: 100 !important;
+          }
+          .meta-content { padding-top: 80px !important; }
+        }
+      `}</style>
     </div>
   )
 }

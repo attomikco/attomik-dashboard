@@ -194,7 +194,7 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <div style={{ padding: '20px 40px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: 'var(--paper)', zIndex: 50 }}>
+      <div className="analytics-topbar" style={{ padding: 'clamp(14px, 3vw, 20px) clamp(16px, 4vw, 40px)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: 'var(--paper)', zIndex: 50 }}>
         <div>
           <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>
             {org?.name ? `${org.name} — ` : ''}Settings
@@ -203,7 +203,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div style={{ padding: '32px 40px 80px', maxWidth: 640 }}>
+      <div className="settings-content" style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 80px', maxWidth: 640 }}>
 
         <Section title="Organization">
           <div style={{ display: 'grid', gap: 12 }}>
