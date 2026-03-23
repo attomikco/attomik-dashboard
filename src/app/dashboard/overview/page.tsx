@@ -173,22 +173,19 @@ export default function OverviewPage() {
           const diffMs = targetLocal.getTime() - localAtUTCMidnight.getTime()
           return new Date(utcMidnight.getTime() + diffMs).toISOString()
         }
-        const [curOrders, prevOrders, curSpend, prevSpend] = await Promise.all([
-          supabase.from('orders').select('total_price, subtotal, status, source')
-            .eq('org_id', org.id)
-            .gte('created_at', toUTC(orgCurStart, false))
-            .lte('created_at', toUTC(orgCurEnd, true))
-            .limit(5000),
-          supabase.from('orders').select('total_price, subtotal, status, source')
-            .eq('org_id', org.id)
-            .gte('created_at', toUTC(prevStart, false))
-            .lte('created_at', toUTC(prevEnd, true))
-            .limit(5000),
-          supabase.from('ad_spend').select('spend')
-            .eq('org_id', org.id).gte('date', curStart).lte('date', curEnd),
-          supabase.from('ad_spend').select('spend')
-            .eq('org_id', org.id).gte('date', prevStart).lte('date', prevEnd),
-        ])
+        const res = await fetch('/api/overview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            org_id: org.id,
+            start: toUTC(orgCurStart, false),
+            end: toUTC(orgCurEnd, true),
+            prevStart,
+            prevEnd,
+          }),
+        })
+        const fetched = await res.json()
+        if (!res.ok) throw new Error(fetched.error)
 
         const ch = (org as any).channels ?? {}
         const isConfigured = Object.keys(ch).length > 0
@@ -203,8 +200,8 @@ export default function OverviewPage() {
           )
         )
 
-        const cur  = filterEnabled(curOrders.data  ?? [])
-        const prev = filterEnabled(prevOrders.data ?? [])
+        const cur  = filterEnabled(fetched.curOrders ?? [])
+        const prev = filterEnabled(fetched.prevOrders ?? [])
 
         const revenue     = cur.reduce((s, o)  => s + Number(o.total_price || 0), 0)
         const prevRevenue = prev.reduce((s, o) => s + Number(o.total_price || 0), 0)
@@ -215,8 +212,8 @@ export default function OverviewPage() {
         const prevNetRev  = prev.reduce((s, o) => s + Number(o.subtotal || o.total_price || 0), 0)
         const aov         = orders > 0 ? netRev / orders : 0
         const prevAov     = prevOrdCnt > 0 ? prevNetRev / prevOrdCnt : 0
-        const adSpend     = (curSpend.data  ?? []).reduce((s, r) => s + Number(r.spend), 0)
-        const prevAdSpend = (prevSpend.data ?? []).reduce((s, r) => s + Number(r.spend), 0)
+        const adSpend     = (fetched.curSpend ?? []).reduce((s: number, r: any) => s + Number(r.spend), 0)
+        const prevAdSpend = (fetched.prevSpend ?? []).reduce((s: number, r: any) => s + Number(r.spend), 0)
         const roas        = adSpend > 0 ? revenue / adSpend : 0
         const prevRoas    = prevAdSpend > 0 ? prevRevenue / prevAdSpend : 0
         const shopifyRev  = cur.filter(o => o.source === 'shopify').reduce((s, o) => s + Number(o.total_price || 0), 0)
