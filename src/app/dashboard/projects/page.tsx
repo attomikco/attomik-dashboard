@@ -630,7 +630,7 @@ export default function ProjectsPage() {
                           }}>{log.type}</span>
                         </td>
                         <td style={{ padding: '10px 12px', fontSize: '0.78rem', fontFamily: 'Barlow, sans-serif', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.question}>{log.question}</td>
-                        <td style={{ padding: '10px 12px', fontSize: '0.75rem', fontFamily: 'Barlow, sans-serif', color: C.muted, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.answer}>{log.answer}</td>
+                        <td style={{ padding: '10px 12px', fontSize: '0.75rem', fontFamily: 'Barlow, sans-serif', color: C.muted, maxWidth: 400, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{log.answer}</td>
                         <td style={{ padding: '10px 12px', fontSize: '0.72rem', fontFamily: 'Barlow, sans-serif', color: '#999', whiteSpace: 'nowrap' }}>
                           {new Date(log.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                         </td>
