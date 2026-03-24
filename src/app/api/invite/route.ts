@@ -85,6 +85,50 @@ function emailHtml(link: string) {
 </html>`
 }
 
+export async function PUT(request: Request) {
+  try {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { data: profile } = await supabase
+      .from('profiles').select('is_superadmin').eq('id', user.id).single()
+    if (!profile?.is_superadmin) {
+      return NextResponse.json({ error: 'Only superadmins can resend invites' }, { status: 403 })
+    }
+
+    const { email, org_id } = await request.json()
+    if (!email || !org_id) {
+      return NextResponse.json({ error: 'email and org_id are required' }, { status: 400 })
+    }
+
+    const serviceClient = createServiceClient()
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://dashboard.attomik.co'
+
+    const { data: orgData } = await serviceClient
+      .from('organizations').select('name').eq('id', org_id).single()
+    const orgName = orgData?.name ?? 'a project'
+
+    const { data: linkData, error: linkError } = await serviceClient.auth.admin.generateLink({
+      type: 'magiclink',
+      email,
+      options: { redirectTo: `${siteUrl}/auth/callback` },
+    })
+    if (linkError) throw linkError
+
+    await sendResendEmail(
+      email,
+      `Reminder: You've been invited to ${orgName} on Attomik`,
+      emailHtml(linkData.properties.action_link)
+    )
+
+    return NextResponse.json({ message: `Invite resent to ${email}` })
+  } catch (err: any) {
+    console.error('Resend invite error:', err)
+    return NextResponse.json({ error: err.message ?? 'Resend failed' }, { status: 500 })
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = createClient()

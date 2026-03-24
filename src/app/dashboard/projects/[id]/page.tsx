@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { UserPlus, Trash2, ArrowLeft, Building2, CheckCircle, AlertCircle, Eye } from 'lucide-react'
+import { UserPlus, Trash2, ArrowLeft, Building2, CheckCircle, AlertCircle, Eye, Send } from 'lucide-react'
 
 interface Member { id: string; full_name: string | null; email: string | null; role: string; status: string; invited_at: string | null; joined_at: string | null; last_seen_at: string | null; is_superadmin?: boolean }
 interface Org { id: string; name: string; slug: string; created_at: string; shopify_domain: string | null; meta_ad_account_id: string | null; channels: Record<string, boolean>; timezone: string | null; logo_url: string | null; header_url: string | null }
@@ -250,6 +250,26 @@ export default function ProjectDetailPage() {
     fetchData()
   }
 
+  const [resendingId, setResendingId] = useState<string | null>(null)
+  const handleResendInvite = async (invite: PendingInvite) => {
+    setResendingId(invite.id)
+    try {
+      const res = await fetch('/api/invite', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: invite.email, org_id: id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Resend failed')
+      setInviteMsg(data.message)
+      setInviteStatus('success')
+    } catch (err: any) {
+      setInviteMsg(err.message)
+      setInviteStatus('error')
+    }
+    setResendingId(null)
+  }
+
   const input: React.CSSProperties = { padding: '10px 12px', border: '1px solid #e0e0e0', borderRadius: 6, fontFamily: 'Barlow, sans-serif', fontSize: '0.875rem', outline: 'none', background: '#fff', color: '#000' }
 
   if (loading) return <div style={{ padding: '80px 40px', textAlign: 'center', color: '#666', fontFamily: 'Barlow, sans-serif' }}>Loading…</div>
@@ -466,7 +486,10 @@ export default function ProjectDetailPage() {
                         <td style={{ padding: '13px 24px', fontSize: '0.875rem', color: '#999', fontFamily: 'Barlow, sans-serif' }}>
                           {new Date(inv.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </td>
-                        <td style={{ padding: '13px 24px', textAlign: 'right' }}>
+                        <td style={{ padding: '13px 24px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <button onClick={() => handleResendInvite(inv)} disabled={resendingId === inv.id} style={{ background: 'none', border: 'none', cursor: resendingId === inv.id ? 'not-allowed' : 'pointer', color: '#ccc', fontSize: '0.75rem', fontFamily: 'Barlow, sans-serif', transition: '0.15s', marginRight: 12 }} onMouseEnter={e => (e.currentTarget.style.color = '#007a48')} onMouseLeave={e => (e.currentTarget.style.color = '#ccc')}>
+                            {resendingId === inv.id ? 'Sending…' : 'Resend'}
+                          </button>
                           <button onClick={() => handleCancelInvite(inv.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', fontSize: '0.75rem', fontFamily: 'Barlow, sans-serif', transition: '0.15s' }} onMouseEnter={e => (e.currentTarget.style.color = '#b91c1c')} onMouseLeave={e => (e.currentTarget.style.color = '#ccc')}>Cancel</button>
                         </td>
                       </tr>
