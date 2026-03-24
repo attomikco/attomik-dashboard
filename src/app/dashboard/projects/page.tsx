@@ -3,7 +3,7 @@
 import { useState, useEffect, Fragment } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { Building2, BarChart2, ChevronDown, ChevronRight, UserPlus, Trash2, CheckCircle, AlertCircle, X, Eye, Users, MessageCircle } from 'lucide-react'
+import { Building2, BarChart2, ChevronDown, ChevronRight, UserPlus, Trash2, CheckCircle, AlertCircle, X, Eye, Users, MessageCircle, Send } from 'lucide-react'
 
 const C = { ink: '#000', paper: '#fff', cream: '#f2f2f2', accent: '#00ff97', muted: '#666', border: '#e0e0e0' }
 
@@ -119,6 +119,8 @@ export default function ProjectsPage() {
         const existing = allMembers.get(m.id)
         if (existing) {
           existing.orgs.push({ id: org.id, name: org.name, role: m.role })
+          // If invited in any org, show invited (worst status wins)
+          if (m.status === 'invited') existing.status = 'invited'
         } else {
           allMembers.set(m.id, { ...m, orgs: [{ id: org.id, name: org.name, role: m.role }] })
         }
@@ -225,6 +227,25 @@ export default function ProjectsPage() {
       })
     }
     setTeamMembers(prev => prev.filter(m => m.id !== member.id))
+  }
+
+  const [resendingId, setResendingId] = useState<string | null>(null)
+  const resendTeamInvite = async (member: TeamMember) => {
+    if (!member.email || member.orgs.length === 0) return
+    setResendingId(member.id)
+    try {
+      const res = await fetch('/api/invite', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: member.email, org_id: member.orgs[0].id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Resend failed')
+      setTeamInviteMsg({ text: data.message, ok: true })
+    } catch (err: any) {
+      setTeamInviteMsg({ text: err.message, ok: false })
+    }
+    setResendingId(null)
   }
 
   const handleTeamInvite = async (e: React.FormEvent) => {
@@ -492,6 +513,18 @@ export default function ProjectsPage() {
                               onMouseLeave={e => (e.currentTarget.style.color = '#ccc')}
                             >
                               <Eye size={15} />
+                            </button>
+                          )}
+                          {!m.is_superadmin && m.status !== 'joined' && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); resendTeamInvite(m) }}
+                              disabled={resendingId === m.id}
+                              title={`Resend invite to ${m.email}`}
+                              style={{ background: 'none', border: 'none', cursor: resendingId === m.id ? 'not-allowed' : 'pointer', color: '#ccc', padding: 4, transition: '0.15s', marginRight: 4 }}
+                              onMouseEnter={e => (e.currentTarget.style.color = '#007a48')}
+                              onMouseLeave={e => (e.currentTarget.style.color = '#ccc')}
+                            >
+                              <Send size={14} />
                             </button>
                           )}
                           {!m.is_superadmin && (
