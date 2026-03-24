@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 export const maxDuration = 300
 
@@ -126,11 +126,18 @@ async function syncOrg(orgId: string, org: any, supabase: any): Promise<{ orgId:
 }
 
 export async function GET(request: Request) {
-  // Verify cron secret to prevent unauthorized access
+  // Allow access via cron secret OR authenticated superadmin
   const authHeader = request.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const hasCronSecret = cronSecret && authHeader === `Bearer ${cronSecret}`
+
+  if (!hasCronSecret) {
+    // Check if request is from an authenticated superadmin
+    const userClient = createClient()
+    const { data: { user } } = await userClient.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { data: profile } = await userClient.from('profiles').select('is_superadmin').eq('id', user.id).single()
+    if (!profile?.is_superadmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 
   const supabase = createServiceClient()

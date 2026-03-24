@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, ChevronRight, Building2, TrendingUp, TrendingDown } from 'lucide-react'
+import { ArrowRight, ChevronRight, Building2, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react'
 import DateRangePicker, { DateRange } from '@/components/DateRangePicker'
 
 // ── helpers ──────────────────────────────────────────────────────────
@@ -80,6 +80,9 @@ export default function OverviewPage() {
   const [range, setRange] = useState<DateRange>(defaultRange)
   const [loadingOrgs, setLoadingOrgs] = useState(true)
   const [sortBy, setSortBy] = useState<'revenue' | 'orders' | 'roas' | 'adSpend'>('revenue')
+  const [isSuperadmin, setIsSuperadmin] = useState(false)
+  const [syncingAll, setSyncingAll] = useState(false)
+  const [syncResult, setSyncResult] = useState<{ ok: boolean; text: string } | null>(null)
   const supabase = createClient()
   const router = useRouter()
 
@@ -91,6 +94,9 @@ export default function OverviewPage() {
       setLoadingOrgs(true)
       const { data: { user } } = await supabase.auth.getUser()
       if (!user || cancelled) return
+
+      const { data: prof } = await supabase.from('profiles').select('is_superadmin').eq('id', user.id).single()
+      if (!cancelled) setIsSuperadmin(prof?.is_superadmin ?? false)
 
       const viewAsUserId = localStorage.getItem('viewAsUserId')
       const orgRes = await fetch(`/api/overview${viewAsUserId ? `?viewAs=${viewAsUserId}` : ''}`)
@@ -221,6 +227,20 @@ export default function OverviewPage() {
     }))
   }
 
+  const handleSyncAll = async () => {
+    setSyncingAll(true)
+    setSyncResult(null)
+    try {
+      const res = await fetch('/api/cron/sync-shopify')
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Sync failed')
+      setSyncResult({ ok: true, text: data.message })
+    } catch (err: any) {
+      setSyncResult({ ok: false, text: err.message })
+    }
+    setSyncingAll(false)
+  }
+
   const openOrg = (org: OrgKpi) => {
     localStorage.setItem('activeOrgId', org.id)
     window.location.href = '/dashboard/analytics'
@@ -271,7 +291,32 @@ export default function OverviewPage() {
             {loadingOrgs ? '…' : `${orgs.length} project${orgs.length !== 1 ? 's' : ''}`} · vs previous {dayCount} days
           </p>
         </div>
-        <div style={{ flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          {isSuperadmin && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                onClick={handleSyncAll}
+                disabled={syncingAll}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '8px 14px', background: syncingAll ? C.cream : C.ink,
+                  color: syncingAll ? C.muted : C.accent,
+                  fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.78rem',
+                  border: 'none', borderRadius: 6,
+                  cursor: syncingAll ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <RefreshCw size={13} style={{ animation: syncingAll ? 'spin 1s linear infinite' : 'none' }} />
+                {syncingAll ? 'Syncing Shopify…' : 'Sync Shopify Orders'}
+              </button>
+              {syncResult && (
+                <span style={{ fontSize: '0.72rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', color: syncResult.ok ? '#007a48' : '#b91c1c', maxWidth: 220, lineHeight: 1.3 }}>
+                  {syncResult.text}
+                </span>
+              )}
+            </div>
+          )}
           <DateRangePicker value={range} onChange={r => setRange(r)} />
         </div>
       </div>
