@@ -230,9 +230,12 @@ export default function ProjectsPage() {
   }
 
   const [resendingId, setResendingId] = useState<string | null>(null)
+  const [resendResult, setResendResult] = useState<Record<string, { ok: boolean; text: string }>>({})
   const resendTeamInvite = async (member: TeamMember) => {
     if (!member.email || member.orgs.length === 0) return
+    if (!confirm(`Resend invite to ${member.email}?`)) return
     setResendingId(member.id)
+    setResendResult(prev => { const next = { ...prev }; delete next[member.id]; return next })
     try {
       const res = await fetch('/api/invite', {
         method: 'PUT',
@@ -241,9 +244,9 @@ export default function ProjectsPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Resend failed')
-      setTeamInviteMsg({ text: data.message, ok: true })
+      setResendResult(prev => ({ ...prev, [member.id]: { ok: true, text: 'Invite sent!' } }))
     } catch (err: any) {
-      setTeamInviteMsg({ text: err.message, ok: false })
+      setResendResult(prev => ({ ...prev, [member.id]: { ok: false, text: err.message } }))
     }
     setResendingId(null)
   }
@@ -483,12 +486,19 @@ export default function ProjectsPage() {
                           </div>
                         </td>
                         <td style={{ padding: '12px 16px' }}>
-                          <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '2px 8px', borderRadius: 20, fontFamily: 'Barlow, sans-serif',
-                            background: m.status === 'joined' ? '#e6fff5' : '#fff8e1',
-                            color: m.status === 'joined' ? '#007a48' : '#b45309',
-                          }}>
-                            {m.status === 'joined' ? 'Joined' : 'Invited'}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '2px 8px', borderRadius: 20, fontFamily: 'Barlow, sans-serif',
+                              background: m.status === 'joined' ? '#e6fff5' : '#fff8e1',
+                              color: m.status === 'joined' ? '#007a48' : '#b45309',
+                            }}>
+                              {m.status === 'joined' ? 'Joined' : 'Invited'}
+                            </span>
+                            {resendResult[m.id] && (
+                              <span style={{ fontSize: '0.68rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', color: resendResult[m.id].ok ? '#007a48' : '#b91c1c' }}>
+                                {resendResult[m.id].text}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td style={{ padding: '12px 16px', fontSize: '0.78rem', color: '#999', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap' }}>
                           {m.last_seen_at

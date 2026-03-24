@@ -251,8 +251,11 @@ export default function ProjectDetailPage() {
   }
 
   const [resendingId, setResendingId] = useState<string | null>(null)
+  const [resendResult, setResendResult] = useState<Record<string, { ok: boolean; text: string }>>({})
   const handleResendInvite = async (invite: PendingInvite) => {
+    if (!confirm(`Resend invite to ${invite.email}?`)) return
     setResendingId(invite.id)
+    setResendResult(prev => { const next = { ...prev }; delete next[invite.id]; return next })
     try {
       const res = await fetch('/api/invite', {
         method: 'PUT',
@@ -261,11 +264,9 @@ export default function ProjectDetailPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Resend failed')
-      setInviteMsg(data.message)
-      setInviteStatus('success')
+      setResendResult(prev => ({ ...prev, [invite.id]: { ok: true, text: 'Invite sent!' } }))
     } catch (err: any) {
-      setInviteMsg(err.message)
-      setInviteStatus('error')
+      setResendResult(prev => ({ ...prev, [invite.id]: { ok: false, text: err.message } }))
     }
     setResendingId(null)
   }
@@ -487,6 +488,11 @@ export default function ProjectDetailPage() {
                           {new Date(inv.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </td>
                         <td style={{ padding: '13px 24px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          {resendResult[inv.id] && (
+                            <span style={{ fontSize: '0.72rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', color: resendResult[inv.id].ok ? '#007a48' : '#b91c1c', marginRight: 12 }}>
+                              {resendResult[inv.id].text}
+                            </span>
+                          )}
                           <button onClick={() => handleResendInvite(inv)} disabled={resendingId === inv.id} style={{ background: 'none', border: 'none', cursor: resendingId === inv.id ? 'not-allowed' : 'pointer', color: '#ccc', fontSize: '0.75rem', fontFamily: 'Barlow, sans-serif', transition: '0.15s', marginRight: 12 }} onMouseEnter={e => (e.currentTarget.style.color = '#007a48')} onMouseLeave={e => (e.currentTarget.style.color = '#ccc')}>
                             {resendingId === inv.id ? 'Sending…' : 'Resend'}
                           </button>
