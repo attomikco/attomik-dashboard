@@ -25,6 +25,15 @@ function getGreeting(tz: string): string {
   return 'Hey'
 }
 
+function getContextLine(metrics: any): string | null {
+  if (!metrics) return null
+  const chg = parseFloat(metrics.totalRevChg)
+  if (isNaN(chg)) return null
+  if (chg > 0) return `revenue is up ${chg}% this period`
+  if (chg < 0) return `revenue is down ${Math.abs(chg)}% this period`
+  return 'revenue is flat this period'
+}
+
 export default function AskAttomik({ metrics, orgName, period, userName, timezone = 'America/New_York' }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -32,6 +41,7 @@ export default function AskAttomik({ metrics, orgName, period, userName, timezon
 
   const firstName = userName?.split(' ')[0] || 'there'
   const greeting = getGreeting(timezone)
+  const contextLine = getContextLine(metrics)
 
   const ask = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -65,10 +75,10 @@ export default function AskAttomik({ metrics, orgName, period, userName, timezon
       {/* Header */}
       <div style={{ padding: '20px 20px 14px' }}>
         <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#000', fontFamily: 'Barlow, sans-serif', letterSpacing: '-0.03em' }}>
-          {greeting} {firstName}, what do you want to explore?
+          {greeting} {firstName}{contextLine ? ` — ${contextLine}` : ', what do you want to explore?'}
         </div>
         <div style={{ fontSize: '0.8rem', color: '#999', fontFamily: 'Barlow, sans-serif', marginTop: 4 }}>
-          Ask anything about your {orgName} metrics
+          {contextLine ?? `Ask anything about your ${orgName} metrics`}
         </div>
         {messages.length === 0 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
