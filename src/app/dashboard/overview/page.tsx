@@ -297,42 +297,43 @@ export default function OverviewPage() {
           <h1 style={{ fontSize: 'clamp(1.1rem, 3vw, 1.6rem)', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'Barlow, sans-serif', color: C.ink }}>
             Overview
           </h1>
-          <p style={{ fontSize: '0.8rem', color: C.muted, marginTop: 2, fontFamily: 'Barlow, sans-serif' }}>
-            {loadingOrgs ? '…' : `${orgs.length} project${orgs.length !== 1 ? 's' : ''}`} · vs previous {dayCount} days
-          </p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-          {isSuperadmin && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+            <p style={{ fontSize: '0.8rem', color: C.muted, fontFamily: 'Barlow, sans-serif' }}>
+              {loadingOrgs ? '…' : `${orgs.length} project${orgs.length !== 1 ? 's' : ''}`} · vs previous {dayCount} days
+            </p>
+            {isSuperadmin && (
+              <>
+                <span style={{ color: C.border }}>·</span>
                 <button
                   onClick={handleSyncAll}
                   disabled={syncingAll}
                   style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    padding: '8px 14px', background: syncingAll ? C.cream : C.ink,
-                    color: syncingAll ? C.muted : C.accent,
-                    fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.78rem',
-                    border: 'none', borderRadius: 6,
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    padding: 0, background: 'none', border: 'none',
+                    fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.8rem',
+                    color: syncingAll ? C.muted : '#007a48',
                     cursor: syncingAll ? 'not-allowed' : 'pointer',
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  <RefreshCw size={13} style={{ animation: syncingAll ? 'spin 1s linear infinite' : 'none' }} />
-                  {syncingAll ? 'Syncing Shopify…' : 'Sync Shopify Orders'}
+                  <RefreshCw size={11} style={{ animation: syncingAll ? 'spin 1s linear infinite' : 'none' }} />
+                  {syncingAll ? 'Syncing Shopify…' : 'Sync Shopify'}
                 </button>
-                {syncResult ? (
-                  <span style={{ fontSize: '0.68rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', color: syncResult.ok ? '#007a48' : '#b91c1c', lineHeight: 1.3 }}>
-                    {syncResult.text}
+                {syncResult && (
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', color: syncResult.ok ? '#007a48' : '#b91c1c' }}>
+                    — {syncResult.text}
                   </span>
-                ) : lastSyncedAt && !syncingAll ? (
-                  <span style={{ fontSize: '0.68rem', color: C.muted, fontFamily: 'Barlow, sans-serif' }}>
-                    Last synced {new Date(lastSyncedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                )}
+                {!syncResult && lastSyncedAt && !syncingAll && (
+                  <span style={{ fontSize: '0.75rem', color: '#aaa', fontFamily: 'Barlow, sans-serif' }}>
+                    last {new Date(lastSyncedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                   </span>
-                ) : null}
-              </div>
-            </div>
-          )}
+                )}
+              </>
+            )}
+          </div>
+        </div>
+        <div style={{ flexShrink: 0 }}>
           <DateRangePicker value={range} onChange={r => setRange(r)} />
         </div>
       </div>
