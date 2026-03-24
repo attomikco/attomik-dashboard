@@ -855,20 +855,20 @@ export default function AnalyticsPage() {
           </div>
           <div className="kpi-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
             <KpiCard label="Orders" value={fmtN(d.ordC)} change={pct(d.ordC, d.ordP)} />
-            <KpiCard label="CAC"    value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors />
             <KpiCard label="AOV"    value={fmt$(d.aovC)} change={pct(d.aovC, d.aovP)} />
-          </div>
-          {trafficData && trafficData.users > 0 && (
-            <div className="kpi-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
+            {trafficData && trafficData.users > 0 ? (
               <KpiCard label="Conv. Rate (Users)" value={fmtPct(d.ordC / trafficData.users * 100)} change={trafficData.usersP > 0 && d.ordP > 0 ? pct(d.ordC / trafficData.users * 100, d.ordP / trafficData.usersP * 100) : undefined} subtitle="Orders ÷ Users" />
-            </div>
-          )}
+            ) : (
+              <KpiCard label="CAC" value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors />
+            )}
+          </div>
 
-          {/* ── CLTV & CLTV/CAC ── */}
-          {d.cltvC > 0 && (
+          {/* ── CLTV, CAC & CLTV/CAC ── */}
+          {(d.cltvC > 0 || (trafficData && trafficData.users > 0 && d.cacC > 0)) && (
             <div className="kpi-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
-              <KpiCard label="CLTV" value={fmt$(d.cltvC)} change={d.cltvP > 0 ? pct(d.cltvC, d.cltvP) : undefined} subtitle="Shopify · ACL (2) × AOV × Freq" />
-              {d.cacC > 0 && <KpiCard label="CLTV / CAC" value={`${(d.cltvC / d.cacC).toFixed(2)}x`} change={d.cltvP > 0 && d.cacP > 0 ? pct(d.cltvC / d.cacC, d.cltvP / d.cacP) : undefined} />}
+              {d.cltvC > 0 && <KpiCard label="CLTV" value={fmt$(d.cltvC)} change={d.cltvP > 0 ? pct(d.cltvC, d.cltvP) : undefined} subtitle="Shopify · ACL (2) × AOV × Freq" />}
+              {trafficData && trafficData.users > 0 && <KpiCard label="CAC" value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors />}
+              {d.cltvC > 0 && d.cacC > 0 && <KpiCard label="CLTV / CAC" value={`${(d.cltvC / d.cacC).toFixed(2)}x`} change={d.cltvP > 0 && d.cacP > 0 ? pct(d.cltvC / d.cacC, d.cltvP / d.cacP) : undefined} />}
             </div>
           )}
 
