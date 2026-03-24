@@ -7,7 +7,7 @@ async function getCustomerData(orgId: string) {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
   const { data: orders } = await supabase
-    .from('orders').select('customer_email, customer_name, total_price, created_at')
+    .from('orders').select('customer_email, customer_name, total_price, created_at, source, units')
     .eq('org_id', orgId)
 
   const all = orders ?? []
@@ -17,7 +17,7 @@ async function getCustomerData(orgId: string) {
   all.forEach(o => {
     const key = o.customer_email || o.customer_name || 'unknown'
     if (!customerMap[key]) customerMap[key] = { name: o.customer_name || o.customer_email || 'Unknown', orders: 0, ltv: 0, lastOrder: o.created_at }
-    customerMap[key].orders += 1
+    customerMap[key].orders += o.source === 'amazon' ? (Number(o.units) || 1) : 1
     customerMap[key].ltv += Number(o.total_price)
     if (o.created_at > customerMap[key].lastOrder) customerMap[key].lastOrder = o.created_at
   })

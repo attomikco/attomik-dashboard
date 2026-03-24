@@ -55,12 +55,6 @@ export interface KPI {
   changeLabel: string
 }
 
-export interface RevenueRow {
-  date: string
-  revenue: number
-  orders: number
-}
-
 export interface Database {
   public: {
     Tables: {
