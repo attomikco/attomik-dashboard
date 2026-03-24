@@ -83,8 +83,7 @@ export default function AskAttomik({ metrics, orgName, period, userName, timezon
       {/* Header */}
       <div style={{ padding: '20px 20px 14px' }}>
         <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#000', fontFamily: 'Barlow, sans-serif', letterSpacing: '-0.03em' }}>
-          {greeting} {firstName}{contextLine ? ` — ${contextLine.headline}` : ', what do you want to explore?'}
-          {contextLine && <><br />{contextLine.sub}</>}
+          {greeting} {firstName}{contextLine ? ` — ${contextLine.headline}. ${contextLine.sub}` : ', what do you want to explore?'}
         </div>
         {messages.length === 0 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
