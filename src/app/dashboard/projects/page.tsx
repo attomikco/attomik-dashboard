@@ -215,6 +215,18 @@ export default function ProjectsPage() {
     }))
   }
 
+  const removeTeamMember = async (member: TeamMember) => {
+    if (!confirm(`Remove ${member.full_name || member.email} from all projects?`)) return
+    for (const org of member.orgs) {
+      await fetch('/api/members', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: member.id, org_id: org.id }),
+      })
+    }
+    setTeamMembers(prev => prev.filter(m => m.id !== member.id))
+  }
+
   const handleTeamInvite = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!teamInviteOrg) return
@@ -475,11 +487,22 @@ export default function ProjectsPage() {
                                 window.location.href = '/dashboard/analytics'
                               }}
                               title={`View as ${m.full_name || m.email}`}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', padding: 4, transition: '0.15s' }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', padding: 4, transition: '0.15s', marginRight: 4 }}
                               onMouseEnter={e => (e.currentTarget.style.color = '#000')}
                               onMouseLeave={e => (e.currentTarget.style.color = '#ccc')}
                             >
                               <Eye size={15} />
+                            </button>
+                          )}
+                          {!m.is_superadmin && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); removeTeamMember(m) }}
+                              title={`Remove ${m.full_name || m.email}`}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', padding: 4, transition: '0.15s' }}
+                              onMouseEnter={e => (e.currentTarget.style.color = '#b91c1c')}
+                              onMouseLeave={e => (e.currentTarget.style.color = '#ccc')}
+                            >
+                              <Trash2 size={15} />
                             </button>
                           )}
                         </td>
