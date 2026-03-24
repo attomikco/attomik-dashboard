@@ -98,9 +98,24 @@ export async function DELETE(request: Request) {
     const { data: profile } = await supabase.from('profiles').select('is_superadmin').eq('id', user.id).single()
     if (!profile?.is_superadmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
-    const { user_id, org_id } = await request.json()
+    const { user_id, org_id, delete_user } = await request.json()
     const serviceClient = createServiceClient()
     await serviceClient.from('org_memberships').delete().eq('user_id', user_id).eq('org_id', org_id)
+
+    // If delete_user flag is set, fully remove from Supabase after last membership
+    if (delete_user) {
+      const { data: remaining } = await serviceClient.from('org_memberships').select('id').eq('user_id', user_id).limit(1)
+      if (!remaining || remaining.length === 0) {
+        // No memberships left — clean up profile, invites, and auth user
+        const { data: { users } } = await serviceClient.auth.admin.listUsers()
+        const authUser = users?.find(u => u.id === user_id)
+        if (authUser?.email) {
+          await serviceClient.from('invites').delete().eq('email', authUser.email)
+        }
+        await serviceClient.from('profiles').delete().eq('id', user_id)
+        await serviceClient.auth.admin.deleteUser(user_id)
+      }
+    }
 
     return NextResponse.json({ success: true })
   } catch (err: any) {

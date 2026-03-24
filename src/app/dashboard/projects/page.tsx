@@ -218,12 +218,12 @@ export default function ProjectsPage() {
   }
 
   const removeTeamMember = async (member: TeamMember) => {
-    if (!confirm(`Remove ${member.full_name || member.email} from all projects?`)) return
-    for (const org of member.orgs) {
+    if (!confirm(`Remove ${member.full_name || member.email} from all projects and delete their account?`)) return
+    for (let i = 0; i < member.orgs.length; i++) {
       await fetch('/api/members', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: member.id, org_id: org.id }),
+        body: JSON.stringify({ user_id: member.id, org_id: member.orgs[i].id, delete_user: i === member.orgs.length - 1 }),
       })
     }
     setTeamMembers(prev => prev.filter(m => m.id !== member.id))
@@ -446,8 +446,8 @@ export default function ProjectsPage() {
                 )}
               </div>
 
-              <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640 }}>
                   <thead>
                     <tr style={{ background: C.cream }}>
                       {['Member', 'Projects', 'Status', 'Last seen', ''].map(h => (
@@ -607,8 +607,8 @@ export default function ProjectsPage() {
             ) : chatLogs.length === 0 ? (
               <div style={{ color: '#ccc', fontSize: '0.8rem', fontFamily: 'Barlow, sans-serif' }}>No chat activity yet.</div>
             ) : (
-              <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
                   <thead>
                     <tr style={{ background: C.cream }}>
                       {['User', 'Project', 'Type', 'Question', 'Answer', 'Time'].map(h => (
