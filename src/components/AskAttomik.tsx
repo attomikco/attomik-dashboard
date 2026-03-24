@@ -25,20 +25,20 @@ function getGreeting(tz: string): string {
   return 'Hey'
 }
 
-function getContextLine(metrics: any): string {
+function getContextLine(metrics: any, orgName: string): string {
   if (!metrics) return 'what do you want to explore?'
   const revChg = parseFloat(metrics.totalRevChg)
   const ordChg = parseFloat(metrics.ordersChg)
   const roas = parseFloat(metrics.roas)
 
   // positive highlights
-  if (!isNaN(revChg) && revChg > 5) return `revenue is up ${revChg}% — want to dig into what's driving the growth?`
-  if (!isNaN(roas) && roas >= 3) return `your ROAS is sitting at ${roas}x. Curious which channels are pulling the most weight?`
-  if (!isNaN(ordChg) && ordChg > 5) return `orders are up ${ordChg}% this period. Want to see where the momentum is coming from?`
-  if (!isNaN(revChg) && revChg > 0) return `revenue is trending up. Ready to explore what's working?`
+  if (!isNaN(revChg) && revChg > 5) return `${orgName} revenue is up ${revChg}% — want to dig into what's driving the growth?`
+  if (!isNaN(roas) && roas >= 3) return `${orgName} ROAS is sitting at ${roas}x. Curious which channels are pulling the most weight?`
+  if (!isNaN(ordChg) && ordChg > 5) return `${orgName} orders are up ${ordChg}% this period. Want to see where the momentum is coming from?`
+  if (!isNaN(revChg) && revChg > 0) return `${orgName} revenue is trending up. Ready to explore what's working?`
 
   // neutral — still contextual
-  if (metrics.totalRev) return `you've done ${metrics.totalRev} in revenue this period. Want to find opportunities to grow?`
+  if (metrics.totalRev) return `${orgName} has done ${metrics.totalRev} in revenue this period. Want to find opportunities to grow?`
   return 'what do you want to explore?'
 }
 
@@ -49,7 +49,7 @@ export default function AskAttomik({ metrics, orgName, period, userName, timezon
 
   const firstName = userName?.split(' ')[0] || 'there'
   const greeting = getGreeting(timezone)
-  const contextLine = getContextLine(metrics)
+  const contextLine = getContextLine(metrics, orgName)
 
   const ask = async (e: React.FormEvent) => {
     e.preventDefault()
