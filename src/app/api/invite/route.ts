@@ -9,7 +9,7 @@ async function sendResendEmail(to: string, subject: string, html: string) {
       'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
     },
     body: JSON.stringify({
-      from: 'Attomik <no-reply@email.attomik.co>',
+      from: 'Attomik <hello@email.attomik.co>',
       to,
       subject,
       html,
