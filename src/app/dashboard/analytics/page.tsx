@@ -858,6 +858,11 @@ export default function AnalyticsPage() {
             <KpiCard label="CAC"    value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors />
             <KpiCard label="AOV"    value={fmt$(d.aovC)} change={pct(d.aovC, d.aovP)} />
           </div>
+          {trafficData && trafficData.users > 0 && (
+            <div className="kpi-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
+              <KpiCard label="Conv. Rate (Users)" value={fmtPct(d.ordC / trafficData.users * 100)} change={trafficData.usersP > 0 && d.ordP > 0 ? pct(d.ordC / trafficData.users * 100, d.ordP / trafficData.usersP * 100) : undefined} subtitle="Orders ÷ Users" />
+            </div>
+          )}
 
           {/* ── CLTV & CLTV/CAC ── */}
           {d.cltvC > 0 && (
