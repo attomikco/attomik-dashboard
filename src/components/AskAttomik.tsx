@@ -49,7 +49,9 @@ export default function AskAttomik({ metrics, orgName, period, userName, timezon
 
   const firstName = userName?.split(' ')[0] || 'there'
   const greeting = getGreeting(timezone)
+  console.log('[AskAttomik] metrics:', JSON.stringify(metrics))
   const contextLine = getContextLine(metrics)
+  console.log('[AskAttomik] contextLine:', contextLine)
 
   const ask = async (e: React.FormEvent) => {
     e.preventDefault()
