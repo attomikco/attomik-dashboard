@@ -13,14 +13,25 @@ interface Props {
   orgName: string
   period: string
   userName: string
+  timezone?: string
 }
 
-export default function AskAttomik({ metrics, orgName, period, userName }: Props) {
+function getGreeting(tz: string): string {
+  const hour = new Date().toLocaleString('en-US', { timeZone: tz, hour: 'numeric', hour12: false })
+  const h = parseInt(hour, 10)
+  if (h >= 5 && h < 12) return 'Good morning'
+  if (h >= 12 && h < 17) return 'Good afternoon'
+  if (h >= 17 && h < 21) return 'Good evening'
+  return 'Hey'
+}
+
+export default function AskAttomik({ metrics, orgName, period, userName, timezone = 'America/New_York' }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
 
   const firstName = userName?.split(' ')[0] || 'there'
+  const greeting = getGreeting(timezone)
 
   const ask = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,11 +63,11 @@ export default function AskAttomik({ metrics, orgName, period, userName }: Props
   return (
     <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 10, overflow: 'hidden', marginBottom: 8 }}>
       {/* Header */}
-      <div style={{ padding: '16px 20px 12px' }}>
-        <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#000', fontFamily: 'Barlow, sans-serif', letterSpacing: '-0.02em' }}>
-          Hey {firstName}, what do you want to explore?
+      <div style={{ padding: '20px 20px 14px' }}>
+        <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#000', fontFamily: 'Barlow, sans-serif', letterSpacing: '-0.03em' }}>
+          {greeting} {firstName}, what do you want to explore?
         </div>
-        <div style={{ fontSize: '0.72rem', color: '#999', fontFamily: 'Barlow, sans-serif', marginTop: 2 }}>
+        <div style={{ fontSize: '0.8rem', color: '#999', fontFamily: 'Barlow, sans-serif', marginTop: 4 }}>
           Ask anything about your {orgName} metrics
         </div>
         {messages.length === 0 && (

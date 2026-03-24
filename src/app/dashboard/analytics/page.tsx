@@ -197,6 +197,7 @@ export default function AnalyticsPage() {
   const [orgName, setOrgName] = useState<string>('your store')
   const [lastSynced, setLastSynced] = useState<string | null>(null)
   const [userName, setUserName] = useState<string>('')
+  const [timezone, setTimezone] = useState<string>('America/New_York')
   const [estEOM, setEstEOM] = useState<number | null>(null)
   const supabase = createClient()
 
@@ -225,6 +226,7 @@ export default function AnalyticsPage() {
     if (orgData?.name) { setOrgName(orgData.name); document.title = `${orgData.name} Analytics | Attomik` }
     if (orgData?.shopify_synced_at) setLastSynced(orgData.shopify_synced_at)
     const orgTimezone = orgData?.timezone ?? 'America/New_York'
+    setTimezone(orgTimezone)
     // Compute org-timezone-aware dates for this fetch (don't mutate range state)
     const orgToday = dateInTz(orgTimezone)
     const orgMonthStart = monthStartInTz(orgTimezone)
@@ -748,63 +750,11 @@ export default function AnalyticsPage() {
           <div style={{ color: C.muted, textAlign: 'center', padding: '80px 0', fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontSize: '1rem' }}>No data yet. Upload a CSV to get started.</div>
         ) : (<>
 
-          {/* ── AI INSIGHTS ── */}
-          <AIInsights
-            period={`${fmtDate(range.start)} – ${fmtDate(range.end)}`}
-            preset={range.label ?? 'custom'}
-            orgName={orgName}
-            metrics={{
-              totalRev: fmt$(d.totalRevC), totalRevP: fmt$(d.totalRevP), totalRevChg: pct(d.totalRevC, d.totalRevP).toFixed(1),
-              totalSp: fmt$(d.totalSpC), totalSpChg: pct(d.totalSpC, d.totalSpP).toFixed(1),
-              roas: d.roasC.toFixed(2), roasP: d.roasP.toFixed(2),
-              orders: d.ordC, ordersChg: pct(d.ordC, d.ordP).toFixed(1),
-              aov: fmt$(d.aovC), aovChg: pct(d.aovC, d.aovP).toFixed(1),
-              cac: fmt$(d.cacC), cacChg: pct(d.cacC, d.cacP).toFixed(1),
-              newCust: d.newCustC, retCust: d.retCustC,
-              retRate: d.shRcrC.toFixed(1),
-              // Channel breakdown
-              shopifyRev: d.showShopify ? fmt$(d.shTotalC) : null,
-              shopifyRevP: d.showShopify ? fmt$(d.shTotalP) : null,
-              shopifyRevChg: d.shTotalP > 0 ? pct(d.shTotalC, d.shTotalP).toFixed(1) : null,
-              shopifyPctOfTotal: d.totalRevC > 0 ? (d.shTotalC / d.totalRevC * 100).toFixed(1) : null,
-              shopifyGross: d.showShopify ? fmt$(d.shGrossC) : null,
-              shopifyNet: d.showShopify ? fmt$(d.shNetC) : null,
-              shopifyOrders: d.shOrdC,
-              shopifyCust: d.shCustC,
-              shopifyAov: fmt$(d.shAovC),
-              shopifyRoas: d.shRoasC > 0 ? d.shRoasC.toFixed(2) : null,
-              discountRate: d.shDiscRateC.toFixed(1),
-              refundRate: d.shRefRateC.toFixed(1),
-              // Amazon
-              amazonRev: d.showAmazon && d.amzRevC > 0 ? fmt$(d.amzRevC) : null,
-              amazonRevP: d.showAmazon && d.amzRevP > 0 ? fmt$(d.amzRevP) : null,
-              amazonRevChg: d.amzRevP > 0 ? pct(d.amzRevC, d.amzRevP).toFixed(1) : null,
-              amazonPctOfTotal: d.totalRevC > 0 && d.amzRevC > 0 ? (d.amzRevC / d.totalRevC * 100).toFixed(1) : null,
-              amazonUnits: d.amzUnitC,
-              amazonAov: d.amzAovC > 0 ? fmt$(d.amzAovC) : null,
-              // Ad Spend detail
-              metaSp: d.showMeta ? fmt$(d.metaSpC) : null,
-              metaSpChg: d.metaSpP > 0 ? pct(d.metaSpC, d.metaSpP).toFixed(1) : null,
-              metaRoas: d.metaRoasC > 0 ? d.metaRoasC.toFixed(2) : null,
-              metaImpr: d.metaImprC, metaClicks: d.metaClkC, metaConv: d.metaConvC,
-              // CLTV
-              cltv: d.cltvC > 0 ? fmt$(d.cltvC) : null,
-              cltvP: d.cltvP > 0 ? fmt$(d.cltvP) : null,
-              cltvChg: d.cltvP > 0 ? pct(d.cltvC, d.cltvP).toFixed(1) : null,
-              cltvCacRatio: d.cltvC > 0 && d.cacC > 0 ? (d.cltvC / d.cacC).toFixed(2) : null,
-              // Subscriptions
-              subRev: d.subRevC > 0 ? fmt$(d.subRevC) : null,
-              subRevChg: d.subRevP > 0 ? pct(d.subRevC, d.subRevP).toFixed(1) : null,
-              subOrders: d.subCountC,
-              subOrdersChg: d.subCountP > 0 ? pct(d.subCountC, d.subCountP).toFixed(1) : null,
-              subCusts: d.subCustsC,
-              subPctRev: d.subPctRevC > 0 ? d.subPctRevC.toFixed(1) : null,
-            }}
-          />
-
+          {/* ── ASK ATTOMIK ── */}
           <AskAttomik
             userName={userName}
             orgName={orgName}
+            timezone={timezone}
             period={`${fmtDate(range.start)} – ${fmtDate(range.end)}`}
             metrics={{
               totalRev: fmt$(d.totalRevC), totalRevChg: pct(d.totalRevC, d.totalRevP).toFixed(1),
@@ -841,6 +791,55 @@ export default function AnalyticsPage() {
               subRev: d.subRevC > 0 ? fmt$(d.subRevC) : null,
               subRevChg: d.subRevP > 0 ? pct(d.subRevC, d.subRevP).toFixed(1) : null,
               subOrders: d.subCountC,
+              subCusts: d.subCustsC,
+              subPctRev: d.subPctRevC > 0 ? d.subPctRevC.toFixed(1) : null,
+            }}
+          />
+
+          {/* ── AI INSIGHTS ── */}
+          <AIInsights
+            period={`${fmtDate(range.start)} – ${fmtDate(range.end)}`}
+            preset={range.label ?? 'custom'}
+            orgName={orgName}
+            metrics={{
+              totalRev: fmt$(d.totalRevC), totalRevP: fmt$(d.totalRevP), totalRevChg: pct(d.totalRevC, d.totalRevP).toFixed(1),
+              totalSp: fmt$(d.totalSpC), totalSpChg: pct(d.totalSpC, d.totalSpP).toFixed(1),
+              roas: d.roasC.toFixed(2), roasP: d.roasP.toFixed(2),
+              orders: d.ordC, ordersChg: pct(d.ordC, d.ordP).toFixed(1),
+              aov: fmt$(d.aovC), aovChg: pct(d.aovC, d.aovP).toFixed(1),
+              cac: fmt$(d.cacC), cacChg: pct(d.cacC, d.cacP).toFixed(1),
+              newCust: d.newCustC, retCust: d.retCustC,
+              retRate: d.shRcrC.toFixed(1),
+              shopifyRev: d.showShopify ? fmt$(d.shTotalC) : null,
+              shopifyRevP: d.showShopify ? fmt$(d.shTotalP) : null,
+              shopifyRevChg: d.shTotalP > 0 ? pct(d.shTotalC, d.shTotalP).toFixed(1) : null,
+              shopifyPctOfTotal: d.totalRevC > 0 ? (d.shTotalC / d.totalRevC * 100).toFixed(1) : null,
+              shopifyGross: d.showShopify ? fmt$(d.shGrossC) : null,
+              shopifyNet: d.showShopify ? fmt$(d.shNetC) : null,
+              shopifyOrders: d.shOrdC,
+              shopifyCust: d.shCustC,
+              shopifyAov: fmt$(d.shAovC),
+              shopifyRoas: d.shRoasC > 0 ? d.shRoasC.toFixed(2) : null,
+              discountRate: d.shDiscRateC.toFixed(1),
+              refundRate: d.shRefRateC.toFixed(1),
+              amazonRev: d.showAmazon && d.amzRevC > 0 ? fmt$(d.amzRevC) : null,
+              amazonRevP: d.showAmazon && d.amzRevP > 0 ? fmt$(d.amzRevP) : null,
+              amazonRevChg: d.amzRevP > 0 ? pct(d.amzRevC, d.amzRevP).toFixed(1) : null,
+              amazonPctOfTotal: d.totalRevC > 0 && d.amzRevC > 0 ? (d.amzRevC / d.totalRevC * 100).toFixed(1) : null,
+              amazonUnits: d.amzUnitC,
+              amazonAov: d.amzAovC > 0 ? fmt$(d.amzAovC) : null,
+              metaSp: d.showMeta ? fmt$(d.metaSpC) : null,
+              metaSpChg: d.metaSpP > 0 ? pct(d.metaSpC, d.metaSpP).toFixed(1) : null,
+              metaRoas: d.metaRoasC > 0 ? d.metaRoasC.toFixed(2) : null,
+              metaImpr: d.metaImprC, metaClicks: d.metaClkC, metaConv: d.metaConvC,
+              cltv: d.cltvC > 0 ? fmt$(d.cltvC) : null,
+              cltvP: d.cltvP > 0 ? fmt$(d.cltvP) : null,
+              cltvChg: d.cltvP > 0 ? pct(d.cltvC, d.cltvP).toFixed(1) : null,
+              cltvCacRatio: d.cltvC > 0 && d.cacC > 0 ? (d.cltvC / d.cacC).toFixed(2) : null,
+              subRev: d.subRevC > 0 ? fmt$(d.subRevC) : null,
+              subRevChg: d.subRevP > 0 ? pct(d.subRevC, d.subRevP).toFixed(1) : null,
+              subOrders: d.subCountC,
+              subOrdersChg: d.subCountP > 0 ? pct(d.subCountC, d.subCountP).toFixed(1) : null,
               subCusts: d.subCustsC,
               subPctRev: d.subPctRevC > 0 ? d.subPctRevC.toFixed(1) : null,
             }}
