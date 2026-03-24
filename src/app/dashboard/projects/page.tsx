@@ -88,6 +88,7 @@ export default function ProjectsPage() {
   const [showChatLogs, setShowChatLogs] = useState(false)
   const [pageTab, setPageTab] = useState<'projects' | 'team' | 'logs'>('projects')
   const [logsPage, setLogsPage] = useState(0)
+  const [expandedLog, setExpandedLog] = useState<string | null>(null)
   const LOGS_PER_PAGE = 25
   const supabase = createClient()
   const router = useRouter()
@@ -608,19 +609,20 @@ export default function ProjectsPage() {
               <div style={{ color: '#ccc', fontSize: '0.8rem', fontFamily: 'Barlow, sans-serif' }}>No chat activity yet.</div>
             ) : (
               <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
                   <thead>
                     <tr style={{ background: C.cream }}>
-                      {['User', 'Project', 'Type', 'Question', 'Answer', 'Time'].map(h => (
+                      {['User', 'Project', 'Type', 'Question', 'Time'].map(h => (
                         <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.muted, fontFamily: 'Barlow, sans-serif', borderBottom: `1px solid ${C.border}` }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {chatLogs.slice(logsPage * LOGS_PER_PAGE, (logsPage + 1) * LOGS_PER_PAGE).map((log: any, i: number) => (
-                      <tr key={log.id} style={{ borderTop: i > 0 ? `1px solid ${C.border}` : 'none' }}
+                    {chatLogs.slice(logsPage * LOGS_PER_PAGE, (logsPage + 1) * LOGS_PER_PAGE).map((log: any, i: number) => (<Fragment key={log.id}>
+                      <tr style={{ borderTop: i > 0 ? `1px solid ${C.border}` : 'none', cursor: 'pointer' }}
+                        onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id)}
                         onMouseEnter={e => (e.currentTarget.style.background = '#fafafa')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                        onMouseLeave={e => (e.currentTarget.style.background = expandedLog === log.id ? '#fafafa' : 'transparent')}>
                         <td style={{ padding: '10px 12px', fontSize: '0.78rem', fontFamily: 'Barlow, sans-serif', fontWeight: 600, whiteSpace: 'nowrap' }}>{log.email}</td>
                         <td style={{ padding: '10px 12px', fontSize: '0.75rem', fontFamily: 'Barlow, sans-serif', color: C.muted, whiteSpace: 'nowrap' }}>{log.org_name ?? '—'}</td>
                         <td style={{ padding: '10px 12px' }}>
@@ -629,13 +631,26 @@ export default function ProjectsPage() {
                             color: log.type === 'insights' ? '#007a48' : '#4f46e5',
                           }}>{log.type}</span>
                         </td>
-                        <td style={{ padding: '10px 12px', fontSize: '0.78rem', fontFamily: 'Barlow, sans-serif', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.question}>{log.question}</td>
-                        <td style={{ padding: '10px 12px', fontSize: '0.75rem', fontFamily: 'Barlow, sans-serif', color: C.muted, maxWidth: 400, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{log.answer}</td>
+                        <td style={{ padding: '10px 12px', fontSize: '0.78rem', fontFamily: 'Barlow, sans-serif', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.question}</td>
                         <td style={{ padding: '10px 12px', fontSize: '0.72rem', fontFamily: 'Barlow, sans-serif', color: '#999', whiteSpace: 'nowrap' }}>
                           {new Date(log.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                         </td>
                       </tr>
-                    ))}
+                      {expandedLog === log.id && (
+                        <tr style={{ background: '#fafafa' }}>
+                          <td colSpan={5} style={{ padding: '16px 20px' }}>
+                            <div style={{ marginBottom: 12 }}>
+                              <div style={{ fontSize: '0.68rem', fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Barlow, sans-serif', marginBottom: 6 }}>Question</div>
+                              <div style={{ fontSize: '0.82rem', fontFamily: 'Barlow, sans-serif', lineHeight: 1.5 }}>{log.question}</div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.68rem', fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Barlow, sans-serif', marginBottom: 6 }}>Answer</div>
+                              <div style={{ fontSize: '0.82rem', fontFamily: 'Barlow, sans-serif', color: C.muted, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{log.answer}</div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>))}
                   </tbody>
                 </table>
               </div>
