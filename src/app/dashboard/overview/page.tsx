@@ -53,6 +53,8 @@ interface OrgKpi {
   prevRoas: number
   shopifyRev: number
   amazonRev: number
+  convRate: number
+  prevConvRate: number
   loading: boolean
 }
 
@@ -109,7 +111,7 @@ export default function OverviewPage() {
       const initial: OrgKpi[] = orgList.map(o => ({
         ...o, revenue: 0, prevRevenue: 0, orders: 0, prevOrders: 0,
         aov: 0, prevAov: 0, adSpend: 0, prevAdSpend: 0, roas: 0, prevRoas: 0,
-        shopifyRev: 0, amazonRev: 0, loading: true,
+        shopifyRev: 0, amazonRev: 0, convRate: 0, prevConvRate: 0, loading: true,
       }))
       setOrgs(initial)
       setLoadingOrgs(false)
@@ -217,8 +219,28 @@ export default function OverviewPage() {
         const shopifyRev  = cur.filter(o => o.source === 'shopify').reduce((s, o) => s + Number(o.total_price || 0), 0)
         const amazonRev   = cur.filter(o => o.source === 'amazon').reduce((s, o) => s + Number(o.total_price || 0), 0)
 
+        // Fetch GA traffic for conv rate if org has GA configured
+        let convRate = 0, prevConvRate = 0
+        if ((org as any).ga_property_id) {
+          try {
+            const fetchTraffic = (start: string, end: string) =>
+              fetch('/api/analytics/traffic', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ org_id: org.id, startDate: start, endDate: end }),
+              }).then(r => r.ok ? r.json() : null)
+            const prevRange = { start: daysAgo(diffDays * 2), end: daysAgo(diffDays) }
+            const [gaCur, gaPrev] = await Promise.all([
+              fetchTraffic(orgCurStart, orgCurEnd),
+              fetchTraffic(prevRange.start, prevRange.end),
+            ])
+            if (gaCur?.users > 0) convRate = (orders / gaCur.users) * 100
+            if (gaPrev?.users > 0 && prevOrdCnt > 0) prevConvRate = (prevOrdCnt / gaPrev.users) * 100
+          } catch {}
+        }
+
         if (!cancelled) setOrgs(prev => prev.map(o => o.id === org.id
-          ? { ...o, revenue, prevRevenue, orders, prevOrders: prevOrdCnt, aov, prevAov, adSpend, prevAdSpend, roas, prevRoas, shopifyRev, amazonRev, loading: false }
+          ? { ...o, revenue, prevRevenue, orders, prevOrders: prevOrdCnt, aov, prevAov, adSpend, prevAdSpend, roas, prevRoas, shopifyRev, amazonRev, convRate, prevConvRate, loading: false }
           : o
         ))
       } catch {
@@ -266,6 +288,11 @@ export default function OverviewPage() {
   const totalPrevSp   = loaded.reduce((s, o) => s + o.prevAdSpend, 0)
   const blendedRoas   = totalSpend > 0 ? totalRevenue / totalSpend : 0
   const prevRoas      = totalPrevSp > 0 ? totalPrevRev / totalPrevSp : 0
+  // Average conv rate across orgs that have GA data
+  const orgsWithConv  = loaded.filter(o => o.convRate > 0)
+  const avgConvRate   = orgsWithConv.length > 0 ? orgsWithConv.reduce((s, o) => s + o.convRate, 0) / orgsWithConv.length : 0
+  const orgsWithPrevConv = loaded.filter(o => o.prevConvRate > 0)
+  const avgPrevConv   = orgsWithPrevConv.length > 0 ? orgsWithPrevConv.reduce((s, o) => s + o.prevConvRate, 0) / orgsWithPrevConv.length : 0
 
   const dayCount = Math.round((new Date(range.end).getTime() - new Date(range.start).getTime()) / 864e5) + 1
 
@@ -342,13 +369,14 @@ export default function OverviewPage() {
 
         {/* Summary strip — only meaningful with 2+ orgs */}
         {!loadingOrgs && orgs.length > 1 && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 28 }}
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${avgConvRate > 0 ? 5 : 4}, 1fr)`, gap: 12, marginBottom: 28 }}
                className="summary-grid">
             {[
               { label: 'Total Sales',  value: fmt$(totalRevenue), delta: pct(totalRevenue, totalPrevRev) },
               { label: 'Total Orders',   value: fmtN(totalOrders),  delta: pct(totalOrders, totalPrevOrd) },
               { label: 'Total Ad Spend', value: fmt$(totalSpend),   delta: pct(totalSpend, totalPrevSp), invert: true },
               { label: 'Blended ROAS',   value: blendedRoas > 0 ? `${blendedRoas.toFixed(2)}x` : '—', delta: pct(blendedRoas, prevRoas) },
+              ...(avgConvRate > 0 ? [{ label: 'Conv. Rate (Users)', value: `${avgConvRate.toFixed(2)}%`, delta: pct(avgConvRate, avgPrevConv) }] : []),
             ].map(k => (
               <div key={k.label} style={{ background: C.paper, border: `1px solid ${C.border}`, borderRadius: 10, padding: '18px 20px' }}>
                 <div style={{ fontSize: '0.7rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'Barlow, sans-serif', marginBottom: 8 }}>{k.label}</div>
