@@ -321,9 +321,23 @@ export default function AnalyticsPage() {
     const orderCols = 'total_price,status,source,customer_email,created_at,units,subtotal,discount_amount,shipping_amount,tax_amount,refunded_amount,is_subscription'
     const orderColsLight = 'total_price,source,customer_email,created_at,units,is_subscription'
 
-    const [cur, prev, curS, prevS, allOrdRaw, allSpRaw] = await Promise.all([
-      fetchAllOrders(thisStart, thisEnd, orderCols),
-      fetchAllOrders(prevStartISO, prevEndISO, orderCols),
+    // Amazon orders are stored at midnight UTC — fetch them with plain date boundaries
+    // so timezone offsets don't cause them to be missed
+    const amazonCurStart = `${resolvedRange.start}T00:00:00.000Z`
+    const amazonCurEnd   = `${resolvedRange.end}T23:59:59.999Z`
+    const amazonPrevStart = `${prevStart}T00:00:00.000Z`
+    const amazonPrevEnd   = `${prevEnd}T23:59:59.999Z`
+
+    const fetchNonAmazon = (gte: string, lte: string, cols: string) =>
+      fetchAllOrders(gte, lte, cols).then(orders => orders.filter(o => o.source !== 'amazon'))
+    const fetchAmazon = (gte: string, lte: string, cols: string) =>
+      fetchAllOrders(gte, lte, cols).then(orders => orders.filter(o => o.source === 'amazon'))
+
+    const [curNonAmazon, curAmazon, prevNonAmazon, prevAmazon, curS, prevS, allOrdRaw, allSpRaw] = await Promise.all([
+      fetchNonAmazon(thisStart, thisEnd, orderCols),
+      fetchAmazon(amazonCurStart, amazonCurEnd, orderCols),
+      fetchNonAmazon(prevStartISO, prevEndISO, orderCols),
+      fetchAmazon(amazonPrevStart, amazonPrevEnd, orderCols),
       supabase.from('ad_spend').select('spend,platform,impressions,clicks,conversions,date').eq('org_id', orgId).gte('date', resolvedRange.start).lte('date', resolvedRange.end).limit(5000),
       supabase.from('ad_spend').select('spend,platform,impressions,clicks,conversions').eq('org_id', orgId).gte('date', prevStart).lte('date', prevEnd).limit(5000),
       fetchAllOrders(sixMonthsAgo, new Date().toISOString(), orderColsLight),
@@ -343,6 +357,8 @@ export default function AnalyticsPage() {
       })(),
     ])
 
+    const cur  = [...curNonAmazon, ...curAmazon]
+    const prev = [...prevNonAmazon, ...prevAmazon]
     const cSpend = curS.data ?? [], pSpend = prevS.data ?? []
     const allOrd = allOrdRaw ?? []
     const allSp = allSpRaw?.data ?? []
