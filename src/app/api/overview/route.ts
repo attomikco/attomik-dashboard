@@ -17,13 +17,13 @@ export async function GET(request: Request) {
     let orgs: any[] = []
     if (prof?.is_superadmin && !viewAsUserId) {
       const { data } = await serviceClient
-        .from('organizations').select('id, name, slug, timezone, channels').order('name')
+        .from('organizations').select('id, name, slug, timezone, channels, shopify_synced_at').order('name')
       orgs = data ?? []
     } else {
       const targetUserId = viewAsUserId ?? user.id
       const { data: memberships } = await serviceClient
         .from('org_memberships')
-        .select('org_id, organizations(id, name, slug, timezone, channels)')
+        .select('org_id, organizations(id, name, slug, timezone, channels, shopify_synced_at)')
         .eq('user_id', targetUserId)
       orgs = (memberships ?? []).map((m: any) => m.organizations).filter(Boolean)
     }

@@ -235,11 +235,21 @@ export default function OverviewPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Sync failed')
       setSyncResult({ ok: true, text: data.message })
+      // Update synced_at timestamps locally
+      const now = new Date().toISOString()
+      setOrgs(prev => prev.map(o => ({ ...o, shopify_synced_at: now })))
     } catch (err: any) {
       setSyncResult({ ok: false, text: err.message })
     }
     setSyncingAll(false)
   }
+
+  // Most recent Shopify sync across all orgs
+  const lastSyncedAt = orgs.reduce((latest, o) => {
+    const ts = (o as any).shopify_synced_at
+    if (!ts) return latest
+    return !latest || ts > latest ? ts : latest
+  }, null as string | null)
 
   const openOrg = (org: OrgKpi) => {
     localStorage.setItem('activeOrgId', org.id)
@@ -294,27 +304,33 @@ export default function OverviewPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
           {isSuperadmin && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button
-                onClick={handleSyncAll}
-                disabled={syncingAll}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                  padding: '8px 14px', background: syncingAll ? C.cream : C.ink,
-                  color: syncingAll ? C.muted : C.accent,
-                  fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.78rem',
-                  border: 'none', borderRadius: 6,
-                  cursor: syncingAll ? 'not-allowed' : 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <RefreshCw size={13} style={{ animation: syncingAll ? 'spin 1s linear infinite' : 'none' }} />
-                {syncingAll ? 'Syncing Shopify…' : 'Sync Shopify Orders'}
-              </button>
-              {syncResult && (
-                <span style={{ fontSize: '0.72rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', color: syncResult.ok ? '#007a48' : '#b91c1c', maxWidth: 220, lineHeight: 1.3 }}>
-                  {syncResult.text}
-                </span>
-              )}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+                <button
+                  onClick={handleSyncAll}
+                  disabled={syncingAll}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '8px 14px', background: syncingAll ? C.cream : C.ink,
+                    color: syncingAll ? C.muted : C.accent,
+                    fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.78rem',
+                    border: 'none', borderRadius: 6,
+                    cursor: syncingAll ? 'not-allowed' : 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <RefreshCw size={13} style={{ animation: syncingAll ? 'spin 1s linear infinite' : 'none' }} />
+                  {syncingAll ? 'Syncing Shopify…' : 'Sync Shopify Orders'}
+                </button>
+                {syncResult ? (
+                  <span style={{ fontSize: '0.68rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', color: syncResult.ok ? '#007a48' : '#b91c1c', lineHeight: 1.3 }}>
+                    {syncResult.text}
+                  </span>
+                ) : lastSyncedAt && !syncingAll ? (
+                  <span style={{ fontSize: '0.68rem', color: C.muted, fontFamily: 'Barlow, sans-serif' }}>
+                    Last synced {new Date(lastSyncedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                  </span>
+                ) : null}
+              </div>
             </div>
           )}
           <DateRangePicker value={range} onChange={r => setRange(r)} />
