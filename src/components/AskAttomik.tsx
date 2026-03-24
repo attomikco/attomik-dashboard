@@ -25,13 +25,21 @@ function getGreeting(tz: string): string {
   return 'Hey'
 }
 
-function getContextLine(metrics: any): string | null {
+function getContextLine(metrics: any): { headline: string; sub: string } | null {
   if (!metrics) return null
-  const chg = parseFloat(metrics.totalRevChg)
-  if (isNaN(chg)) return null
-  if (chg > 0) return `revenue is up ${chg}% this period`
-  if (chg < 0) return `revenue is down ${Math.abs(chg)}% this period`
-  return 'revenue is flat this period'
+  const revChg = parseFloat(metrics.totalRevChg)
+  const ordChg = parseFloat(metrics.ordersChg)
+  const roas = parseFloat(metrics.roas)
+
+  if (!isNaN(revChg) && revChg > 5)
+    return { headline: `revenue is up ${revChg}% — let's keep it going`, sub: `Want to dig into what's driving the growth?` }
+  if (!isNaN(roas) && roas >= 3)
+    return { headline: `your ROAS is sitting at ${roas}x`, sub: `Curious which channels are pulling the most weight?` }
+  if (!isNaN(ordChg) && ordChg > 5)
+    return { headline: `orders are up ${ordChg}% this period`, sub: `Want to see where the momentum is coming from?` }
+  if (!isNaN(revChg) && revChg > 0)
+    return { headline: `revenue is trending up — solid`, sub: `Ready to explore what's working?` }
+  return null
 }
 
 export default function AskAttomik({ metrics, orgName, period, userName, timezone = 'America/New_York' }: Props) {
@@ -75,10 +83,10 @@ export default function AskAttomik({ metrics, orgName, period, userName, timezon
       {/* Header */}
       <div style={{ padding: '20px 20px 14px' }}>
         <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#000', fontFamily: 'Barlow, sans-serif', letterSpacing: '-0.03em' }}>
-          {greeting} {firstName}{contextLine ? ` — ${contextLine}` : ', what do you want to explore?'}
+          {greeting} {firstName}{contextLine ? ` — ${contextLine.headline}` : ', what do you want to explore?'}
         </div>
         <div style={{ fontSize: '0.8rem', color: '#999', fontFamily: 'Barlow, sans-serif', marginTop: 4 }}>
-          {contextLine ?? `Ask anything about your ${orgName} metrics`}
+          {contextLine?.sub ?? `Ask anything about your ${orgName} metrics`}
         </div>
         {messages.length === 0 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
