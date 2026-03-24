@@ -55,13 +55,48 @@ interface Props {
   onChange: (range: DateRange) => void
 }
 
+const STORAGE_KEY = 'attomik_date_range'
+
+function getSavedRange(): DateRange | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const saved = JSON.parse(raw) as DateRange
+    // For preset labels (not custom), recalculate the dates so they stay fresh
+    if (saved.label && saved.label !== 'Custom range') {
+      const preset = PRESETS.find(p => p.label === saved.label)
+      if (preset) {
+        const range = preset.getRange()
+        return { ...range, label: saved.label }
+      }
+    }
+    // For custom ranges, return as-is
+    if (saved.start && saved.end && saved.label) return saved
+    return null
+  } catch { return null }
+}
+
 export default function DateRangePicker({ value, onChange }: Props) {
   const [open, setOpen] = useState(false)
   const [customStart, setCustomStart] = useState(value.start)
   const [customEnd, setCustomEnd] = useState(value.end)
   const [activePreset, setActivePreset] = useState(value.label)
   const [isMobile, setIsMobile] = useState(false)
+  const [restored, setRestored] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+
+  // Restore saved range on mount
+  useEffect(() => {
+    if (restored) return
+    const saved = getSavedRange()
+    if (saved && (saved.label !== value.label || saved.start !== value.start || saved.end !== value.end)) {
+      setCustomStart(saved.start)
+      setCustomEnd(saved.end)
+      setActivePreset(saved.label)
+      onChange(saved)
+    }
+    setRestored(true)
+  }, [restored])
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 640)
@@ -98,14 +133,18 @@ export default function DateRangePicker({ value, onChange }: Props) {
     setCustomEnd(range.end)
     setActivePreset(preset.label)
     if (preset.label !== 'Custom range') {
-      onChange({ ...range, label: preset.label })
+      const newRange = { ...range, label: preset.label }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newRange))
+      onChange(newRange)
       setOpen(false)
     }
   }
 
   const applyCustom = () => {
     if (customStart && customEnd && customStart <= customEnd) {
-      onChange({ start: customStart, end: customEnd, label: 'Custom range' })
+      const newRange = { start: customStart, end: customEnd, label: 'Custom range' }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newRange))
+      onChange(newRange)
       setOpen(false)
     }
   }
