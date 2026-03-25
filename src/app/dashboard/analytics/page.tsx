@@ -14,6 +14,7 @@ import CacTrendChart from '@/components/CacTrendChart'
 import RetentionChart from '@/components/RetentionChart'
 import ReturnGrowthChart from '@/components/ReturnGrowthChart'
 import AIInsights from '@/components/AIInsights'
+import EmailInsights from '@/components/EmailInsights'
 import AskAttomik from '@/components/AskAttomik'
 
 function pct(current: number, prev: number) {
@@ -199,6 +200,7 @@ export default function AnalyticsPage() {
   const [userName, setUserName] = useState<string>('')
   const [timezone, setTimezone] = useState<string>('America/New_York')
   const [estEOM, setEstEOM] = useState<number | null>(null)
+  const [activeOrgId, setActiveOrgId] = useState<string>('')
   const supabase = createClient()
 
   useEffect(() => { fetchData() }, [range])
@@ -219,6 +221,7 @@ export default function AnalyticsPage() {
       }
     }
     if (!orgId) { setLoading(false); return }
+    setActiveOrgId(orgId)
 
     // Fetch user name for personalized greeting (use view-as name if active)
     const viewAsName = localStorage.getItem('viewAsUserName')
@@ -858,6 +861,32 @@ export default function AnalyticsPage() {
               convRateP: trafficData && trafficData.usersP > 0 && d.ordP > 0 ? (d.ordP / trafficData.usersP * 100).toFixed(2) : null,
               gaUsers: trafficData?.users ?? null,
               gaSessions: trafficData?.sessions ?? null,
+            }}
+          />
+
+          {/* ── EMAIL UPDATE ── */}
+          <EmailInsights
+            period={`${fmtDate(range.start)} – ${fmtDate(range.end)}`}
+            preset={range.label ?? 'custom'}
+            orgName={orgName}
+            orgId={activeOrgId}
+            metrics={{
+              totalRev: fmt$(d.totalRevC), totalRevP: fmt$(d.totalRevP), totalRevChg: pct(d.totalRevC, d.totalRevP).toFixed(1),
+              totalSp: fmt$(d.totalSpC), totalSpChg: pct(d.totalSpC, d.totalSpP).toFixed(1),
+              roas: d.roasC.toFixed(2), roasP: d.roasP.toFixed(2),
+              orders: d.ordC, ordersChg: pct(d.ordC, d.ordP).toFixed(1),
+              aov: fmt$(d.aovC), aovChg: pct(d.aovC, d.aovP).toFixed(1),
+              cac: fmt$(d.cacC), cacChg: pct(d.cacC, d.cacP).toFixed(1),
+              newCust: d.newCustC, retCust: d.retCustC,
+              shopifyRev: d.showShopify ? fmt$(d.shTotalC) : null,
+              shopifyPctOfTotal: d.totalRevC > 0 ? (d.shTotalC / d.totalRevC * 100).toFixed(1) : null,
+              amazonRev: d.showAmazon && d.amzRevC > 0 ? fmt$(d.amzRevC) : null,
+              amazonPctOfTotal: d.totalRevC > 0 && d.amzRevC > 0 ? (d.amzRevC / d.totalRevC * 100).toFixed(1) : null,
+              metaSp: d.showMeta ? fmt$(d.metaSpC) : null,
+              metaRoas: d.metaRoasC > 0 ? d.metaRoasC.toFixed(2) : null,
+              cltv: d.cltvC > 0 ? fmt$(d.cltvC) : null,
+              convRate: trafficData && trafficData.users > 0 ? (d.ordC / trafficData.users * 100).toFixed(2) : null,
+              convRateP: trafficData && trafficData.usersP > 0 && d.ordP > 0 ? (d.ordP / trafficData.usersP * 100).toFixed(2) : null,
             }}
           />
 
