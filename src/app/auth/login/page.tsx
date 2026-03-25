@@ -1,10 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  )
+}
+
+function LoginForm() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -12,6 +20,14 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const supabase = createClient()
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Show error from callback redirect
+  useEffect(() => {
+    if (searchParams.get('error') === 'auth_failed') {
+      setError('Authentication failed. The link may have expired — please try again.')
+    }
+  }, [searchParams])
 
   // Handle implicit flow — token arrives as URL fragment (#access_token=...)
   useEffect(() => {
@@ -59,7 +75,7 @@ export default function LoginPage() {
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${location.origin}/auth/callback` },
+      options: { emailRedirectTo: `${location.origin}/auth/login` },
     })
     if (error) setError(error.message)
     else setSent(true)
