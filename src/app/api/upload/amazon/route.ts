@@ -16,11 +16,19 @@ export async function POST(request: Request) {
     const cleanInt = (v: string) => parseInt((v ?? '0').replace(/,/g, '')) || 0
 
     const records = rows.map(row => {
-      const rawDate = row['Date']
-      const parsedDate = rawDate ? new Date(rawDate) : null
-      const date = parsedDate && !isNaN(parsedDate.getTime())
-        ? parsedDate.toISOString().split('T')[0]
-        : null
+      const rawDate = row['Date']?.trim()
+      // Parse date robustly — use noon UTC to avoid timezone day-shift
+      let date: string | null = null
+      if (rawDate) {
+        // Try ISO format first (YYYY-MM-DD), then fall back to Date parsing with noon anchor
+        const isoMatch = rawDate.match(/^(\d{4})-(\d{2})-(\d{2})/)
+        if (isoMatch) {
+          date = `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`
+        } else {
+          const parsed = new Date(rawDate + ' 12:00:00 UTC')
+          if (!isNaN(parsed.getTime())) date = parsed.toISOString().split('T')[0]
+        }
+      }
 
       // Combine B2C + B2B for all metrics
       const revenue = clean(row['Ordered Product Sales']) + clean(row['Ordered Product Sales - B2B'])
@@ -41,7 +49,7 @@ export async function POST(request: Request) {
       total_price: r.revenue,
       units: r.units,
       status: 'paid' as const,
-      created_at: new Date(r.date!).toISOString(),
+      created_at: `${r.date}T12:00:00Z`,
     }))
 
     const serviceClient = createServiceClient()
