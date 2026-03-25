@@ -205,7 +205,19 @@ export default function AnalyticsPage() {
 
   const fetchData = async () => {
     setLoading(true)
-    const orgId = localStorage.getItem('activeOrgId')
+    let orgId = localStorage.getItem('activeOrgId')
+    // After fresh login, Sidebar may not have set activeOrgId yet — resolve it
+    if (!orgId) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: mem } = await supabase
+          .from('org_memberships').select('org_id').eq('user_id', user.id).limit(1).single()
+        if (mem?.org_id) {
+          orgId = mem.org_id
+          localStorage.setItem('activeOrgId', orgId)
+        }
+      }
+    }
     if (!orgId) { setLoading(false); return }
 
     // Fetch user name for personalized greeting (use view-as name if active)
