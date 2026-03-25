@@ -25,7 +25,8 @@ function LoginForm() {
   // Show error from callback redirect
   useEffect(() => {
     if (searchParams.get('error') === 'auth_failed') {
-      setError('Authentication failed. The link may have expired — please try again.')
+      const detail = searchParams.get('detail')
+      setError(`Authentication failed${detail ? `: ${detail}` : '. The link may have expired — please try again.'}`)
     }
   }, [searchParams])
 

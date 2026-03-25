@@ -70,15 +70,22 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL(next, requestUrl.origin))
   }
 
+  let authError: string | null = null
+
   if (code) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error && data.user) return handleUser(data.user)
+    authError = error?.message ?? 'code exchange failed'
   }
 
   if (token_hash && type) {
     const { data, error } = await supabase.auth.verifyOtp({ type: type as any, token_hash })
     if (!error && data.user) return handleUser(data.user)
+    authError = error?.message ?? 'otp verification failed'
   }
 
-  return NextResponse.redirect(new URL('/auth/login?error=auth_failed', requestUrl.origin))
+  const errorUrl = new URL('/auth/login', requestUrl.origin)
+  errorUrl.searchParams.set('error', 'auth_failed')
+  if (authError) errorUrl.searchParams.set('detail', authError)
+  return NextResponse.redirect(errorUrl)
 }
