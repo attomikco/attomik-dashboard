@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     template: '%s | Attomik',
     default: 'Attomik Dashboard',
   },
-  description: 'Ecommerce analytics for Attomik clients',
+  description: 'Ecommerce Analytics powered by Attomik',
   icons: {
     icon: '/favicon.png',
     apple: '/favicon.png',
