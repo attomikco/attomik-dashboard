@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     const { count } = await query
     deleted = count ?? 0
   } else if (orderPlatforms.includes(platform)) {
-    let orderQuery = service.from('orders').select('id').eq('org_id', orgId!).like('external_id', `${platform}_%`)
+    let orderQuery = service.from('orders').select('id, external_id').eq('org_id', orgId!).like('external_id', `${platform}_%`)
 
     if (mode === 'last') {
       const { data: latest } = await service
@@ -45,9 +45,11 @@ export async function POST(request: Request) {
     const { data: orders } = await orderQuery
     if (orders && orders.length > 0) {
       const orderIds = orders.map(o => o.id)
-      for (let i = 0; i < orderIds.length; i += 500) {
-        const batch = orderIds.slice(i, i + 500)
-        await service.from('order_items').delete().in('order_id', batch)
+      const externalIds = orders.map(o => o.external_id).filter(Boolean)
+      // Delete order_items by order_external_id (not order_id — that column doesn't exist)
+      for (let i = 0; i < externalIds.length; i += 500) {
+        const batch = externalIds.slice(i, i + 500)
+        await service.from('order_items').delete().eq('org_id', orgId!).in('order_external_id', batch)
       }
       for (let i = 0; i < orderIds.length; i += 500) {
         const batch = orderIds.slice(i, i + 500)
