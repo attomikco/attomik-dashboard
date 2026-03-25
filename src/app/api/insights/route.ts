@@ -98,6 +98,8 @@ CUSTOMERS:
 - New Customers: ${metrics.newCust}
 - Returning Customers: ${metrics.retCust}
 - Returning Customer Rate: ${metrics.retRate}%
+${metrics.convRate ? `- Conv. Rate (Users): ${metrics.convRate}%${metrics.convRateP ? ` (was ${metrics.convRateP}% prior)` : ''}` : ''}
+${metrics.gaUsers ? `- GA Users: ${metrics.gaUsers.toLocaleString()}${metrics.gaSessions ? `, Sessions: ${metrics.gaSessions.toLocaleString()}` : ''}` : ''}
 
 ${metrics.cltv ? `UNIT ECONOMICS:
 - CLTV (Shopify): ${metrics.cltv}${metrics.cltvChg ? ` (${Number(metrics.cltvChg) > 0 ? '+' : ''}${metrics.cltvChg}% vs prior)` : ''}

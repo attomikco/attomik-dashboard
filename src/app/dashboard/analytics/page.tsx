@@ -854,6 +854,10 @@ export default function AnalyticsPage() {
               subOrdersChg: d.subCountP > 0 ? pct(d.subCountC, d.subCountP).toFixed(1) : null,
               subCusts: d.subCustsC,
               subPctRev: d.subPctRevC > 0 ? d.subPctRevC.toFixed(1) : null,
+              convRate: trafficData && trafficData.users > 0 ? (d.ordC / trafficData.users * 100).toFixed(2) : null,
+              convRateP: trafficData && trafficData.usersP > 0 && d.ordP > 0 ? (d.ordP / trafficData.usersP * 100).toFixed(2) : null,
+              gaUsers: trafficData?.users ?? null,
+              gaSessions: trafficData?.sessions ?? null,
             }}
           />
 
