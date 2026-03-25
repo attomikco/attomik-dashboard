@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Upload, CheckCircle, AlertCircle, Loader } from 'lucide-react'
+import { Upload, CheckCircle, AlertCircle, Loader, Trash2 } from 'lucide-react'
 import Topbar from '@/components/Topbar'
 import { createClient } from '@/lib/supabase/client'
 
@@ -21,7 +21,29 @@ function PlatformUploader({ platform }: { platform: typeof ALL_PLATFORMS[0] }) {
   const [result, setResult] = useState<any>(null)
   const [error, setError] = useState('')
   const [dragging, setDragging] = useState(false)
+  const [purging, setPurging] = useState(false)
+  const [purgeResult, setPurgeResult] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const handlePurge = async (mode: 'last' | 'all') => {
+    const msg = mode === 'all'
+      ? `Are you sure you want to delete ALL ${platform.label} data for this project? This cannot be undone.`
+      : `This will undo the last ${platform.label} import. Continue?`
+    if (!confirm(msg)) return
+    setPurging(true); setPurgeResult(null)
+    try {
+      const activeOrgId = localStorage.getItem('activeOrgId') ?? ''
+      const res = await fetch('/api/upload/purge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-active-org': activeOrgId },
+        body: JSON.stringify({ platform: platform.channelKey, mode }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Purge failed')
+      setPurgeResult(`Deleted ${data.deleted} ${platform.label} records.`)
+    } catch (err: any) { setPurgeResult(`Error: ${err.message}`) }
+    setPurging(false)
+  }
 
   const handleFile = async (file: File) => {
     if (!file.name.endsWith('.csv')) { setError('Please upload a .csv file'); setStatus('error'); return }
@@ -91,6 +113,24 @@ function PlatformUploader({ platform }: { platform: typeof ALL_PLATFORMS[0] }) {
           ))}
         </div>
       </div>
+
+      {/* Undo / Purge */}
+      <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid #e0e0e0' }}>
+        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#666', fontFamily: 'Barlow, sans-serif', marginBottom: 10 }}>Wrong data?</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button onClick={() => handlePurge('last')} disabled={purging}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: '1px solid #e0e0e0', borderRadius: 6, padding: '6px 12px', fontSize: '0.75rem', fontWeight: 600, color: '#666', cursor: purging ? 'not-allowed' : 'pointer', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap' }}>
+            <Trash2 size={13} />{purging ? 'Deleting…' : 'Undo last import'}
+          </button>
+          <button onClick={() => handlePurge('all')} disabled={purging}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: '1px solid #fca5a5', borderRadius: 6, padding: '6px 12px', fontSize: '0.75rem', fontWeight: 600, color: '#b91c1c', cursor: purging ? 'not-allowed' : 'pointer', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap' }}>
+            <Trash2 size={13} />{purging ? 'Deleting…' : `Purge all ${platform.label} data`}
+          </button>
+        </div>
+        {purgeResult && (
+          <div style={{ marginTop: 8, fontSize: '0.75rem', fontFamily: 'Barlow, sans-serif', color: purgeResult.startsWith('Error') ? '#b91c1c' : '#007a48' }}>{purgeResult}</div>
+        )}
+      </div>
     </div>
   )
 }
@@ -99,6 +139,7 @@ export default function ImportPage() {
   const [activeTab, setActiveTab] = useState('')
   const [enabledChannels, setEnabledChannels] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [orgName, setOrgName] = useState('')
   const supabase = createClient()
 
   useEffect(() => {
@@ -106,7 +147,7 @@ export default function ImportPage() {
       const orgId = localStorage.getItem('activeOrgId')
       if (!orgId) { setLoading(false); return }
       const { data } = await supabase.from('organizations').select('channels, name').eq('id', orgId).single()
-      if (data?.name) document.title = `${data.name} Import | Attomik`
+      if (data?.name) { setOrgName(data.name); document.title = `${data.name} Import | Attomik` }
       const ch = data?.channels ?? {}
       // If channels object has keys, respect values. If empty/null, show all.
       const isConfigured = Object.keys(ch).length > 0
@@ -126,7 +167,7 @@ export default function ImportPage() {
 
   return (
     <div>
-      <Topbar title="Import Data" subtitle="Upload exports from each platform" className="analytics-topbar" />
+      <Topbar title="Import Data" subtitle={orgName ? `Uploading for ${orgName}` : 'Upload exports from each platform'} className="analytics-topbar" />
       <div className="import-content" style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 48px', maxWidth: 720 }}>
         {loading ? (
           <div style={{ color: '#666', fontFamily: 'Barlow, sans-serif' }}>Loading…</div>
