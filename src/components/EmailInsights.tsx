@@ -126,17 +126,23 @@ export default function EmailInsights({ metrics, period, preset, orgName, orgId 
 
   return (
     <>
-      {/* Trigger button */}
-      <button onClick={openModal}
+      {/* Trigger button — icon-only on mobile */}
+      <button onClick={openModal} className="email-report-btn"
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 6,
           padding: '9px 16px', background: '#000', color: '#00ff97',
           border: 'none', borderRadius: 6, fontFamily: 'Barlow, sans-serif',
           fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer',
-          transition: '0.15s',
+          transition: '0.15s', flexShrink: 0,
         }}>
-        <Mail size={14} /> Email Report
+        <Mail size={14} /> <span className="email-report-label">Email Report</span>
       </button>
+      <style>{`
+        @media (max-width: 640px) {
+          .email-report-btn { padding: 8px !important; border-radius: 8px !important; }
+          .email-report-label { display: none !important; }
+        }
+      `}</style>
 
       {/* Modal overlay */}
       {open && (
