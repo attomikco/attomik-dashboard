@@ -288,21 +288,21 @@ export default function OverviewPage() {
     <div style={{ background: C.paper, minHeight: '100vh' }}>
 
       {/* Topbar */}
-      <div style={{
+      <div className="overview-topbar" style={{
         padding: '16px 20px', borderBottom: `1px solid ${C.border}`,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
         position: 'sticky', top: 0, background: C.paper, zIndex: 50,
       }}>
-        <div style={{ minWidth: 0 }}>
-          <h1 style={{ fontSize: 'clamp(1.1rem, 3vw, 1.6rem)', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'Barlow, sans-serif', color: C.ink }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <h1 style={{ fontSize: 'clamp(1.1rem, 3vw, 1.6rem)', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'Barlow, sans-serif', color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             Overview
           </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-            <p style={{ fontSize: '0.8rem', color: C.muted, fontFamily: 'Barlow, sans-serif' }}>
+          <div className="overview-subtitle" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
+            <p style={{ fontSize: '0.75rem', color: C.muted, fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap', margin: 0 }}>
               {loadingOrgs ? '…' : `${orgs.length} project${orgs.length !== 1 ? 's' : ''}`} · vs previous {dayCount} days
             </p>
             {isSuperadmin && (
-              <>
+              <span className="overview-sync" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <span style={{ color: C.border }}>·</span>
                 <button
                   onClick={handleSyncAll}
@@ -310,26 +310,26 @@ export default function OverviewPage() {
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 4,
                     padding: 0, background: 'none', border: 'none',
-                    fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.8rem',
+                    fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.75rem',
                     color: syncingAll ? C.muted : '#007a48',
                     cursor: syncingAll ? 'not-allowed' : 'pointer',
                     whiteSpace: 'nowrap',
                   }}
                 >
                   <RefreshCw size={11} style={{ animation: syncingAll ? 'spin 1s linear infinite' : 'none' }} />
-                  {syncingAll ? 'Syncing Shopify…' : 'Sync Shopify'}
+                  {syncingAll ? 'Syncing…' : 'Sync Shopify'}
                 </button>
                 {syncResult && (
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', color: syncResult.ok ? '#007a48' : '#b91c1c' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', color: syncResult.ok ? '#007a48' : '#b91c1c', whiteSpace: 'nowrap' }}>
                     — {syncResult.text}
                   </span>
                 )}
                 {!syncResult && lastSyncedAt && !syncingAll && (
-                  <span style={{ fontSize: '0.75rem', color: '#aaa', fontFamily: 'Barlow, sans-serif' }}>
+                  <span style={{ fontSize: '0.7rem', color: '#aaa', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap' }}>
                     last {new Date(lastSyncedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                   </span>
                 )}
-              </>
+              </span>
             )}
           </div>
         </div>
@@ -338,7 +338,7 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      <div style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 80px' }}>
+      <div className="overview-content" style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 80px' }}>
 
         {/* Summary strip — only meaningful with 2+ orgs */}
         {!loadingOrgs && orgs.length > 1 && (
@@ -575,6 +575,10 @@ export default function OverviewPage() {
           .overview-table   { display: none !important; }
           .overview-cards   { display: flex !important; }
           .summary-grid     { grid-template-columns: 1fr 1fr !important; }
+          .overview-topbar  { flex-wrap: wrap !important; padding: 14px 16px 14px 60px !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 100 !important; }
+          .overview-content { padding-top: 100px !important; }
+          .overview-subtitle { flex-direction: column !important; align-items: flex-start !important; gap: 4px !important; }
+          .overview-sync    { margin-left: 0 !important; }
         }
       `}</style>
     </div>
