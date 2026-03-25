@@ -749,7 +749,7 @@ export default function AnalyticsPage() {
       {/* Sticky topbar */}
       <div className="analytics-topbar" style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, position: 'sticky', top: 0, background: C.paper, zIndex: 50 }}>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <h1 style={{ fontSize: 'clamp(1.1rem, 4vw, 2rem)', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'var(--font-barlow), Barlow, sans-serif', color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{orgName} — Analytics</h1>
+          <h1 className="analytics-title" style={{ fontSize: 'clamp(1.1rem, 4vw, 2rem)', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'var(--font-barlow), Barlow, sans-serif', color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{orgName}<span className="analytics-title-sep"> — </span><span className="analytics-title-sub">Analytics</span></h1>
           <p style={{ fontSize: '0.75rem', color: C.muted, marginTop: 2, fontFamily: 'var(--font-barlow), Barlow, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {fmtDate(range.start)} – {fmtDate(range.end)} · vs previous {dayCount} days
             {lastSynced && <span style={{ color: '#ccc' }}> · Synced {new Date(lastSynced).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>}
@@ -1160,7 +1160,10 @@ export default function AnalyticsPage() {
             z-index: 100 !important;
             border-bottom: 1px solid #e0e0e0 !important;
           }
-          .analytics-content { padding-top: 80px !important; }
+          .analytics-content { padding-top: 90px !important; }
+          .analytics-title { white-space: normal !important; line-height: 1.2 !important; }
+          .analytics-title-sep { display: none !important; }
+          .analytics-title-sub { display: block !important; font-size: 0.75rem !important; font-weight: 600 !important; color: #999 !important; letter-spacing: 0.04em !important; text-transform: uppercase !important; margin-top: 2px !important; }
           .kpi-grid-3 { grid-template-columns: 1fr 1fr !important; }
           .kpi-grid-4 { grid-template-columns: 1fr 1fr !important; }
           .chart-grid { grid-template-columns: 1fr !important; }
