@@ -342,7 +342,8 @@ export default function OverviewPage() {
 
         {/* Summary strip — only meaningful with 2+ orgs */}
         {!loadingOrgs && orgs.length > 1 && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 28 }}
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginBottom: 28, paddingBottom: 2 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, minWidth: 480 }}
                className="summary-grid">
             {[
               { label: 'Total Sales',  value: fmt$(totalRevenue), delta: pct(totalRevenue, totalPrevRev) },
@@ -357,11 +358,12 @@ export default function OverviewPage() {
               </div>
             ))}
           </div>
+          </div>
         )}
 
         {/* Sort controls */}
         {!loadingOrgs && orgs.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 2 }}>
             <span style={{ fontSize: '0.7rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'Barlow, sans-serif' }}>Sort</span>
             <SortBtn field="revenue"  label="Total Sales"  />
             <SortBtn field="orders"   label="Orders"   />
@@ -381,8 +383,8 @@ export default function OverviewPage() {
         ) : (
           <>
             {/* ── Desktop table ── */}
-            <div className="overview-table" style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <div className="overview-table" style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 780 }}>
                 <thead>
                   <tr style={{ background: C.cream }}>
                     {['Project', 'Total Sales', 'Orders', 'AOV', 'Ad Spend', 'ROAS', ''].map((h, i) => (
@@ -574,7 +576,7 @@ export default function OverviewPage() {
         @media (max-width: 680px) {
           .overview-table   { display: none !important; }
           .overview-cards   { display: flex !important; }
-          .summary-grid     { grid-template-columns: 1fr 1fr !important; }
+          .summary-grid     { min-width: 0 !important; }
           .overview-topbar  { flex-wrap: wrap !important; padding: 14px 16px 14px 60px !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 100 !important; }
           .overview-content { padding-top: 100px !important; }
           .overview-subtitle { flex-direction: column !important; align-items: flex-start !important; gap: 4px !important; }
