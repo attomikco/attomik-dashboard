@@ -13,7 +13,7 @@ interface Props {
 
 export default function EmailInsights({ metrics, period, preset, orgName, orgId }: Props) {
   const [open, setOpen] = useState(false)
-  const [members, setMembers] = useState<{ id: string; full_name: string | null; email: string | null }[]>([])
+  const [members, setMembers] = useState<{ id: string; full_name: string | null; email: string | null; role: string }[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [loadingMembers, setLoadingMembers] = useState(false)
 
@@ -38,7 +38,8 @@ export default function EmailInsights({ metrics, period, preset, orgName, orgId 
       const data = await res.json()
       const m = (data.members ?? []).filter((m: any) => m.email)
       setMembers(m)
-      setSelected(new Set(m.map((m: any) => m.email)))
+      // Preselect only viewers (clients) — admins/superadmins can be toggled manually
+      setSelected(new Set(m.filter((m: any) => m.role === 'viewer').map((m: any) => m.email)))
     } catch {}
     setLoadingMembers(false)
   }
