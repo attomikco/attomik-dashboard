@@ -29,11 +29,12 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export default function SalesByChannelChart({ data }: Props) {
   const hasAmazon = data.some(d => d.amazon > 0)
+  const tickInterval = data.length > 20 ? Math.ceil(data.length / 8) - 1 : data.length > 10 ? 2 : 0
   return (
     <ResponsiveContainer width="100%" height={220}>
-      <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+      <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: data.length > 14 ? 16 : 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#f2f2f2" vertical={false} />
-        <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#999', fontFamily: 'DM Mono, monospace' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+        <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#999', fontFamily: 'DM Mono, monospace' }} axisLine={false} tickLine={false} interval={tickInterval} angle={data.length > 14 ? -45 : 0} textAnchor={data.length > 14 ? 'end' : 'middle'} />
         <YAxis tick={{ fontSize: 11, fill: '#999', fontFamily: 'DM Mono, monospace' }} axisLine={false} tickLine={false} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} width={48} />
         <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
         <Bar dataKey="shopify" stackId="a" fill="#00ff97" radius={hasAmazon ? [0,0,0,0] : [3,3,0,0]} barSize={14} />

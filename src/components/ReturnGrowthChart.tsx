@@ -21,9 +21,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export default function ReturnGrowthChart({ data }: Props) {
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={data} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+      <BarChart data={data} margin={{ top: 4, right: 16, left: 0, bottom: data.length > 8 ? 16 : 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#f2f2f2" vertical={false} />
-        <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#999', fontFamily: 'DM Mono, monospace' }} axisLine={false} tickLine={false} />
+        <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#999', fontFamily: 'DM Mono, monospace' }} axisLine={false} tickLine={false} interval={data.length > 12 ? Math.ceil(data.length / 8) - 1 : 0} angle={data.length > 8 ? -45 : 0} textAnchor={data.length > 8 ? 'end' : 'middle'} />
         <YAxis tick={{ fontSize: 11, fill: '#999', fontFamily: 'DM Mono, monospace' }} axisLine={false} tickLine={false} width={36} allowDecimals={false} />
         <Tooltip content={<CustomTooltip />} />
         <Bar dataKey="returning" fill="#00ff97" radius={[4, 4, 0, 0]} />

@@ -23,9 +23,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export default function RetentionChart({ data }: Props) {
   return (
     <ResponsiveContainer width="100%" height={220}>
-      <ComposedChart data={data} margin={{ top: 4, right: 48, left: 0, bottom: 0 }}>
+      <ComposedChart data={data} margin={{ top: 4, right: 48, left: 0, bottom: data.length > 8 ? 16 : 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#f2f2f2" vertical={false} />
-        <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#999', fontFamily: 'DM Mono, monospace' }} axisLine={false} tickLine={false} />
+        <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#999', fontFamily: 'DM Mono, monospace' }} axisLine={false} tickLine={false} interval={data.length > 12 ? Math.ceil(data.length / 8) - 1 : 0} angle={data.length > 8 ? -45 : 0} textAnchor={data.length > 8 ? 'end' : 'middle'} />
         <YAxis yAxisId="count" tick={{ fontSize: 11, fill: '#999', fontFamily: 'DM Mono, monospace' }} axisLine={false} tickLine={false} width={40} />
         <YAxis yAxisId="rate" orientation="right" tick={{ fontSize: 11, fill: '#999', fontFamily: 'DM Mono, monospace' }} axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} width={44} domain={[0, 100]} />
         <Tooltip content={<CustomTooltip />} />

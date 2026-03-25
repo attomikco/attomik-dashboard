@@ -21,12 +21,13 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export default function RevenueRoasChart({ data }: Props) {
   const hasRoas = data.some(d => d.roas > 0)
+  const tickInterval = data.length > 20 ? Math.ceil(data.length / 8) - 1 : data.length > 10 ? 2 : 0
 
   return (
     <ResponsiveContainer width="100%" height={220}>
-      <ComposedChart data={data} margin={{ top: 4, right: hasRoas ? 48 : 4, left: 0, bottom: 0 }}>
+      <ComposedChart data={data} margin={{ top: 4, right: hasRoas ? 48 : 4, left: 0, bottom: data.length > 14 ? 16 : 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#f2f2f2" vertical={false} />
-        <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#999', fontFamily: 'DM Mono, monospace' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+        <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#999', fontFamily: 'DM Mono, monospace' }} axisLine={false} tickLine={false} interval={tickInterval} angle={data.length > 14 ? -45 : 0} textAnchor={data.length > 14 ? 'end' : 'middle'} />
         <YAxis yAxisId="revenue" tick={{ fontSize: 11, fill: '#999', fontFamily: 'DM Mono, monospace' }} axisLine={false} tickLine={false} tickFormatter={v => `$${(v/1000).toFixed(1)}k`} width={48} />
         {hasRoas && <YAxis yAxisId="roas" orientation="right" tick={{ fontSize: 11, fill: '#999', fontFamily: 'DM Mono, monospace' }} axisLine={false} tickLine={false} tickFormatter={v => `${v.toFixed(1)}x`} width={40} />}
         <Tooltip content={<CustomTooltip />} />

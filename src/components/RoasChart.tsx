@@ -18,11 +18,12 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export default function RoasChart({ data }: Props) {
   const avg = data.length > 0 ? data.reduce((s, d) => s + d.roas, 0) / data.length : 0
+  const tickInterval = data.length > 20 ? Math.ceil(data.length / 8) - 1 : data.length > 10 ? 2 : 0
   return (
     <ResponsiveContainer width="100%" height={220}>
-      <LineChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+      <LineChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: data.length > 14 ? 16 : 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#f2f2f2" vertical={false} />
-        <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#999', fontFamily: 'DM Mono, monospace' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+        <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#999', fontFamily: 'DM Mono, monospace' }} axisLine={false} tickLine={false} interval={tickInterval} angle={data.length > 14 ? -45 : 0} textAnchor={data.length > 14 ? 'end' : 'middle'} />
         <YAxis tick={{ fontSize: 11, fill: '#999', fontFamily: 'DM Mono, monospace' }} axisLine={false} tickLine={false} tickFormatter={v => `${v.toFixed(1)}x`} width={40} />
         <Tooltip content={<CustomTooltip />} />
         {avg > 0 && <ReferenceLine y={avg} stroke="#e0e0e0" strokeDasharray="4 3" label={{ value: `avg ${avg.toFixed(1)}x`, position: 'right', fontSize: 10, fill: '#999', fontFamily: 'DM Mono, monospace' }} />}
