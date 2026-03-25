@@ -574,8 +574,6 @@ export default function OverviewPage() {
 
       <style>{`
         @media (max-width: 680px) {
-          .overview-table   { display: none !important; }
-          .overview-cards   { display: flex !important; }
           .summary-grid     { min-width: 0 !important; }
           .overview-topbar  { flex-wrap: wrap !important; padding: 14px 16px 14px 60px !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 100 !important; }
           .overview-content { padding-top: 100px !important; }
