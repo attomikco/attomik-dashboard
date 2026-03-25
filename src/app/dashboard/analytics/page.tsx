@@ -201,6 +201,7 @@ export default function AnalyticsPage() {
   const [timezone, setTimezone] = useState<string>('America/New_York')
   const [estEOM, setEstEOM] = useState<number | null>(null)
   const [activeOrgId, setActiveOrgId] = useState<string>('')
+  const [isSuperadmin, setIsSuperadmin] = useState(false)
   const supabase = createClient()
 
   useEffect(() => { fetchData() }, [range])
@@ -230,8 +231,9 @@ export default function AnalyticsPage() {
     } else {
       const { data: { user: authUser } } = await supabase.auth.getUser()
       if (authUser && !userName) {
-        const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', authUser.id).single()
+        const { data: prof } = await supabase.from('profiles').select('full_name, is_superadmin').eq('id', authUser.id).single()
         if (prof?.full_name) setUserName(prof.full_name)
+        if (prof?.is_superadmin) setIsSuperadmin(true)
       }
     }
 
@@ -864,8 +866,8 @@ export default function AnalyticsPage() {
             }}
           />
 
-          {/* ── EMAIL UPDATE ── */}
-          <EmailInsights
+          {/* ── EMAIL UPDATE (superadmin only) ── */}
+          {isSuperadmin && <EmailInsights
             period={`${fmtDate(range.start)} – ${fmtDate(range.end)}`}
             preset={range.label ?? 'custom'}
             orgName={orgName}
@@ -888,7 +890,7 @@ export default function AnalyticsPage() {
               convRate: trafficData && trafficData.users > 0 ? (d.ordC / trafficData.users * 100).toFixed(2) : null,
               convRateP: trafficData && trafficData.usersP > 0 && d.ordP > 0 ? (d.ordP / trafficData.usersP * 100).toFixed(2) : null,
             }}
-          />
+          />}
 
           {/* ── OVERVIEW KPIs ── */}
           <SectionHeader title="Overview" />
