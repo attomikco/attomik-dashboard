@@ -16,20 +16,18 @@ const ALL_PLATFORMS = [
 
 type UploadStatus = 'idle' | 'uploading' | 'success' | 'error'
 
-function PlatformUploader({ platform }: { platform: typeof ALL_PLATFORMS[0] }) {
+function PlatformUploader({ platform, orgName }: { platform: typeof ALL_PLATFORMS[0]; orgName: string }) {
   const [status, setStatus] = useState<UploadStatus>('idle')
   const [result, setResult] = useState<any>(null)
   const [error, setError] = useState('')
   const [dragging, setDragging] = useState(false)
   const [purging, setPurging] = useState(false)
   const [purgeResult, setPurgeResult] = useState<string | null>(null)
+  const [confirmAction, setConfirmAction] = useState<'last' | 'all' | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const handlePurge = async (mode: 'last' | 'all') => {
-    const msg = mode === 'all'
-      ? `Are you sure you want to delete ALL ${platform.label} data for this project? This cannot be undone.`
-      : `This will undo the last ${platform.label} import. Continue?`
-    if (!confirm(msg)) return
+  const executePurge = async (mode: 'last' | 'all') => {
+    setConfirmAction(null)
     setPurging(true); setPurgeResult(null)
     try {
       const activeOrgId = localStorage.getItem('activeOrgId') ?? ''
@@ -79,6 +77,7 @@ function PlatformUploader({ platform }: { platform: typeof ALL_PLATFORMS[0] }) {
           <Upload size={28} style={{ color: dragging ? platform.color : '#999', display: 'block', margin: '0 auto 10px' }} />
           <p style={{ fontWeight: 700, marginBottom: 4, fontFamily: 'Barlow, sans-serif' }}>{dragging ? 'Drop it!' : `Drop your ${platform.label} CSV here`}</p>
           <p style={{ fontSize: '0.8rem', color: '#666', fontFamily: 'Barlow, sans-serif' }}>or click to browse</p>
+          {orgName && <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#000', fontFamily: 'Barlow, sans-serif', marginTop: 12, padding: '4px 12px', background: '#e6fff5', borderRadius: 4, display: 'inline-block' }}>Uploading for {orgName}</p>}
           {status === 'error' && <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: '#b91c1c', fontSize: '0.8rem', fontFamily: 'Barlow, sans-serif' }}><AlertCircle size={14} />{error}</div>}
         </div>
       ) : status === 'uploading' ? (
@@ -117,16 +116,38 @@ function PlatformUploader({ platform }: { platform: typeof ALL_PLATFORMS[0] }) {
       {/* Undo / Purge */}
       <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid #e0e0e0' }}>
         <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#666', fontFamily: 'Barlow, sans-serif', marginBottom: 10 }}>Wrong data?</div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button onClick={() => handlePurge('last')} disabled={purging}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: '1px solid #e0e0e0', borderRadius: 6, padding: '6px 12px', fontSize: '0.75rem', fontWeight: 600, color: '#666', cursor: purging ? 'not-allowed' : 'pointer', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap' }}>
-            <Trash2 size={13} />{purging ? 'Deleting…' : 'Undo last import'}
-          </button>
-          <button onClick={() => handlePurge('all')} disabled={purging}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: '1px solid #fca5a5', borderRadius: 6, padding: '6px 12px', fontSize: '0.75rem', fontWeight: 600, color: '#b91c1c', cursor: purging ? 'not-allowed' : 'pointer', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap' }}>
-            <Trash2 size={13} />{purging ? 'Deleting…' : `Purge all ${platform.label} data`}
-          </button>
-        </div>
+
+        {confirmAction ? (
+          <div style={{ background: confirmAction === 'all' ? '#fee2e2' : '#fff7ed', border: `1px solid ${confirmAction === 'all' ? '#fca5a5' : '#fed7aa'}`, borderRadius: 8, padding: '14px 16px' }}>
+            <p style={{ fontSize: '0.8rem', fontWeight: 700, fontFamily: 'Barlow, sans-serif', color: confirmAction === 'all' ? '#b91c1c' : '#9a3412', marginBottom: 8 }}>
+              {confirmAction === 'all'
+                ? `Delete ALL ${platform.label} data for this project? This cannot be undone.`
+                : `Undo the last ${platform.label} import?`}
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => executePurge(confirmAction)}
+                style={{ background: confirmAction === 'all' ? '#b91c1c' : '#000', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'Barlow, sans-serif' }}>
+                Yes, {confirmAction === 'all' ? 'purge everything' : 'undo it'}
+              </button>
+              <button onClick={() => setConfirmAction(null)}
+                style={{ background: 'transparent', border: '1px solid #e0e0e0', borderRadius: 6, padding: '6px 14px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'Barlow, sans-serif', color: '#666' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button onClick={() => setConfirmAction('last')} disabled={purging}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: '1px solid #e0e0e0', borderRadius: 6, padding: '6px 12px', fontSize: '0.75rem', fontWeight: 600, color: '#666', cursor: purging ? 'not-allowed' : 'pointer', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap' }}>
+              <Trash2 size={13} />{purging ? 'Deleting…' : 'Undo last import'}
+            </button>
+            <button onClick={() => setConfirmAction('all')} disabled={purging}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: '1px solid #fca5a5', borderRadius: 6, padding: '6px 12px', fontSize: '0.75rem', fontWeight: 600, color: '#b91c1c', cursor: purging ? 'not-allowed' : 'pointer', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap' }}>
+              <Trash2 size={13} />{purging ? 'Deleting…' : `Purge all ${platform.label} data`}
+            </button>
+          </div>
+        )}
+
         {purgeResult && (
           <div style={{ marginTop: 8, fontSize: '0.75rem', fontFamily: 'Barlow, sans-serif', color: purgeResult.startsWith('Error') ? '#b91c1c' : '#007a48' }}>{purgeResult}</div>
         )}
@@ -183,7 +204,7 @@ export default function ImportPage() {
             {activePlatform && (
               <>
                 <div style={{ fontSize: '0.875rem', color: '#666', marginBottom: 20, fontFamily: 'Barlow, sans-serif' }}>{activePlatform.description}</div>
-                <PlatformUploader key={activeTab} platform={activePlatform} />
+                <PlatformUploader key={activeTab} platform={activePlatform} orgName={orgName} />
               </>
             )}
             {enabledChannels.length === ALL_PLATFORMS.length && (
