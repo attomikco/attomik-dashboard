@@ -413,6 +413,9 @@ export default function AnalyticsPage() {
       s + (o.source === 'amazon' ? (Number(o.units) || 1) : 1), 0)
     const ordC  = countOrders(enabledOrders)
     const ordP  = countOrders(enabledOrdersP)
+    // Shopify-only order counts for conversion rate (GA4 traffic is Shopify-only)
+    const shopOrdC = shopAllC.length
+    const shopOrdP = shopAllP.length
     const netRevC = enabledOrders.reduce((s, o) => s + Number(o.subtotal || o.total_price || 0), 0)
     const netRevP = enabledOrdersP.reduce((s, o) => s + Number(o.subtotal || o.total_price || 0), 0)
     const aovC  = ordC > 0 ? netRevC / ordC : 0
@@ -721,7 +724,7 @@ export default function AnalyticsPage() {
 
     setData({ showShopify, showAmazon, showMeta, showGoogle, showAds,
       totalRevC, totalRevP, totalSpC, totalSpP, roasC, roasP,
-      ordC, ordP, aovC: finalAovC, aovP: finalAovP, cacC, cacP,
+      ordC, ordP, shopOrdC, shopOrdP, aovC: finalAovC, aovP: finalAovP, cacC, cacP,
       newCustC, newCustP, retCustC, totalCustC, rcrC, rcrP, retRevC, newRevC, cltvC, cltvP,
       shGrossC, shGrossP, shDiscountC, shDiscountP, shReturnsC, shReturnsP,
       shNetC, shNetP, shShippingC, shShippingP, shTaxC, shTaxP, shTotalC, shTotalP,
@@ -776,8 +779,8 @@ export default function AnalyticsPage() {
               metaSp: d.showMeta ? fmt$(d.metaSpC) : null,
               metaRoas: d.metaRoasC > 0 ? d.metaRoasC.toFixed(2) : null,
               cltv: d.cltvC > 0 ? fmt$(d.cltvC) : null,
-              convRate: trafficData && trafficData.users > 0 ? (d.ordC / trafficData.users * 100).toFixed(2) : null,
-              convRateP: trafficData && trafficData.usersP > 0 && d.ordP > 0 ? (d.ordP / trafficData.usersP * 100).toFixed(2) : null,
+              convRate: trafficData && trafficData.users > 0 ? (d.shopOrdC / trafficData.users * 100).toFixed(2) : null,
+              convRateP: trafficData && trafficData.usersP > 0 && d.shopOrdP > 0 ? (d.shopOrdP / trafficData.usersP * 100).toFixed(2) : null,
             }}
           />}
           <DateRangePicker value={range} onChange={r => setRange(r)} />
@@ -825,9 +828,9 @@ export default function AnalyticsPage() {
               trafficUsersP: trafficData?.usersP ?? null,
               trafficNewUsers: trafficData?.newUsers ?? null,
               trafficNewUsersP: trafficData?.newUsersP ?? null,
-              convRateSessions: trafficData && trafficData.sessions > 0 ? (d.ordC / trafficData.sessions * 100).toFixed(2) : null,
-              convRateUsers: trafficData && trafficData.users > 0 ? (d.ordC / trafficData.users * 100).toFixed(2) : null,
-              convRateNewUsers: trafficData && trafficData.newUsers > 0 ? (d.ordC / trafficData.newUsers * 100).toFixed(2) : null,
+              convRateSessions: trafficData && trafficData.sessions > 0 ? (d.shopOrdC / trafficData.sessions * 100).toFixed(2) : null,
+              convRateUsers: trafficData && trafficData.users > 0 ? (d.shopOrdC / trafficData.users * 100).toFixed(2) : null,
+              convRateNewUsers: trafficData && trafficData.newUsers > 0 ? (d.shopOrdC / trafficData.newUsers * 100).toFixed(2) : null,
               // Subscriptions
               subRev: d.subRevC > 0 ? fmt$(d.subRevC) : null,
               subRevChg: d.subRevP > 0 ? pct(d.subRevC, d.subRevP).toFixed(1) : null,
@@ -883,8 +886,8 @@ export default function AnalyticsPage() {
               subOrdersChg: d.subCountP > 0 ? pct(d.subCountC, d.subCountP).toFixed(1) : null,
               subCusts: d.subCustsC,
               subPctRev: d.subPctRevC > 0 ? d.subPctRevC.toFixed(1) : null,
-              convRate: trafficData && trafficData.users > 0 ? (d.ordC / trafficData.users * 100).toFixed(2) : null,
-              convRateP: trafficData && trafficData.usersP > 0 && d.ordP > 0 ? (d.ordP / trafficData.usersP * 100).toFixed(2) : null,
+              convRate: trafficData && trafficData.users > 0 ? (d.shopOrdC / trafficData.users * 100).toFixed(2) : null,
+              convRateP: trafficData && trafficData.usersP > 0 && d.shopOrdP > 0 ? (d.shopOrdP / trafficData.usersP * 100).toFixed(2) : null,
               gaUsers: trafficData?.users ?? null,
               gaSessions: trafficData?.sessions ?? null,
             }}
@@ -901,7 +904,7 @@ export default function AnalyticsPage() {
             <KpiCard label="Orders" value={fmtN(d.ordC)} change={pct(d.ordC, d.ordP)} />
             <KpiCard label="AOV"    value={fmt$(d.aovC)} change={pct(d.aovC, d.aovP)} />
             {trafficData && trafficData.users > 0 ? (
-              <KpiCard label="Conv. Rate (Users)" value={fmtPct(d.ordC / trafficData.users * 100)} change={trafficData.usersP > 0 && d.ordP > 0 ? pct(d.ordC / trafficData.users * 100, d.ordP / trafficData.usersP * 100) : undefined} subtitle="Orders ÷ Users" />
+              <KpiCard label="Conv. Rate (Users)" value={fmtPct(d.shopOrdC / trafficData.users * 100)} change={trafficData.usersP > 0 && d.shopOrdP > 0 ? pct(d.shopOrdC / trafficData.users * 100, d.shopOrdP / trafficData.usersP * 100) : undefined} subtitle="Shopify Orders ÷ Users" />
             ) : (
               <KpiCard label="CAC" value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors />
             )}
@@ -1020,9 +1023,9 @@ export default function AnalyticsPage() {
                 { label: 'New Users', value: fmtN(trafficData.newUsers), sub: trafficData.newUsersP > 0 ? chg(trafficData.newUsers, trafficData.newUsersP) : '' },
               ]} />
               <MetricRow items={[
-                ...(trafficData.sessions > 0 ? [{ label: 'Conv. Rate (Sessions)', value: fmtPct(d.ordC / trafficData.sessions * 100), sub: trafficData.sessionsP > 0 && d.ordP > 0 ? chg(d.ordC / trafficData.sessions * 100, d.ordP / trafficData.sessionsP * 100) : '', desc: 'Orders ÷ Sessions' }] : []),
-                ...(trafficData.users > 0 ? [{ label: 'Conv. Rate (Users)', value: fmtPct(d.ordC / trafficData.users * 100), sub: trafficData.usersP > 0 && d.ordP > 0 ? chg(d.ordC / trafficData.users * 100, d.ordP / trafficData.usersP * 100) : '', desc: 'Orders ÷ Users' }] : []),
-                ...(trafficData.newUsers > 0 ? [{ label: 'Conv. Rate (New Users)', value: fmtPct(d.ordC / trafficData.newUsers * 100), sub: trafficData.newUsersP > 0 && d.ordP > 0 ? chg(d.ordC / trafficData.newUsers * 100, d.ordP / trafficData.newUsersP * 100) : '', desc: 'Orders ÷ New Users' }] : []),
+                ...(trafficData.sessions > 0 ? [{ label: 'Conv. Rate (Sessions)', value: fmtPct(d.shopOrdC / trafficData.sessions * 100), sub: trafficData.sessionsP > 0 && d.shopOrdP > 0 ? chg(d.shopOrdC / trafficData.sessions * 100, d.shopOrdP / trafficData.sessionsP * 100) : '', desc: 'Shopify Orders ÷ Sessions' }] : []),
+                ...(trafficData.users > 0 ? [{ label: 'Conv. Rate (Users)', value: fmtPct(d.shopOrdC / trafficData.users * 100), sub: trafficData.usersP > 0 && d.shopOrdP > 0 ? chg(d.shopOrdC / trafficData.users * 100, d.shopOrdP / trafficData.usersP * 100) : '', desc: 'Shopify Orders ÷ Users' }] : []),
+                ...(trafficData.newUsers > 0 ? [{ label: 'Conv. Rate (New Users)', value: fmtPct(d.shopOrdC / trafficData.newUsers * 100), sub: trafficData.newUsersP > 0 && d.shopOrdP > 0 ? chg(d.shopOrdC / trafficData.newUsers * 100, d.shopOrdP / trafficData.newUsersP * 100) : '', desc: 'Shopify Orders ÷ New Users' }] : []),
               ]} />
             </>
           )}
