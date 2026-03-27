@@ -55,18 +55,18 @@ function KpiCard({ label, value, change, invertColors, subtitle, children }: { l
   const up = change === undefined ? null : change >= 0
   const isGood = up === null ? null : (invertColors ? !up : up)
   return (
-    <div style={{ background: C.paper, border: `1px solid ${C.border}`, borderRadius: 10, padding: 24 }}>
-      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+    <div className="kpi-card">
+      <div className="kpi-label">
         {label}
       </div>
-      <div style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', color: C.ink, lineHeight: 1.1, marginBottom: 8 }}>
+      <div className="kpi-value" style={{ marginBottom: 8 }}>
         {value}
       </div>
       {subtitle && (
         <div style={{ fontSize: '0.8rem', color: C.muted, marginBottom: 8, fontFamily: 'Barlow, sans-serif' }}>{subtitle}</div>
       )}
       {change !== undefined && (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.875rem', fontWeight: 700, fontFamily: 'Barlow, sans-serif', padding: '4px 10px', borderRadius: 6, background: isGood ? '#e6fff5' : '#fee2e2', color: isGood ? '#007a48' : '#b91c1c' }}>
+        <span className={`badge ${isGood ? 'pill-up' : 'pill-down'}`}>
           {up ? '↑' : '↓'} {Math.abs(change).toFixed(1)}%
         </span>
       )}
@@ -77,15 +77,15 @@ function KpiCard({ label, value, change, invertColors, subtitle, children }: { l
 
 function SectionHeader({ title, color = C.accent, platform }: { title: string; color?: string; platform?: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '40px 0 20px' }}>
-      <div style={{ width: 4, height: 28, background: color, borderRadius: 2, flexShrink: 0 }} />
-      <div style={{ fontSize: '1.3rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'var(--font-barlow), Barlow, sans-serif', color: C.ink }}>{title}</div>
+    <div className="section-header">
+      <div className="section-header-bar" style={color !== C.accent ? { background: color } : undefined} />
+      <div className="section-header-title">{title}</div>
       {platform && (
-        <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '3px 10px', borderRadius: 6, background: C.cream, color: C.muted, fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>
+        <span className="badge badge-gray">
           {platform}
         </span>
       )}
-      <div style={{ flex: 1, height: 1, background: C.border }} />
+      <div className="section-header-line" />
     </div>
   )
 }
@@ -99,8 +99,6 @@ function MetricRow({ items }: { items: { label: string; value: string; sub?: str
           const isDown = item.sub?.startsWith('↓')
           const hasChange = isUp || isDown
           const isGood = hasChange ? (item.invertColors ? isDown : isUp) : null
-          const subColor = isGood === true ? '#007a48' : isGood === false ? '#b91c1c' : '#999'
-          const subBg = isGood === true ? '#e6fff5' : isGood === false ? '#fee2e2' : 'transparent'
           return (
             <div key={i} style={{ background: C.paper, padding: '18px 20px', minWidth: 0 }}>
               <div style={{ fontSize: '0.75rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>
@@ -108,7 +106,7 @@ function MetricRow({ items }: { items: { label: string; value: string; sub?: str
               </div>
               <div style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.03em', color: C.ink }}>{item.value}</div>
               {item.sub && (
-                <div style={{ display: 'inline-flex', alignItems: 'center', marginTop: 6, padding: '2px 8px', borderRadius: 4, background: subBg, fontSize: '0.8rem', fontWeight: 600, color: subColor, fontFamily: 'var(--font-barlow), Barlow, sans-serif', whiteSpace: 'nowrap' }}>
+                <div className={`badge ${isGood ? 'pill-up' : isGood === false ? 'pill-down' : ''}`} style={{ marginTop: 6, ...(isGood === null ? { background: 'transparent', color: '#999' } : {}) }}>
                   {item.sub}
                 </div>
               )}
@@ -127,7 +125,7 @@ function MetricRow({ items }: { items: { label: string; value: string; sub?: str
 
 function FinanceBreakdown({ rows }: { rows: { label: string; value: number; prevValue?: number; negative?: boolean }[] }) {
   return (
-    <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
+    <div className="table-wrapper" style={{ marginBottom: 12 }}>
       {rows.map((row, i) => {
         const isTotal = row.label === 'Total sales' || row.label === 'Net sales'
         const p = row.prevValue !== undefined ? pct(row.value, row.prevValue) : undefined
@@ -137,7 +135,7 @@ function FinanceBreakdown({ rows }: { rows: { label: string; value: number; prev
             <div style={{ fontSize: '0.95rem', fontWeight: isTotal ? 800 : 400, fontFamily: 'var(--font-barlow), Barlow, sans-serif', color: C.ink }}>{row.label}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               {p !== undefined && (
-                <span style={{ fontSize: '0.8rem', fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: up ? '#e6fff5' : '#fee2e2', color: up ? '#007a48' : '#b91c1c', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>
+                <span className={`badge ${up ? 'pill-up' : 'pill-down'}`}>
                   {up ? '↑' : '↓'} {Math.abs(p).toFixed(1)}%
                 </span>
               )}
@@ -205,6 +203,15 @@ export default function AnalyticsPage() {
   const supabase = createClient()
 
   useEffect(() => { fetchData() }, [range])
+
+  // Topbar scroll shadow
+  useEffect(() => {
+    const handler = () => {
+      document.querySelector('.topbar')?.classList.toggle('topbar-scrolled', window.scrollY > 4)
+    }
+    window.addEventListener('scroll', handler, { passive: true })
+    return () => window.removeEventListener('scroll', handler)
+  }, [])
 
   const fetchData = async () => {
     setLoading(true)
@@ -769,15 +776,15 @@ export default function AnalyticsPage() {
   return (
     <div style={{ background: C.paper, minHeight: '100vh' }}>
       {/* Sticky topbar */}
-      <div className="analytics-topbar" style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, position: 'sticky', top: 0, background: C.paper, zIndex: 50 }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
+      <div className="analytics-topbar topbar">
+        <div className="topbar-title" style={{ minWidth: 0, flex: 1 }}>
           <h1 className="analytics-title" style={{ fontSize: 'clamp(1.1rem, 4vw, 2rem)', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'var(--font-barlow), Barlow, sans-serif', color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{orgName}<span className="analytics-title-sep"> — </span><span className="analytics-title-sub">Analytics</span></h1>
           <p style={{ fontSize: '0.75rem', color: C.muted, marginTop: 2, fontFamily: 'var(--font-barlow), Barlow, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {fmtDate(range.start)} – {fmtDate(range.end)} · vs previous {dayCount} days
             {lastSynced && <span style={{ color: '#ccc' }}> · Synced {new Date(lastSynced).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>}
           </p>
         </div>
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="topbar-actions">
           {isSuperadmin && d && <EmailInsights
             period={`${fmtDate(range.start)} – ${fmtDate(range.end)}`}
             preset={range.label ?? 'custom'}
@@ -806,7 +813,7 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      <div className="analytics-content" style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 80px' }}>
+      <div className="analytics-content page-content" style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 80px' }}>
         {loading ? (
           <div style={{ color: C.muted, textAlign: 'center', padding: '80px 0', fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontSize: '1rem' }}>Loading analytics…</div>
         ) : !d ? (

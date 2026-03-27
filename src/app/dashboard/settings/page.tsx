@@ -6,8 +6,8 @@ import { CheckCircle, XCircle, RefreshCw, Unplug, ShoppingBag } from 'lucide-rea
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: 'var(--paper)', border: '1px solid var(--border)', borderRadius: 10, padding: 24, marginBottom: 24 }}>
-      <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>
+    <div className="card" style={{ marginBottom: 24 }}>
+      <div className="kpi-label">
         {title}
       </div>
       {children}
@@ -194,8 +194,8 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <div className="analytics-topbar" style={{ padding: 'clamp(14px, 3vw, 20px) clamp(16px, 4vw, 40px)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: 'var(--paper)', zIndex: 50 }}>
-        <div>
+      <div className="topbar">
+        <div className="topbar-title">
           <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>
             {org?.name ? `${org.name} — ` : ''}Settings
           </h1>
@@ -208,11 +208,11 @@ export default function SettingsPage() {
         <Section title="Organization">
           <div style={{ display: 'grid', gap: 12 }}>
             <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Name</label>
+              <label className="form-label" style={{ display: 'block', marginBottom: 4 }}>Name</label>
               <div style={{ padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.875rem', background: 'var(--cream)' }}>{org?.name || '—'}</div>
             </div>
             <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Slug</label>
+              <label className="form-label" style={{ display: 'block', marginBottom: 4 }}>Slug</label>
               <div style={{ padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.875rem', background: 'var(--cream)', fontFamily: 'var(--font-mono)' }}>{org?.slug || '—'}</div>
             </div>
           </div>
@@ -229,38 +229,33 @@ export default function SettingsPage() {
                 {isConnected ? `Connected · ${org.shopify_domain}` : 'Not connected'}
               </div>
             </div>
-            <span style={{
-              fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
-              padding: '3px 10px', borderRadius: 20,
-              background: isConnected ? '#e6fff5' : '#fee2e2',
-              color: isConnected ? '#007a48' : '#b91c1c',
-            }}>
+            <span className={`badge ${isConnected ? 'badge-paid' : 'badge-failed'}`}>
               {isConnected ? '● Connected' : '○ Not connected'}
             </span>
           </div>
 
           {saveMsg && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 8, marginBottom: 16, background: saveMsg.type === 'success' ? '#e6fff5' : '#fee2e2', border: `1px solid ${saveMsg.type === 'success' ? '#00cc78' : '#fca5a5'}` }}>
-              {saveMsg.type === 'success' ? <CheckCircle size={16} color="#007a48" /> : <XCircle size={16} color="#b91c1c" />}
-              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: saveMsg.type === 'success' ? '#007a48' : '#b91c1c' }}>{saveMsg.text}</span>
+            <div className={`alert ${saveMsg.type === 'success' ? 'alert-success' : 'alert-error'}`} style={{ marginBottom: 16 }}>
+              {saveMsg.type === 'success' ? <CheckCircle size={16} /> : <XCircle size={16} />}
+              <span style={{ fontWeight: 600 }}>{saveMsg.text}</span>
             </div>
           )}
 
           <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
             <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Store domain</label>
+              <label className="form-label" style={{ display: 'block', marginBottom: 4 }}>Store domain</label>
               <input type="text" placeholder="your-store.myshopify.com" value={domain} onChange={e => setDomain(e.target.value)}
                 style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', outline: 'none' }} />
             </div>
             <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: 4 }}>
                 Client ID {isConnected && <span style={{ color: '#007a48', fontWeight: 400 }}>(leave blank to keep existing)</span>}
               </label>
               <input type="text" placeholder={isConnected ? '••••••••••••••••' : 'Client ID from Dev Dashboard'} value={clientId} onChange={e => setClientId(e.target.value)}
                 style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', outline: 'none' }} />
             </div>
             <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: 4 }}>
                 Client Secret {isConnected && <span style={{ color: '#007a48', fontWeight: 400 }}>(leave blank to keep existing)</span>}
               </label>
               <input type="password" placeholder={isConnected ? '••••••••••••••••' : 'Client Secret from Dev Dashboard'} value={clientSecret} onChange={e => setClientSecret(e.target.value)}
@@ -272,28 +267,23 @@ export default function SettingsPage() {
           </div>
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-            <button onClick={handleSaveShopify} disabled={saving || !domain || (!clientId && !isConnected)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 20px', background: (saving || !domain || (!clientId && !isConnected)) ? 'var(--cream)' : 'var(--ink)', color: (saving || !domain || (!clientId && !isConnected)) ? 'var(--muted)' : 'var(--accent)', fontFamily: 'var(--font-barlow)', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: (saving || !domain || (!clientId && !isConnected)) ? 'not-allowed' : 'pointer' }}>
+            <button className="btn btn-dark" onClick={handleSaveShopify} disabled={saving || !domain || (!clientId && !isConnected)}>
               {saving ? 'Connecting…' : isConnected ? 'Update connection' : 'Connect Shopify'}
             </button>
 
             {isConnected && (<>
-              <button onClick={() => handleSync(false)} disabled={syncing}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 20px', background: 'var(--accent)', color: '#000', fontFamily: 'var(--font-barlow)', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: syncing ? 'not-allowed' : 'pointer' }}>
+              <button className="btn btn-primary" onClick={() => handleSync(false)} disabled={syncing}>
                 <RefreshCw size={14} style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
                 {syncing ? 'Syncing…' : 'Sync new orders'}
               </button>
-              <button onClick={() => handleSync(true)} disabled={syncing}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 20px', background: 'var(--ink)', color: 'var(--accent)', fontFamily: 'var(--font-barlow)', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: syncing ? 'not-allowed' : 'pointer' }}>
+              <button className="btn btn-dark" onClick={() => handleSync(true)} disabled={syncing}>
                 <RefreshCw size={14} />
                 Full sync
               </button>
-              <button onClick={handleClean} disabled={cleaning}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 16px', background: 'var(--cream)', color: 'var(--ink)', fontFamily: 'var(--font-barlow)', fontWeight: 700, fontSize: '0.875rem', border: '1px solid var(--border)', borderRadius: 6, cursor: cleaning ? 'not-allowed' : 'pointer' }}>
+              <button className="btn btn-secondary" onClick={handleClean} disabled={cleaning}>
                 {cleaning ? '…' : '🧹'} {cleaning ? 'Cleaning…' : 'Clean duplicates'}
               </button>
-              <button onClick={handleDisconnect} disabled={disconnecting}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 16px', background: '#fee2e2', color: '#b91c1c', fontFamily: 'var(--font-barlow)', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+              <button className="btn btn-danger" onClick={handleDisconnect} disabled={disconnecting}>
                 <Unplug size={14} />
                 Disconnect
               </button>
@@ -312,23 +302,23 @@ export default function SettingsPage() {
           )}
 
           {syncResult && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 8, marginTop: 12, background: '#e6fff5', border: '1px solid #00cc78' }}>
-              <CheckCircle size={16} color="#007a48" />
-              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#007a48' }}>
+            <div className="alert alert-success" style={{ marginTop: 12 }}>
+              <CheckCircle size={16} />
+              <span style={{ fontWeight: 600 }}>
                 {syncResult.message || `Synced ${syncResult.synced} orders · ${syncResult.inserted} new`}
               </span>
             </div>
           )}
           {syncError && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 8, marginTop: 12, background: '#fee2e2', border: '1px solid #fca5a5' }}>
-              <XCircle size={16} color="#b91c1c" />
-              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#b91c1c' }}>{syncError}</span>
+            <div className="alert alert-error" style={{ marginTop: 12 }}>
+              <XCircle size={16} />
+              <span style={{ fontWeight: 600 }}>{syncError}</span>
             </div>
           )}
           {cleanResult !== null && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 8, marginTop: 12, background: '#e6fff5', border: '1px solid #00cc78' }}>
-              <CheckCircle size={16} color="#007a48" />
-              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#007a48' }}>
+            <div className="alert alert-success" style={{ marginTop: 12 }}>
+              <CheckCircle size={16} />
+              <span style={{ fontWeight: 600 }}>
                 {cleanResult === 0 ? 'No duplicates found — data is clean!' : `Removed ${cleanResult} duplicate orders`}
               </span>
             </div>
@@ -346,26 +336,21 @@ export default function SettingsPage() {
                 {gaPropertyId ? `Connected · Property ${gaPropertyId}` : 'Not connected'}
               </div>
             </div>
-            <span style={{
-              fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
-              padding: '3px 10px', borderRadius: 20,
-              background: gaPropertyId ? '#e6fff5' : '#fee2e2',
-              color: gaPropertyId ? '#007a48' : '#b91c1c',
-            }}>
+            <span className={`badge ${gaPropertyId ? 'badge-paid' : 'badge-failed'}`}>
               {gaPropertyId ? '● Connected' : '○ Not connected'}
             </span>
           </div>
 
           {gaMsg && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 8, marginBottom: 16, background: gaMsg.type === 'success' ? '#e6fff5' : '#fee2e2', border: `1px solid ${gaMsg.type === 'success' ? '#00cc78' : '#fca5a5'}` }}>
-              {gaMsg.type === 'success' ? <CheckCircle size={16} color="#007a48" /> : <XCircle size={16} color="#b91c1c" />}
-              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: gaMsg.type === 'success' ? '#007a48' : '#b91c1c' }}>{gaMsg.text}</span>
+            <div className={`alert ${gaMsg.type === 'success' ? 'alert-success' : 'alert-error'}`} style={{ marginBottom: 16 }}>
+              {gaMsg.type === 'success' ? <CheckCircle size={16} /> : <XCircle size={16} />}
+              <span style={{ fontWeight: 600 }}>{gaMsg.text}</span>
             </div>
           )}
 
           <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
             <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>GA4 Property ID</label>
+              <label className="form-label" style={{ display: 'block', marginBottom: 4 }}>GA4 Property ID</label>
               <input type="text" placeholder="e.g. 482126930" value={gaPropertyId} onChange={e => setGaPropertyId(e.target.value)}
                 style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', outline: 'none' }} />
               <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 6, lineHeight: 1.5 }}>
@@ -374,15 +359,14 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <button onClick={async () => {
+          <button className="btn btn-dark" onClick={async () => {
             setSavingGa(true); setGaMsg(null)
             const { error } = await supabase.from('organizations').update({ ga_property_id: gaPropertyId || null }).eq('id', orgId())
             setSavingGa(false)
             if (error) setGaMsg({ type: 'error', text: error.message })
             else setGaMsg({ type: 'success', text: gaPropertyId ? 'GA4 Property ID saved' : 'GA4 disconnected' })
             loadData()
-          }} disabled={savingGa}
-            style={{ padding: '10px 20px', background: savingGa ? 'var(--cream)' : 'var(--ink)', color: savingGa ? 'var(--muted)' : 'var(--accent)', fontFamily: 'var(--font-barlow)', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: savingGa ? 'not-allowed' : 'pointer' }}>
+          }} disabled={savingGa}>
             {savingGa ? 'Saving…' : gaPropertyId ? 'Save Property ID' : 'Disconnect GA4'}
           </button>
         </Section>
@@ -398,7 +382,7 @@ export default function SettingsPage() {
                 <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{i.name}</div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: 2 }}>{i.desc}</div>
               </div>
-              <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', padding: '3px 9px', borderRadius: 20, background: 'var(--cream)', color: 'var(--muted)' }}>
+              <span className="badge badge-gray">
                 {i.status}
               </span>
             </div>

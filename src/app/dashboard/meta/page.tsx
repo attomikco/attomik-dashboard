@@ -17,13 +17,7 @@ function PctPill({ cur, prev, invertColors }: { cur: number; prev: number; inver
   const isUp = p >= 0
   const isGood = invertColors ? !isUp : isUp
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 6,
-      padding: '2px 8px', borderRadius: 4, fontSize: '0.78rem', fontWeight: 700,
-      fontFamily: 'Barlow, sans-serif',
-      background: isGood ? '#e6fff5' : '#fee2e2',
-      color: isGood ? '#007a48' : '#b91c1c',
-    }}>
+    <span className={`badge ${isGood ? 'pill-up' : 'pill-down'}`} style={{ marginTop: 6 }}>
       {isUp ? '↑' : '↓'} {Math.abs(p).toFixed(1)}%
     </span>
   )
@@ -45,17 +39,6 @@ const defaultRange: DateRange = {
   label: 'Month to date',
 }
 
-const TH: React.CSSProperties = {
-  padding: '10px 14px', background: '#f2f2f2', fontSize: '0.72rem',
-  fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em',
-  color: '#666', whiteSpace: 'nowrap', fontFamily: 'Barlow, sans-serif',
-  borderBottom: '1px solid #e0e0e0', userSelect: 'none',
-}
-const TD: React.CSSProperties = {
-  padding: '11px 14px', fontSize: '0.875rem', fontFamily: 'Barlow, sans-serif',
-  borderBottom: '1px solid #f2f2f2', verticalAlign: 'middle',
-}
-const MONO: React.CSSProperties = { fontFamily: 'DM Mono, monospace', fontSize: '0.82rem' }
 
 interface AdRow {
   campaign_name: string; adset_name: string | null; ad_name: string | null
@@ -125,21 +108,15 @@ function aggregate(rows: AdRow[], today: string, activeThreshold: string): Recor
 }
 
 function RoasBadge({ roas }: { roas: number }) {
-  if (roas === 0) return <span style={{ color: '#999', ...MONO }}>—</span>
-  const color = roas >= 2 ? '#007a48' : roas >= 1 ? '#856404' : '#b91c1c'
-  const bg = roas >= 2 ? '#e6fff5' : roas >= 1 ? '#fffbeb' : '#fee2e2'
-  return <span style={{ background: bg, color, padding: '2px 8px', borderRadius: 4, fontWeight: 700, ...MONO }}>{fmtX(roas)}</span>
+  if (roas === 0) return <span className="mono td-muted">—</span>
+  const badgeClass = roas >= 2 ? 'badge-green' : roas >= 1 ? 'badge-yellow' : 'badge-red'
+  return <span className={`badge ${badgeClass} mono`} style={{ fontWeight: 700 }}>{fmtX(roas)}</span>
 }
 
 function ActiveBadge({ isActive, lastSeen }: { isActive: boolean; lastSeen: string }) {
   return (
-    <span title={`Last seen: ${lastSeen}`} style={{
-      display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px',
-      borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, fontFamily: 'Barlow, sans-serif',
-      background: isActive ? '#e6fff5' : '#f2f2f2',
-      color: isActive ? '#007a48' : '#999',
-    }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: isActive ? '#00cc78' : '#ccc', display: 'inline-block' }} />
+    <span title={`Last seen: ${lastSeen}`} className={`badge ${isActive ? 'badge-active' : 'badge-inactive'}`}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: isActive ? 'var(--success)' : 'var(--disabled)', display: 'inline-block' }} />
       {isActive ? 'Active' : 'Paused'}
     </span>
   )
@@ -150,7 +127,7 @@ function SortTH({ label, sortKey, currentSort, currentDir, onSort, align = 'righ
 }) {
   const active = currentSort === sortKey
   return (
-    <th onClick={() => onSort(sortKey)} style={{ ...TH, textAlign: align as any, cursor: 'pointer', color: active ? '#000' : '#666', background: active ? '#e8e8e8' : '#f2f2f2' }}>
+    <th onClick={() => onSort(sortKey)} style={{ textAlign: align as any, cursor: 'pointer', color: active ? '#000' : undefined, background: active ? 'var(--cream-dark)' : undefined, userSelect: 'none' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: align === 'right' ? 'flex-end' : 'flex-start' }}>
         {label}
         {active ? (currentDir === 'desc' ? <ArrowDown size={12} /> : <ArrowUp size={12} />) : <ArrowUpDown size={10} style={{ opacity: 0.3 }} />}
@@ -162,14 +139,14 @@ function SortTH({ label, sortKey, currentSort, currentDir, onSort, align = 'righ
 function MetricCells({ row }: { row: Aggregated }) {
   return (
     <>
-      <td style={{ ...TD, ...MONO, textAlign: 'right' }}>{fmt$(row.spend)}</td>
-      <td style={{ ...TD, ...MONO, textAlign: 'right' }}>{fmtN(row.impressions)}</td>
-      <td style={{ ...TD, ...MONO, textAlign: 'right' }}>{fmtN(row.clicks)}</td>
-      <td style={{ ...TD, ...MONO, textAlign: 'right' }}>{fmtPct(row.ctr)}</td>
-      <td style={{ ...TD, ...MONO, textAlign: 'right' }}>{fmt2(row.cpc)}</td>
-      <td style={{ ...TD, ...MONO, textAlign: 'right' }}>{fmtN(row.conversions)}</td>
-      <td style={{ ...TD, ...MONO, textAlign: 'right' }}>{fmt$(row.conversionValue)}</td>
-      <td style={{ ...TD, textAlign: 'right' }}><RoasBadge roas={row.roas} /></td>
+      <td className="td-mono td-right">{fmt$(row.spend)}</td>
+      <td className="td-mono td-right">{fmtN(row.impressions)}</td>
+      <td className="td-mono td-right">{fmtN(row.clicks)}</td>
+      <td className="td-mono td-right">{fmtPct(row.ctr)}</td>
+      <td className="td-mono td-right">{fmt2(row.cpc)}</td>
+      <td className="td-mono td-right">{fmtN(row.conversions)}</td>
+      <td className="td-mono td-right">{fmt$(row.conversionValue)}</td>
+      <td className="td-right"><RoasBadge roas={row.roas} /></td>
     </>
   )
 }
@@ -317,17 +294,19 @@ export default function MetaAdsPage() {
   return (
     <div>
       {/* Topbar */}
-      <div className="analytics-topbar" style={{ padding: '20px 40px', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: '#fff', zIndex: 50 }}>
-        <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'var(--font-barlow), Barlow, sans-serif', color: '#000' }}>{orgName} — Meta Ads</h1>
-          <p style={{ fontSize: '0.875rem', color: '#666', marginTop: 2, fontFamily: 'Barlow, sans-serif' }}>
+      <div className="topbar">
+        <div className="topbar-title">
+          <h1>{orgName} — Meta Ads</h1>
+          <p className="caption" style={{ marginTop: 2 }}>
             {fmtDate(range.start)} – {fmtDate(range.end)} · vs previous {dayCount} days
           </p>
         </div>
-        <DateRangePicker value={range} onChange={r => setRange(r)} />
+        <div className="topbar-actions">
+          <DateRangePicker value={range} onChange={r => setRange(r)} />
+        </div>
       </div>
 
-      <div className="meta-content" style={{ padding: 'clamp(16px, 4vw, 28px) clamp(16px, 4vw, 40px) 64px', minWidth: 0, overflowX: 'hidden' }}>
+      <div className="page-content" style={{ minWidth: 0, overflowX: 'hidden' }}>
         {loading ? (
           <div style={{ color: '#666', textAlign: 'center', padding: '80px 0', fontFamily: 'Barlow, sans-serif' }}>Loading…</div>
         ) : Object.keys(campaigns).length === 0 ? (
@@ -379,7 +358,7 @@ export default function MetaAdsPage() {
             </div>
 
             {/* KPI Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
+            <div className="grid-4" style={{ marginBottom: 28 }}>
               {[
                 { label: 'Total Spend',  value: fmt$(totals.spend),           cur: totals.spend,           prev: prevMetaData.spend ?? 0,        invertColors: true },
                 { label: 'Impressions',  value: fmtN(totals.impressions),     cur: totals.impressions,     prev: prevMetaData.impressions ?? 0 },
@@ -397,11 +376,11 @@ export default function MetaAdsPage() {
                 const up = change !== undefined ? change >= 0 : null
                 const isGood = up === null ? null : (k.invertColors ? !up : up)
                 return (
-                  <div key={k.label} style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 10, padding: 24 }}>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12, fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>{k.label}</div>
-                    <div style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', color: '#000', lineHeight: 1.1, marginBottom: 8 }}>{k.value}</div>
+                  <div key={k.label} className="kpi-card">
+                    <div className="kpi-label">{k.label}</div>
+                    <div className="kpi-value" style={{ marginBottom: 8 }}>{k.value}</div>
                     {change !== undefined && (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.875rem', fontWeight: 700, fontFamily: 'var(--font-barlow), Barlow, sans-serif', padding: '4px 10px', borderRadius: 6, background: isGood ? '#e6fff5' : '#fee2e2', color: isGood ? '#007a48' : '#b91c1c' }}>
+                      <span className={`badge ${isGood ? 'pill-up' : 'pill-down'}`}>
                         {up ? '↑' : '↓'} {Math.abs(change).toFixed(1)}%
                       </span>
                     )}
@@ -412,10 +391,10 @@ export default function MetaAdsPage() {
 
             {/* Charts */}
             {dailyData.length > 1 && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 28 }}>
-                <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 10, padding: 20 }}>
-                  <div style={{ fontWeight: 800, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif', marginBottom: 4 }}>Daily Spend</div>
-                  <div style={{ fontSize: '0.75rem', color: '#999', fontFamily: 'Barlow, sans-serif', marginBottom: 12 }}>Ad spend per day</div>
+              <div className="grid-2" style={{ marginBottom: 28 }}>
+                <div className="card" style={{ padding: 20 }}>
+                  <h4 style={{ marginBottom: 4 }}>Daily Spend</h4>
+                  <p className="caption" style={{ marginBottom: 12 }}>Ad spend per day</p>
                   <ResponsiveContainer width="100%" height={160}>
                     <BarChart data={dailyData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f2f2f2" vertical={false} />
@@ -426,9 +405,9 @@ export default function MetaAdsPage() {
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-                <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 10, padding: 20 }}>
-                  <div style={{ fontWeight: 800, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif', marginBottom: 4 }}>Daily ROAS</div>
-                  <div style={{ fontSize: '0.75rem', color: '#999', fontFamily: 'Barlow, sans-serif', marginBottom: 12 }}>Return on ad spend per day</div>
+                <div className="card" style={{ padding: 20 }}>
+                  <h4 style={{ marginBottom: 4 }}>Daily ROAS</h4>
+                  <p className="caption" style={{ marginBottom: 12 }}>Return on ad spend per day</p>
                   <ResponsiveContainer width="100%" height={160}>
                     <LineChart data={dailyData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f2f2f2" vertical={false} />
@@ -443,32 +422,28 @@ export default function MetaAdsPage() {
             )}
 
             {/* Filter + Table */}
-            <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 10, overflow: 'hidden', minWidth: 0 }}>
+            <div className="table-wrapper" style={{ minWidth: 0 }}>
               {/* Filter bar */}
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: '0.8rem', color: '#666', fontFamily: 'Barlow, sans-serif', marginRight: 4 }}>Show:</span>
-                {(['all', 'active', 'paused'] as const).map(f => (
-                  <button key={f} onClick={() => setFilterActive(f)} style={{
-                    padding: '4px 12px', borderRadius: 6, border: '1px solid', fontSize: '0.8rem', fontWeight: 600,
-                    fontFamily: 'Barlow, sans-serif', cursor: 'pointer', transition: '0.15s',
-                    background: filterActive === f ? '#000' : '#fff',
-                    borderColor: filterActive === f ? '#000' : '#e0e0e0',
-                    color: filterActive === f ? '#fff' : '#666',
-                  }}>
-                    {f.charAt(0).toUpperCase() + f.slice(1)}
-                    {f === 'active' && <span style={{ marginLeft: 4, background: '#00cc78', color: '#000', borderRadius: 10, padding: '0 5px', fontSize: '0.65rem' }}>{activeCampaigns}</span>}
-                    {f === 'paused' && <span style={{ marginLeft: 4, background: '#e0e0e0', color: '#666', borderRadius: 10, padding: '0 5px', fontSize: '0.65rem' }}>{Object.keys(campaigns).length - activeCampaigns}</span>}
-                  </button>
-                ))}
-                <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: '#999', fontFamily: 'Barlow, sans-serif' }}>Click column headers to sort · Click rows to expand</span>
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span className="label" style={{ marginRight: 4 }}>Show:</span>
+                <div className="toggle-group">
+                  {(['all', 'active', 'paused'] as const).map(f => (
+                    <button key={f} className={`toggle-btn${filterActive === f ? ' active' : ''}`} onClick={() => setFilterActive(f)}>
+                      {f.charAt(0).toUpperCase() + f.slice(1)}
+                      {f === 'active' && <span className="badge badge-active" style={{ marginLeft: 4, fontSize: '0.65rem' }}>{activeCampaigns}</span>}
+                      {f === 'paused' && <span className="badge badge-gray" style={{ marginLeft: 4, fontSize: '0.65rem' }}>{Object.keys(campaigns).length - activeCampaigns}</span>}
+                    </button>
+                  ))}
+                </div>
+                <span className="caption" style={{ marginLeft: 'auto' }}>Click column headers to sort · Click rows to expand</span>
               </div>
 
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <div className="table-scroll">
+                <table>
                   <thead>
                     <tr>
-                      <th style={{ ...TH, minWidth: 300, textAlign: 'left' }}>Campaign / Ad Set / Ad</th>
-                      <th style={{ ...TH, textAlign: 'center', minWidth: 90 }}>Status</th>
+                      <th style={{ minWidth: 300, textAlign: 'left' }}>Campaign / Ad Set / Ad</th>
+                      <th style={{ textAlign: 'center', minWidth: 90 }}>Status</th>
                       {SORT_COLS.map(col => (
                         <SortTH key={col.key} label={col.label} sortKey={col.key} currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
                       ))}
@@ -486,13 +461,13 @@ export default function MetaAdsPage() {
                             onClick={() => setExpandedCamps(prev => { const s = new Set(prev); s.has(camp.name) ? s.delete(camp.name) : s.add(camp.name); return s })}
                             onMouseEnter={e => (e.currentTarget.style.background = '#f9f9f9')}
                             onMouseLeave={e => (e.currentTarget.style.background = campExpanded ? '#fafafa' : '#fff')}>
-                            <td style={{ ...TD, fontWeight: 700 }}>
+                            <td className="td-strong">
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 {campExpanded ? <ChevronDown size={14} color="#666" /> : <ChevronRight size={14} color="#666" />}
-                                <span style={{ fontSize: '0.875rem', fontFamily: 'Barlow, sans-serif', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{camp.name}</span>
+                                <span style={{ maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{camp.name}</span>
                               </div>
                             </td>
-                            <td style={{ ...TD, textAlign: 'center' }}>
+                            <td style={{ textAlign: 'center' }}>
                               <ActiveBadge isActive={camp.isActive} lastSeen={camp.lastSeen} />
                             </td>
                             <MetricCells row={camp} />
@@ -510,13 +485,13 @@ export default function MetaAdsPage() {
                                   onClick={() => setExpandedAdsets(prev => { const s = new Set(prev); s.has(adsetKey) ? s.delete(adsetKey) : s.add(adsetKey); return s })}
                                   onMouseEnter={e => (e.currentTarget.style.background = '#f0f0f0')}
                                   onMouseLeave={e => (e.currentTarget.style.background = adsetExpanded ? '#f5f5f5' : '#f9f9f9')}>
-                                  <td style={{ ...TD, paddingLeft: 40 }}>
+                                  <td style={{ paddingLeft: 40 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                       {adsetExpanded ? <ChevronDown size={12} color="#999" /> : <ChevronRight size={12} color="#999" />}
-                                      <span style={{ fontSize: '0.8rem', fontFamily: 'Barlow, sans-serif', color: '#333', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{adset.name}</span>
+                                      <span className="td-muted" style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{adset.name}</span>
                                     </div>
                                   </td>
-                                  <td style={{ ...TD, textAlign: 'center' }}>
+                                  <td style={{ textAlign: 'center' }}>
                                     <ActiveBadge isActive={adset.isActive} lastSeen={adset.lastSeen} />
                                   </td>
                                   <MetricCells row={adset} />
@@ -524,13 +499,13 @@ export default function MetaAdsPage() {
 
                                 {adsetExpanded && sortedAds.map(ad => (
                                   <tr key={ad.name} style={{ background: '#fafafa' }}>
-                                    <td style={{ ...TD, paddingLeft: 64 }}>
+                                    <td style={{ paddingLeft: 64 }}>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                         <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#ccc', flexShrink: 0 }} />
-                                        <span style={{ fontSize: '0.78rem', fontFamily: 'Barlow, sans-serif', color: '#666', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ad.name}</span>
+                                        <span className="td-muted" style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ad.name}</span>
                                       </div>
                                     </td>
-                                    <td style={{ ...TD, textAlign: 'center' }}>
+                                    <td style={{ textAlign: 'center' }}>
                                       <ActiveBadge isActive={ad.isActive} lastSeen={ad.lastSeen} />
                                     </td>
                                     <MetricCells row={ad} />
@@ -550,19 +525,6 @@ export default function MetaAdsPage() {
         )}
       </div>
 
-      <style>{`
-        @media (max-width: 768px) {
-          .analytics-topbar {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            padding: 14px 16px 14px 60px !important;
-            z-index: 100 !important;
-          }
-          .meta-content { padding-top: 80px !important; }
-        }
-      `}</style>
     </div>
   )
 }

@@ -44,7 +44,10 @@ export default function Sidebar() {
   }, [])
 
   // Close mobile menu on route change
-  useEffect(() => { setMobileOpen(false) }, [pathname])
+  useEffect(() => {
+    setMobileOpen(false)
+    document.body.classList.remove('sidebar-open')
+  }, [pathname])
 
   const loadData = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -132,8 +135,8 @@ export default function Sidebar() {
   const sidebarContent = (
     <>
       {/* Logo */}
-      <div style={{ padding: '28px 24px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3162 909" style={{ height: 38, display: 'block' }}>
+      <div className="sidebar-logo" style={{ position: 'relative' }}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3162 909" className="logo-sidebar">
           <g transform="scale(8.11041548093341) translate(10, 10)">
             <g transform="matrix(1.0466,0,0,1.0466,-6.28,-6.28)" fill="#ffffff">
               <g transform="translate(0,-952.36218)">
@@ -148,7 +151,7 @@ export default function Sidebar() {
           </g>
         </svg>
         {/* Close button on mobile */}
-        <button onClick={() => setMobileOpen(false)} style={{ display: 'none', background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', position: 'absolute', right: 16, top: 28 }} className="mobile-close">
+        <button onClick={() => { setMobileOpen(false); document.body.classList.remove('sidebar-open') }} style={{ display: 'none', background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', position: 'absolute', right: 16, top: 28 }} className="mobile-close">
           <X size={20} />
         </button>
       </div>
@@ -167,7 +170,8 @@ export default function Sidebar() {
               localStorage.removeItem('viewAsUserName')
               window.location.href = '/dashboard/overview'
             }}
-            style={{ padding: '4px 10px', background: '#000', color: '#00ff97', fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.68rem', border: 'none', borderRadius: 4, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}
+            className="btn btn-dark btn-xs"
+            style={{ flexShrink: 0 }}
           >
             Exit
           </button>
@@ -206,7 +210,7 @@ export default function Sidebar() {
       )}
 
       {/* Nav */}
-      <div style={{ flex: 1, padding: '8px 0', overflowY: 'auto' }}>
+      <div className="sidebar-nav">
         {navItems.filter(({ minRole }) => {
           if (profile?.is_superadmin) return true
           const role = profile?.memberRole ?? profile?.role ?? 'viewer'
@@ -215,7 +219,7 @@ export default function Sidebar() {
           const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
           return (
             <button key={href} onClick={() => router.push(href)}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 24px', background: active ? 'rgba(0,255,151,0.07)' : 'transparent', borderLeft: `2px solid ${active ? 'var(--accent)' : 'transparent'}`, border: 'none', borderLeftStyle: 'solid', borderLeftWidth: 2, borderLeftColor: active ? 'var(--accent)' : 'transparent', color: active ? 'var(--accent)' : 'rgba(255,255,255,0.55)', fontSize: '1rem', fontWeight: active ? 600 : 400, cursor: 'pointer', transition: 'all 0.15s', textAlign: 'left', whiteSpace: 'nowrap' }}>
+              className={`nav-item${active ? ' active' : ''}`}>
               <Icon size={16} style={{ flexShrink: 0, opacity: active ? 1 : 0.6 }} />
               {label}
             </button>
@@ -225,13 +229,13 @@ export default function Sidebar() {
 
       {/* Superadmin section */}
       {profile?.is_superadmin && (
-        <div style={{ padding: '8px 0', borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
-          <div style={{ padding: '8px 24px 4px', fontSize: '0.65rem', fontWeight: 700, color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Admin</div>
+        <div style={{ padding: '8px 0', borderTop: '1px solid var(--sidebar-border)', flexShrink: 0 }}>
+          <div className="label" style={{ padding: '8px 24px 4px', color: 'rgba(255,255,255,0.25)', fontSize: '0.65rem', letterSpacing: '0.1em' }}>Admin</div>
           {[{ label: 'Projects', href: '/dashboard/projects', icon: FolderOpen }].map(({ label, href, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(href + '/')
             return (
               <button key={href} onClick={() => router.push(href)}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 24px', background: active ? 'rgba(0,255,151,0.07)' : 'transparent', borderLeft: `2px solid ${active ? 'var(--accent)' : 'transparent'}`, border: 'none', borderLeftStyle: 'solid', borderLeftWidth: 2, borderLeftColor: active ? 'var(--accent)' : 'transparent', color: active ? 'var(--accent)' : 'rgba(255,255,255,0.4)', fontSize: '1rem', fontWeight: active ? 600 : 400, cursor: 'pointer', transition: 'all 0.15s', textAlign: 'left', whiteSpace: 'nowrap' }}>
+                className={`nav-item${active ? ' active' : ''}`}>
                 <Icon size={16} style={{ flexShrink: 0, opacity: active ? 1 : 0.6 }} />
                 {label}
               </button>
@@ -241,15 +245,15 @@ export default function Sidebar() {
       )}
 
       {/* Footer */}
-      <div style={{ padding: '16px 20px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-        <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--accent)', display: 'grid', placeItems: 'center', fontSize: '0.75rem', fontWeight: 800, color: '#000', flexShrink: 0 }}>
+      <div className="sidebar-footer">
+        <div className="avatar avatar-sm" style={{ width: 34, height: 34 }}>
           {initials(profile?.full_name ?? null)}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile?.full_name ?? 'User'}</div>
-          <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', textTransform: 'capitalize' }}>{profile?.is_superadmin ? 'Super Admin' : profile?.role ?? 'Member'}</div>
+          <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#fff' }} className="truncate">{profile?.full_name ?? 'User'}</div>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'rgba(255,255,255,0.4)', textTransform: 'capitalize' }}>{profile?.is_superadmin ? 'Super Admin' : profile?.role ?? 'Member'}</div>
         </div>
-        <button onClick={handleSignOut} title="Sign out" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: 4, transition: '0.15s', flexShrink: 0 }}
+        <button onClick={handleSignOut} title="Sign out" className="btn-ghost" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: 4, transition: '0.15s', flexShrink: 0 }}
           onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
           onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.3)')}>
           <LogOut size={16} />
@@ -261,35 +265,20 @@ export default function Sidebar() {
   return (
     <>
       {/* Mobile hamburger */}
-      <button onClick={() => setMobileOpen(true)}
-        style={{ display: 'none', position: 'fixed', top: 16, left: 16, zIndex: 150, background: '#000', border: 'none', borderRadius: 8, padding: 10, cursor: 'pointer', color: '#fff' }}
+      <button onClick={() => { setMobileOpen(true); document.body.classList.add('sidebar-open') }}
         className="mobile-menu-btn">
         <Menu size={20} />
       </button>
 
       {/* Mobile overlay */}
-      <div onClick={() => setMobileOpen(false)}
-        style={{ display: mobileOpen ? 'block' : 'none', position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 99 }}
+      <div onClick={() => { setMobileOpen(false); document.body.classList.remove('sidebar-open') }}
+        className="sidebar-overlay"
       />
 
       {/* Sidebar */}
-      <aside className={`sidebar-nav-wrapper ${mobileOpen ? 'mobile-open' : ''}`}
-        style={{ position: 'fixed', top: 0, left: 0, bottom: 0, width: 260, background: 'var(--ink)', display: 'flex', flexDirection: 'column', zIndex: 100, borderRight: '1px solid rgba(255,255,255,0.06)', transition: 'transform 0.25s ease' }}>
+      <aside className="sidebar">
         {sidebarContent}
       </aside>
-
-      <style>{`
-        @media (max-width: 768px) {
-          .mobile-menu-btn { display: flex !important; align-items: center; justify-content: center; }
-          .sidebar-nav-wrapper { transform: translateX(-260px) !important; }
-          .sidebar-nav-wrapper.mobile-open { transform: translateX(0) !important; }
-          .mobile-close { display: flex !important; }
-        }
-        @media (min-width: 769px) {
-          .mobile-menu-btn { display: none !important; }
-          .sidebar-nav-wrapper { transform: none !important; }
-        }
-      `}</style>
     </>
   )
 }

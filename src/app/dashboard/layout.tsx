@@ -36,14 +36,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [])
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div className="app-layout">
       <Sidebar />
-      <main
-        className="dashboard-main"
-        style={{ marginLeft: 'var(--sidebar-w)', flex: 1, background: 'var(--paper)', minHeight: '100vh', transition: 'margin 0.25s' }}
-      >
+      <main className="main">
         {ready ? children : (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--muted)', fontFamily: 'var(--font-barlow)', fontSize: '0.9rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }} className="text-muted">
             Loading…
           </div>
         )}

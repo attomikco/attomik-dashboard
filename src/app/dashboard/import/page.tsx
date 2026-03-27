@@ -62,7 +62,7 @@ function PlatformUploader({ platform, orgName }: { platform: typeof ALL_PLATFORM
 
   return (
     <div>
-      <div style={{ background: '#f2f2f2', border: '1px solid #e0e0e0', borderRadius: 8, padding: '12px 16px', marginBottom: 20, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+      <div className="card-muted" style={{ borderRadius: 8, padding: '12px 16px', marginBottom: 20, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
         <div style={{ width: 6, height: 6, borderRadius: '50%', background: platform.color, flexShrink: 0, marginTop: 5 }} />
         <div>
           <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 2, fontFamily: 'Barlow, sans-serif' }}>How to export</div>
@@ -99,7 +99,7 @@ function PlatformUploader({ platform, orgName }: { platform: typeof ALL_PLATFORM
               </div>
               <p style={{ fontSize: '0.75rem', color: '#007a48', marginTop: 4, fontFamily: 'Barlow, sans-serif' }}>{result?.inserted} rows added · {result?.skipped ?? 0} skipped</p>
             </div>
-            <button onClick={reset} style={{ background: '#000', color: '#00ff97', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap' }}>Upload another</button>
+            <button onClick={reset} className="btn btn-dark btn-xs" style={{ whiteSpace: 'nowrap' }}>Upload another</button>
           </div>
         </div>
       )}
@@ -108,7 +108,7 @@ function PlatformUploader({ platform, orgName }: { platform: typeof ALL_PLATFORM
         <div style={{ fontSize: '0.72rem', fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontFamily: 'Barlow, sans-serif' }}>Expected columns</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {platform.columns.map(col => (
-            <span key={col} style={{ fontFamily: 'DM Mono, monospace', fontSize: '0.72rem', padding: '3px 8px', background: '#f2f2f2', border: '1px solid #e0e0e0', borderRadius: 4, color: '#666' }}>{col}</span>
+            <span key={col} className="badge badge-gray" style={{ fontFamily: 'DM Mono, monospace', textTransform: 'none', letterSpacing: 'normal' }}>{col}</span>
           ))}
         </div>
       </div>
@@ -118,19 +118,19 @@ function PlatformUploader({ platform, orgName }: { platform: typeof ALL_PLATFORM
         <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#666', fontFamily: 'Barlow, sans-serif', marginBottom: 10 }}>Wrong data?</div>
 
         {confirmAction ? (
-          <div style={{ background: confirmAction === 'all' ? '#fee2e2' : '#fff7ed', border: `1px solid ${confirmAction === 'all' ? '#fca5a5' : '#fed7aa'}`, borderRadius: 8, padding: '14px 16px' }}>
-            <p style={{ fontSize: '0.8rem', fontWeight: 700, fontFamily: 'Barlow, sans-serif', color: confirmAction === 'all' ? '#b91c1c' : '#9a3412', marginBottom: 8 }}>
+          <div className={confirmAction === 'all' ? 'alert alert-error' : 'alert alert-warning'} style={{ borderRadius: 8, padding: '14px 16px', flexDirection: 'column', alignItems: 'stretch' }}>
+            <p style={{ fontSize: '0.8rem', fontWeight: 700, fontFamily: 'Barlow, sans-serif', marginBottom: 8 }}>
               {confirmAction === 'all'
                 ? `Delete ALL ${platform.label} data for this project? This cannot be undone.`
                 : `Undo the last ${platform.label} import?`}
             </p>
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => executePurge(confirmAction)}
-                style={{ background: confirmAction === 'all' ? '#b91c1c' : '#000', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'Barlow, sans-serif' }}>
+                className={`btn ${confirmAction === 'all' ? 'btn-danger' : 'btn-dark'} btn-sm`}>
                 Yes, {confirmAction === 'all' ? 'purge everything' : 'undo it'}
               </button>
               <button onClick={() => setConfirmAction(null)}
-                style={{ background: 'transparent', border: '1px solid #e0e0e0', borderRadius: 6, padding: '6px 14px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'Barlow, sans-serif', color: '#666' }}>
+                className="btn btn-ghost btn-sm">
                 Cancel
               </button>
             </div>
@@ -138,11 +138,11 @@ function PlatformUploader({ platform, orgName }: { platform: typeof ALL_PLATFORM
         ) : (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button onClick={() => setConfirmAction('last')} disabled={purging}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: '1px solid #e0e0e0', borderRadius: 6, padding: '6px 12px', fontSize: '0.75rem', fontWeight: 600, color: '#666', cursor: purging ? 'not-allowed' : 'pointer', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap' }}>
+              className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', cursor: purging ? 'not-allowed' : 'pointer' }}>
               <Trash2 size={13} />{purging ? 'Deleting…' : 'Undo last import'}
             </button>
             <button onClick={() => setConfirmAction('all')} disabled={purging}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: '1px solid #fca5a5', borderRadius: 6, padding: '6px 12px', fontSize: '0.75rem', fontWeight: 600, color: '#b91c1c', cursor: purging ? 'not-allowed' : 'pointer', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap' }}>
+              className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', cursor: purging ? 'not-allowed' : 'pointer', border: '1px solid #fca5a5', color: '#b91c1c' }}>
               <Trash2 size={13} />{purging ? 'Deleting…' : `Purge all ${platform.label} data`}
             </button>
           </div>
@@ -194,9 +194,9 @@ export default function ImportPage() {
           <div style={{ color: '#666', fontFamily: 'Barlow, sans-serif' }}>Loading…</div>
         ) : (
           <>
-            <div style={{ display: 'flex', gap: 4, marginBottom: 28, borderBottom: '1px solid #e0e0e0', overflowX: 'auto' }}>
+            <div className="tabs" style={{ marginBottom: 28 }}>
               {visiblePlatforms.map(p => (
-                <button key={p.id} onClick={() => setActiveTab(p.id)} style={{ padding: '8px 16px', border: 'none', background: 'transparent', fontFamily: 'Barlow, sans-serif', fontSize: '0.875rem', fontWeight: 600, color: activeTab === p.id ? '#000' : '#666', borderBottom: activeTab === p.id ? `2px solid ${p.color}` : '2px solid transparent', cursor: 'pointer', transition: '0.15s', marginBottom: -1, whiteSpace: 'nowrap' }}>
+                <button key={p.id} onClick={() => setActiveTab(p.id)} className={`tab-btn${activeTab === p.id ? ' active' : ''}`} style={activeTab === p.id ? { borderBottomColor: p.color } : undefined}>
                   {p.label}
                 </button>
               ))}
@@ -208,7 +208,7 @@ export default function ImportPage() {
               </>
             )}
             {enabledChannels.length === ALL_PLATFORMS.length && (
-              <div style={{ marginTop: 24, padding: '12px 16px', background: '#f2f2f2', borderRadius: 8, fontSize: '0.8rem', color: '#666', fontFamily: 'Barlow, sans-serif' }}>
+              <div className="card-muted" style={{ marginTop: 24, padding: '12px 16px', borderRadius: 8, fontSize: '0.8rem', color: '#666', fontFamily: 'Barlow, sans-serif' }}>
                 Showing all platforms. Configure which channels each client uses in <strong>Projects → [Client] → Channels</strong>.
               </div>
             )}
@@ -216,12 +216,6 @@ export default function ImportPage() {
         )}
       </div>
 
-      <style>{`
-        @media (max-width: 768px) {
-          .analytics-topbar { position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; padding: 14px 16px 14px 60px !important; z-index: 100 !important; }
-          .import-content { padding-top: 80px !important; }
-        }
-      `}</style>
     </div>
   )
 }

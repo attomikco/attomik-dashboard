@@ -83,9 +83,8 @@ function LoginForm() {
   }
 
   return (
-    <div style={{
-      background: '#fff', borderRadius: 12, padding: 48,
-      width: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+    <div className="card card-lg" style={{
+      width: 420, boxShadow: 'var(--shadow-modal)'
     }}>
       {/* Logo */}
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3162 909" style={{ height: 28, marginBottom: 32 }}>
@@ -105,7 +104,7 @@ function LoginForm() {
 
       {authenticating ? (
         <div style={{ textAlign: 'center', padding: '20px 0' }}>
-          <div style={{ width: 36, height: 36, border: '3px solid #e0e0e0', borderTopColor: '#00ff97', borderRadius: '50%', margin: '0 auto 16px', animation: 'spin 0.8s linear infinite' }} />
+          <div className="spinner spinner-lg spinner-accent" style={{ margin: '0 auto 16px' }} />
           <p style={{ fontFamily: 'var(--font-barlow)', fontWeight: 700, fontSize: '1rem', color: '#000', marginBottom: 4 }}>Signing you in…</p>
           <p style={{ fontSize: '0.8rem', color: '#999' }}>Setting up your account</p>
           <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
@@ -120,16 +119,16 @@ function LoginForm() {
       </p>
 
       {sent ? (
-        <div style={{ background: 'var(--accent-light)', border: '1px solid var(--success)', borderRadius: 8, padding: '16px 20px' }}>
-          <p style={{ color: '#007a48', fontWeight: 600, fontSize: '0.875rem' }}>
-            ✓ Check your email for the login link.
+        <div className="alert alert-success">
+          <p style={{ fontWeight: 600 }}>
+            Check your email for the login link.
           </p>
         </div>
       ) : (
         <form onSubmit={handleLogin}>
           {error && (
-            <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
-              <p style={{ color: '#b91c1c', fontSize: '0.8rem' }}>{error}</p>
+            <div className="alert alert-error" style={{ marginBottom: 12 }}>
+              <p>{error}</p>
             </div>
           )}
           <input
@@ -150,13 +149,7 @@ function LoginForm() {
           <button
             type="submit"
             disabled={loading}
-            style={{
-              width: '100%', background: loading ? '#ccc' : 'var(--accent)',
-              color: '#000', fontFamily: 'var(--font-barlow)', fontWeight: 700,
-              fontSize: '0.875rem', padding: '11px 20px',
-              border: 'none', borderRadius: 6, cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'background 0.15s',
-            }}
+            className="btn btn-primary w-full"
           >
             {loading ? 'Sending…' : 'Send magic link'}
           </button>

@@ -10,42 +10,20 @@ export default function KpiCard({ label, value, change, subtext, accent }: KpiCa
   const isUp = change !== undefined && change >= 0
 
   return (
-    <div style={{
-      background: accent ? 'var(--ink)' : 'var(--paper)',
-      border: `1px solid ${accent ? 'var(--ink)' : 'var(--border)'}`,
-      borderRadius: 10,
-      padding: 24,
-    }}>
-      <div style={{
-        fontSize: '0.75rem', fontWeight: 600,
-        color: accent ? 'rgba(255,255,255,0.4)' : 'var(--muted)',
-        textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10,
-      }}>
+    <div className={`kpi-card${accent ? ' accent' : ''}`}>
+      <div className="kpi-label">
         {label}
       </div>
-      <div style={{
-        fontSize: '1.8rem', fontWeight: 800, letterSpacing: '-0.03em',
-        fontFamily: 'var(--font-mono)',
-        color: accent ? 'var(--accent)' : 'var(--ink)',
-      }}>
+      <div className="kpi-value" style={{ fontFamily: 'var(--font-mono)' }}>
         {value}
       </div>
       {change !== undefined && (
-        <span style={{
-          display: 'inline-flex', alignItems: 'center', gap: 4,
-          marginTop: 8, fontSize: '0.75rem', fontWeight: 600,
-          padding: '3px 8px', borderRadius: 20,
-          background: isUp ? 'var(--accent-light)' : '#fee2e2',
-          color: isUp ? '#007a48' : '#b91c1c',
-        }}>
+        <span className={`badge ${isUp ? 'pill-up' : 'pill-down'}`} style={{ marginTop: 'var(--sp-2)' }}>
           {isUp ? '↑' : '↓'} {Math.abs(change)}%
         </span>
       )}
       {subtext && (
-        <div style={{
-          fontSize: '0.75rem', marginTop: 6,
-          color: accent ? 'rgba(255,255,255,0.3)' : 'var(--muted)',
-        }}>
+        <div className="kpi-sub">
           {subtext}
         </div>
       )}

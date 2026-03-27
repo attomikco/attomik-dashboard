@@ -79,7 +79,7 @@ export default function AskAttomik({ metrics, orgName, period, userName, timezon
   }
 
   return (
-    <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 10, overflow: 'hidden', marginBottom: 8 }}>
+    <div className="card" style={{ overflow: 'hidden', marginBottom: 8, padding: 0 }}>
       {/* Header */}
       <div style={{ padding: '20px 20px 14px' }}>
         <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#000', fontFamily: 'Barlow, sans-serif', letterSpacing: '-0.03em' }}>
@@ -162,13 +162,8 @@ export default function AskAttomik({ metrics, orgName, period, userName, timezon
         <button
           type="submit"
           disabled={loading || !input.trim()}
-          style={{
-            padding: '10px 16px', background: loading || !input.trim() ? '#f0f0f0' : '#000',
-            color: loading || !input.trim() ? '#ccc' : '#00ff97',
-            border: 'none', borderRadius: 8, cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
-            fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.875rem',
-            display: 'flex', alignItems: 'center', gap: 6,
-          }}
+          className={`btn ${loading || !input.trim() ? 'btn-secondary' : 'btn-dark'}`}
+          style={{ padding: '10px 16px' }}
         >
           <Send size={14} />
         </button>

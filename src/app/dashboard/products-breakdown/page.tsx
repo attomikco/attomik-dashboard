@@ -91,9 +91,8 @@ export default function ProductsBreakdownPage() {
     <th
       onClick={() => toggleSort(field)}
       style={{
-        padding: '12px 16px', textAlign: align as any, fontSize: '0.72rem', fontWeight: 700,
-        textTransform: 'uppercase', letterSpacing: '0.06em', color: sortBy === field ? C.ink : C.muted,
-        fontFamily: 'Barlow, sans-serif', borderBottom: `1px solid ${C.border}`, cursor: 'pointer',
+        textAlign: align as any, cursor: 'pointer',
+        color: sortBy === field ? C.ink : undefined,
         userSelect: 'none', whiteSpace: 'nowrap',
       }}
     >
@@ -104,26 +103,27 @@ export default function ProductsBreakdownPage() {
   return (
     <div style={{ background: C.paper, minHeight: '100vh' }}>
       {/* Topbar */}
-      <div className="analytics-topbar" style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, position: 'sticky', top: 0, background: C.paper, zIndex: 50 }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
+      <div className="topbar">
+        <div className="topbar-title" style={{ minWidth: 0, flex: 1 }}>
           <h1 style={{ fontSize: 'clamp(1.1rem, 4vw, 1.6rem)', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'Barlow, sans-serif', color: C.ink }}>{orgName} — Products</h1>
           <p style={{ fontSize: '0.75rem', color: C.muted, marginTop: 2, fontFamily: 'Barlow, sans-serif' }}>
             {fmtDate(range.start)} – {fmtDate(range.end)} · {fmtN(products.length)} product{products.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <div style={{ flexShrink: 0 }}>
+        <div className="topbar-actions">
           <DateRangePicker value={range} onChange={r => setRange(r)} />
         </div>
       </div>
 
-      <div style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 80px' }}>
+      <div className="page-content">
         {error ? (
-          <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10, padding: '20px 24px', marginBottom: 24 }}>
-            <p style={{ color: '#dc2626', fontWeight: 700, fontFamily: 'Barlow, sans-serif', fontSize: '0.95rem', marginBottom: 4 }}>Error loading products</p>
-            <p style={{ color: '#b91c1c', fontFamily: 'Barlow, sans-serif', fontSize: '0.85rem' }}>{error}</p>
+          <div className="alert alert-error" style={{ flexDirection: 'column', marginBottom: 24 }}>
+            <p style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: 4 }}>Error loading products</p>
+            <p style={{ fontSize: '0.85rem' }}>{error}</p>
             <button
               onClick={() => fetchData()}
-              style={{ marginTop: 12, padding: '8px 20px', background: '#dc2626', color: '#fff', fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.8rem', border: 'none', borderRadius: 6, cursor: 'pointer' }}
+              className="btn btn-danger btn-sm"
+              style={{ marginTop: 12 }}
             >
               Retry
             </button>
@@ -139,17 +139,17 @@ export default function ProductsBreakdownPage() {
         ) : (<>
           {/* Summary cards */}
           <div className="products-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
-            <div style={{ background: C.paper, border: `1px solid ${C.border}`, borderRadius: 10, padding: 20 }}>
-              <div style={{ fontSize: '0.72rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Barlow, sans-serif', marginBottom: 8 }}>Total Revenue</div>
-              <div style={{ fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'Barlow, sans-serif' }}>{fmt$(totalRevenue)}</div>
+            <div className="kpi-card">
+              <div className="kpi-label">Total Revenue</div>
+              <div className="kpi-value">{fmt$(totalRevenue)}</div>
             </div>
-            <div style={{ background: C.paper, border: `1px solid ${C.border}`, borderRadius: 10, padding: 20 }}>
-              <div style={{ fontSize: '0.72rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Barlow, sans-serif', marginBottom: 8 }}>Total Units</div>
-              <div style={{ fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'Barlow, sans-serif' }}>{fmtN(totalUnits)}</div>
+            <div className="kpi-card">
+              <div className="kpi-label">Total Units</div>
+              <div className="kpi-value">{fmtN(totalUnits)}</div>
             </div>
-            <div style={{ background: C.paper, border: `1px solid ${C.border}`, borderRadius: 10, padding: 20 }}>
-              <div style={{ fontSize: '0.72rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Barlow, sans-serif', marginBottom: 8 }}>Unique Products</div>
-              <div style={{ fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'Barlow, sans-serif' }}>{products.length}</div>
+            <div className="kpi-card">
+              <div className="kpi-label">Unique Products</div>
+              <div className="kpi-value">{products.length}</div>
             </div>
           </div>
 
@@ -157,8 +157,8 @@ export default function ProductsBreakdownPage() {
           {top5.length > 0 && (
             <div className="chart-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
               {/* Top 5 by Revenue */}
-              <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: 20 }}>
-                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Barlow, sans-serif', marginBottom: 16 }}>Top 5 Products by Revenue</div>
+              <div className="card">
+                <div className="kpi-label" style={{ marginBottom: 16 }}>Top 5 Products by Revenue</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {top5.map((p, i) => (
                     <div key={`top-rev-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -177,8 +177,8 @@ export default function ProductsBreakdownPage() {
               </div>
 
               {/* Top 5 by Units */}
-              <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: 20 }}>
-                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Barlow, sans-serif', marginBottom: 16 }}>Top 5 Products by Units Sold</div>
+              <div className="card">
+                <div className="kpi-label" style={{ marginBottom: 16 }}>Top 5 Products by Units Sold</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {top5Units.map((p, i) => (
                     <div key={`top-units-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -199,14 +199,14 @@ export default function ProductsBreakdownPage() {
           )}
 
           {/* Product table */}
-          <div className="products-table-wrap" style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
-            <div style={{ overflowX: 'auto' }}>
+          <div className="products-table-wrap table-wrapper">
+            <div className="table-scroll">
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: C.cream }}>
                     <SortHeader field="product" label="Product" />
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.muted, fontFamily: 'Barlow, sans-serif', borderBottom: `1px solid ${C.border}` }}>Variant</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.muted, fontFamily: 'Barlow, sans-serif', borderBottom: `1px solid ${C.border}` }}>SKU</th>
+                    <th>Variant</th>
+                    <th>SKU</th>
                     <SortHeader field="units" label="Units" align="right" />
                     <SortHeader field="revenue" label="Revenue" align="right" />
                     <SortHeader field="pctOfTotal" label="% of Total" align="right" />
@@ -220,12 +220,12 @@ export default function ProductsBreakdownPage() {
                       onMouseEnter={e => (e.currentTarget.style.background = '#fafafa')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     >
-                      <td style={{ padding: '12px 16px', fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.85rem' }}>{p.product}</td>
-                      <td style={{ padding: '12px 16px', fontFamily: 'Barlow, sans-serif', fontSize: '0.8rem', color: C.muted }}>{p.variant || '—'}</td>
-                      <td style={{ padding: '12px 16px', fontFamily: 'DM Mono, monospace', fontSize: '0.72rem', color: '#aaa' }}>{p.sku || '—'}</td>
-                      <td style={{ padding: '12px 16px', textAlign: 'right', fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.85rem' }}>{fmtN(p.units)}</td>
-                      <td style={{ padding: '12px 16px', textAlign: 'right', fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.85rem' }}>{fmt$(p.revenue)}</td>
-                      <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                      <td style={{ fontWeight: 600 }}>{p.product}</td>
+                      <td className="td-muted">{p.variant || '—'}</td>
+                      <td className="td-mono" style={{ color: '#aaa' }}>{p.sku || '—'}</td>
+                      <td className="td-right" style={{ fontWeight: 600 }}>{fmtN(p.units)}</td>
+                      <td className="td-right td-strong">{fmt$(p.revenue)}</td>
+                      <td className="td-right">
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
                           <div style={{ width: 50, height: 4, background: '#f0f0f0', borderRadius: 2, overflow: 'hidden' }}>
                             <div style={{ width: `${Math.min(p.pctOfTotal, 100)}%`, height: '100%', background: C.accent, borderRadius: 2 }} />
@@ -233,7 +233,7 @@ export default function ProductsBreakdownPage() {
                           <span style={{ fontFamily: 'Barlow, sans-serif', fontSize: '0.8rem', color: C.muted, minWidth: 40, textAlign: 'right' }}>{p.pctOfTotal.toFixed(1)}%</span>
                         </div>
                       </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'right', fontFamily: 'DM Mono, monospace', fontSize: '0.8rem' }}>{fmt$(p.aov)}</td>
+                      <td className="td-mono td-right">{fmt$(p.aov)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -243,14 +243,14 @@ export default function ProductsBreakdownPage() {
 
           {products.length > 20 && !showAll && (
             <div style={{ textAlign: 'center', marginTop: 16 }}>
-              <button onClick={() => setShowAll(true)} style={{ padding: '10px 24px', background: C.ink, color: C.accent, fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.85rem', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+              <button onClick={() => setShowAll(true)} className="btn btn-ghost">
                 Show all {products.length} products
               </button>
             </div>
           )}
           {showAll && products.length > 20 && (
             <div style={{ textAlign: 'center', marginTop: 16 }}>
-              <button onClick={() => setShowAll(false)} style={{ padding: '10px 24px', background: C.cream, color: C.muted, fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.85rem', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+              <button onClick={() => setShowAll(false)} className="btn btn-ghost">
                 Show top 20
               </button>
             </div>
@@ -258,23 +258,6 @@ export default function ProductsBreakdownPage() {
         </>)}
       </div>
 
-      <style>{`
-        @media (max-width: 768px) {
-          .products-summary-grid {
-            grid-template-columns: 1fr !important;
-          }
-          .analytics-topbar {
-            position: fixed !important;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 100;
-          }
-          .chart-grid {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
     </div>
   )
 }

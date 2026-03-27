@@ -118,23 +118,13 @@ export default function EmailInsights({ metrics, period, preset, orgName, orgId 
     outline: 'none', lineHeight: 1.5, minHeight: 60,
   }
 
-  const labelStyle = {
-    fontSize: '0.72rem', fontWeight: 600 as const, color: '#999',
-    textTransform: 'uppercase' as const, letterSpacing: '0.06em',
-    fontFamily: 'Barlow, sans-serif', marginBottom: 6, display: 'block' as const,
-  }
+  const labelClass = 'form-label'
 
   return (
     <>
       {/* Trigger button — icon-only on mobile */}
-      <button onClick={openModal} className="email-report-btn"
-        style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          padding: '9px 16px', background: '#000', color: '#00ff97',
-          border: 'none', borderRadius: 6, fontFamily: 'Barlow, sans-serif',
-          fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer',
-          transition: '0.15s', flexShrink: 0,
-        }}>
+      <button onClick={openModal} className="btn btn-dark email-report-btn"
+        style={{ flexShrink: 0 }}>
         <Mail size={14} /> <span className="email-report-label">Email Report</span>
       </button>
       <style>{`
@@ -146,31 +136,17 @@ export default function EmailInsights({ metrics, period, preset, orgName, orgId 
 
       {/* Modal overlay */}
       {open && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 9999,
-          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
-          display: 'grid', placeItems: 'center', padding: 16,
-        }} onClick={e => { if (e.target === e.currentTarget) closeModal() }}>
-          <div style={{
-            background: '#fff', borderRadius: 14, width: '100%', maxWidth: 560,
-            maxHeight: '90vh', overflow: 'auto', position: 'relative',
-          }}>
+        <div className="modal-overlay" style={{ zIndex: 9999 }}
+          onClick={e => { if (e.target === e.currentTarget) closeModal() }}>
+          <div className="modal" style={{ maxWidth: 560 }}>
             {/* Header */}
-            <div style={{
-              padding: '20px 24px', borderBottom: '1px solid #e0e0e0',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              position: 'sticky', top: 0, background: '#fff', zIndex: 1, borderRadius: '14px 14px 0 0',
-            }}>
+            <div className="modal-header">
               <div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 800, fontFamily: 'Barlow, sans-serif', letterSpacing: '-0.02em' }}>
-                  Email Report
-                </div>
-                <div style={{ fontSize: '0.78rem', color: '#999', fontFamily: 'Barlow, sans-serif' }}>
-                  {orgName} · {period}
-                </div>
+                <div className="modal-title">Email Report</div>
+                <div className="caption">{orgName} · {period}</div>
               </div>
-              <button onClick={closeModal} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
-                <X size={20} color="#999" />
+              <button onClick={closeModal} className="modal-close">
+                <X size={16} />
               </button>
             </div>
 
@@ -186,10 +162,10 @@ export default function EmailInsights({ metrics, period, preset, orgName, orgId 
                     Sent to {selected.size} team member{selected.size !== 1 ? 's' : ''}
                   </p>
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-                    <button onClick={reset} style={{ background: '#f2f2f2', border: 'none', borderRadius: 6, padding: '8px 16px', fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}>
+                    <button onClick={reset} className="btn btn-secondary btn-sm">
                       Compose another
                     </button>
-                    <button onClick={closeModal} style={{ background: '#000', color: '#00ff97', border: 'none', borderRadius: 6, padding: '8px 16px', fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}>
+                    <button onClick={closeModal} className="btn btn-dark btn-sm">
                       Done
                     </button>
                   </div>
@@ -198,7 +174,7 @@ export default function EmailInsights({ metrics, period, preset, orgName, orgId 
                 <>
                   {/* Recipients */}
                   <div style={{ marginBottom: 18 }}>
-                    <label style={labelStyle}>Recipients</label>
+                    <label className={labelClass} style={{ display: 'block', marginBottom: 6 }}>Recipients</label>
                     {loadingMembers ? (
                       <div style={{ color: '#999', fontSize: '0.8rem', fontFamily: 'Barlow, sans-serif' }}>Loading team members…</div>
                     ) : members.length === 0 ? (
@@ -228,28 +204,22 @@ export default function EmailInsights({ metrics, period, preset, orgName, orgId 
 
                   {/* Context fields */}
                   <div style={{ marginBottom: 14 }}>
-                    <label style={labelStyle}>Performance notes <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>— wins, highlights</span></label>
+                    <label className={labelClass} style={{ display: 'block', marginBottom: 6 }}>Performance notes <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>— wins, highlights</span></label>
                     <textarea style={inputStyle} value={performance} onChange={e => setPerformance(e.target.value)} placeholder="e.g. Strong Meta ROAS this week, new creative performing well…" />
                   </div>
                   <div style={{ marginBottom: 14 }}>
-                    <label style={labelStyle}>Challenges <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>— blockers, issues</span></label>
+                    <label className={labelClass} style={{ display: 'block', marginBottom: 6 }}>Challenges <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>— blockers, issues</span></label>
                     <textarea style={inputStyle} value={challenges} onChange={e => setChallenges(e.target.value)} placeholder="e.g. Amazon conversion dipped, shipping delays affecting CSAT…" />
                   </div>
                   <div style={{ marginBottom: 20 }}>
-                    <label style={labelStyle}>Focus tasks <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>— priorities for next period</span></label>
+                    <label className={labelClass} style={{ display: 'block', marginBottom: 6 }}>Focus tasks <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>— priorities for next period</span></label>
                     <textarea style={inputStyle} value={focusTasks} onChange={e => setFocusTasks(e.target.value)} placeholder="e.g. Scale Meta budget 20%, launch new Google campaign, A/B test landing page…" />
                   </div>
 
                   {error && <div style={{ color: '#b91c1c', fontSize: '0.8rem', fontFamily: 'Barlow, sans-serif', marginBottom: 12 }}>{error}</div>}
 
                   <button onClick={draft} disabled={drafting}
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                      padding: '10px 20px', width: '100%',
-                      background: drafting ? '#e0e0e0' : '#000', color: drafting ? '#999' : '#00ff97',
-                      border: 'none', borderRadius: 6, fontFamily: 'Barlow, sans-serif',
-                      fontWeight: 700, fontSize: '0.875rem', cursor: drafting ? 'not-allowed' : 'pointer',
-                    }}>
+                    className="btn btn-dark w-full">
                     {drafting ? <><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Drafting…</> : <><Mail size={14} /> Draft email</>}
                   </button>
                   <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
@@ -258,12 +228,12 @@ export default function EmailInsights({ metrics, period, preset, orgName, orgId 
                 <>
                   {/* Preview */}
                   <div style={{ marginBottom: 14 }}>
-                    <label style={labelStyle}>Subject</label>
+                    <label className={labelClass} style={{ display: 'block', marginBottom: 6 }}>Subject</label>
                     <input type="text" value={subject} onChange={e => setSubject(e.target.value)}
                       style={{ ...inputStyle, minHeight: 'auto', resize: 'none' }} />
                   </div>
                   <div style={{ marginBottom: 16 }}>
-                    <label style={labelStyle}>Email body <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>— edit before sending</span></label>
+                    <label className={labelClass} style={{ display: 'block', marginBottom: 6 }}>Email body <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>— edit before sending</span></label>
                     <textarea value={body} onChange={e => setBody(e.target.value)}
                       style={{ ...inputStyle, minHeight: 200 }} />
                   </div>
@@ -276,22 +246,11 @@ export default function EmailInsights({ metrics, period, preset, orgName, orgId 
 
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={send} disabled={sending}
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                        padding: '10px 20px', flex: 1,
-                        background: sending ? '#e0e0e0' : '#000', color: sending ? '#999' : '#00ff97',
-                        border: 'none', borderRadius: 6, fontFamily: 'Barlow, sans-serif',
-                        fontWeight: 700, fontSize: '0.875rem', cursor: sending ? 'not-allowed' : 'pointer',
-                      }}>
+                      className="btn btn-dark flex-1">
                       {sending ? <><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Sending…</> : <><Send size={14} /> Send email</>}
                     </button>
                     <button onClick={() => { setDrafted(false); setError('') }}
-                      style={{
-                        padding: '10px 16px', background: '#f2f2f2',
-                        border: '1px solid #e0e0e0', borderRadius: 6,
-                        fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.8rem',
-                        color: '#666', cursor: 'pointer', whiteSpace: 'nowrap',
-                      }}>
+                      className="btn btn-secondary">
                       Redraft
                     </button>
                   </div>

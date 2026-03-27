@@ -330,63 +330,55 @@ export default function ProjectsPage() {
     <div style={{ background: C.paper, minHeight: '100vh' }}>
 
       {/* Topbar */}
-      <div style={{ borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.paper, zIndex: 50 }}>
-        <div style={{ padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <h1 style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'Barlow, sans-serif' }}>Admin</h1>
-          </div>
+      <div className="topbar" style={{ flexDirection: 'column', alignItems: 'stretch', height: 'auto' }}>
+        <div style={{ padding: '16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h1 className="topbar-title">Admin</h1>
         </div>
-        <div style={{ display: 'flex', padding: '0 24px', gap: 0 }}>
+        <div className="tabs" style={{ borderBottom: 'none' }}>
           {(['projects', 'team', 'logs'] as const).map(tab => (
-            <button key={tab} onClick={() => switchToTab(tab)} style={{
-              padding: '10px 20px', border: 'none', background: 'transparent',
-              fontFamily: 'Barlow, sans-serif', fontSize: '0.85rem', fontWeight: 600,
-              color: pageTab === tab ? C.ink : C.muted, cursor: 'pointer',
-              borderBottom: `2px solid ${pageTab === tab ? C.accent : 'transparent'}`,
-              marginBottom: -1, transition: '0.15s', textTransform: 'capitalize',
-            }}>
+            <button key={tab} onClick={() => switchToTab(tab)} className={`tab-btn${pageTab === tab ? ' active' : ''}`} style={{ textTransform: 'capitalize' }}>
               {tab === 'logs' ? 'AI Chat Logs' : tab === 'team' ? `Team (${teamMembers.length})` : `Projects (${orgs.length})`}
             </button>
           ))}
         </div>
       </div>
 
-      <div style={{ padding: '24px clamp(16px,4vw,40px) 80px' }}>
+      <div className="page-content" style={{ paddingBottom: 80 }}>
 
         {/* ── PROJECTS TAB ── */}
         {pageTab === 'projects' && <>
 
         <div style={{ marginBottom: 12 }}>
-          <button onClick={() => setShowNewForm(p => !p)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: showNewForm ? C.cream : C.ink, color: showNewForm ? C.ink : C.accent, fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.8rem', border: 'none', borderRadius: 6, cursor: 'pointer', marginBottom: showNewForm ? 10 : 0 }}>
+          <button onClick={() => setShowNewForm(p => !p)} className={`btn ${showNewForm ? 'btn-secondary' : 'btn-dark'} btn-sm`} style={{ marginBottom: showNewForm ? 10 : 0 }}>
             <Building2 size={13} /> {showNewForm ? 'Cancel' : '+ New Project'}
           </button>
         </div>
 
         {/* New project form */}
         {showNewForm && (
-          <div style={{ background: C.paper, border: `2px solid ${C.accent}`, borderRadius: 10, padding: 20, marginBottom: 16 }}>
+          <div className="card" style={{ border: `2px solid ${C.accent}`, marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
               <div style={{ fontWeight: 700, fontFamily: 'Barlow, sans-serif' }}>New project</div>
               <button onClick={() => { setShowNewForm(false); setCreateError('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted }}><X size={16} /></button>
             </div>
             {createError && (
-              <div style={{ background: '#fee2e2', borderRadius: 6, padding: '8px 12px', marginBottom: 10, fontSize: '0.8rem', color: '#b91c1c', fontFamily: 'Barlow, sans-serif' }}>{createError}</div>
+              <div className="alert alert-error" style={{ marginBottom: 10 }}>{createError}</div>
             )}
             <form onSubmit={handleCreate}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 10, alignItems: 'end' }}>
                 <div>
-                  <label style={{ fontSize: '0.72rem', fontWeight: 600, color: C.muted, display: 'block', marginBottom: 4, fontFamily: 'Barlow, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Name</label>
+                  <label className="form-label" style={{ display: 'block', marginBottom: 4 }}>Name</label>
                   <input style={{ ...inp, width: '100%' }} placeholder="Brand X" value={newName}
                     onChange={e => { setNewName(e.target.value); setNewSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-')) }}
                     onFocus={e => (e.target.style.borderColor = C.accent)} onBlur={e => (e.target.style.borderColor = C.border)} required />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.72rem', fontWeight: 600, color: C.muted, display: 'block', marginBottom: 4, fontFamily: 'Barlow, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Slug</label>
+                  <label className="form-label" style={{ display: 'block', marginBottom: 4 }}>Slug</label>
                   <input style={{ ...inp, width: '100%', fontFamily: 'DM Mono, monospace', background: C.cream }} value={newSlug}
                     onChange={e => setNewSlug(e.target.value)}
                     onFocus={e => (e.target.style.borderColor = C.accent)} onBlur={e => (e.target.style.borderColor = C.border)} required />
                 </div>
-                <button type="submit" disabled={creating} style={{ padding: '8px 20px', background: creating ? '#ccc' : C.accent, color: C.ink, fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: creating ? 'not-allowed' : 'pointer' }}>
+                <button type="submit" disabled={creating} className="btn btn-primary">
                   {creating ? 'Creating…' : 'Create'}
                 </button>
               </div>
@@ -404,42 +396,42 @@ export default function ProjectsPage() {
             ) : (<>
               {/* Invite new user form */}
               <div style={{ marginBottom: 12 }}>
-                <button onClick={() => setShowInviteForm(p => !p)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: showInviteForm ? C.cream : C.ink, color: showInviteForm ? C.ink : C.accent, fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.8rem', border: 'none', borderRadius: 6, cursor: 'pointer', marginBottom: showInviteForm ? 10 : 0 }}>
+                <button onClick={() => setShowInviteForm(p => !p)} className={`btn ${showInviteForm ? 'btn-secondary' : 'btn-dark'} btn-sm`} style={{ marginBottom: showInviteForm ? 10 : 0 }}>
                   <UserPlus size={13} /> {showInviteForm ? 'Cancel' : 'Invite new user'}
                 </button>
                 {showInviteForm && (
-                  <div style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: 16, background: C.paper }}>
+                  <div className="card">
                     {teamInviteMsg && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 10px', borderRadius: 6, marginBottom: 10, background: teamInviteMsg.ok ? '#e6fff5' : '#fee2e2', border: `1px solid ${teamInviteMsg.ok ? '#00cc78' : '#fca5a5'}` }}>
-                        {teamInviteMsg.ok ? <CheckCircle size={13} color="#007a48" /> : <AlertCircle size={13} color="#b91c1c" />}
-                        <span style={{ fontSize: '0.78rem', color: teamInviteMsg.ok ? '#007a48' : '#b91c1c', fontFamily: 'Barlow, sans-serif' }}>{teamInviteMsg.text}</span>
+                      <div className={`alert ${teamInviteMsg.ok ? 'alert-success' : 'alert-error'}`} style={{ marginBottom: 10 }}>
+                        {teamInviteMsg.ok ? <CheckCircle size={13} /> : <AlertCircle size={13} />}
+                        <span>{teamInviteMsg.text}</span>
                       </div>
                     )}
                     <form onSubmit={handleTeamInvite} style={{ display: 'flex', gap: 8, alignItems: 'end', flexWrap: 'wrap' }}>
                       <div style={{ flex: 1, minWidth: 120 }}>
-                        <label style={{ fontSize: '0.68rem', fontWeight: 600, color: C.muted, display: 'block', marginBottom: 3, fontFamily: 'Barlow, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Name</label>
+                        <label className="form-label" style={{ display: 'block', marginBottom: 3 }}>Name</label>
                         <input value={teamInviteName} onChange={e => setTeamInviteName(e.target.value)} placeholder="Full name" style={{ ...inp, width: '100%' }} />
                       </div>
                       <div style={{ flex: 1, minWidth: 160 }}>
-                        <label style={{ fontSize: '0.68rem', fontWeight: 600, color: C.muted, display: 'block', marginBottom: 3, fontFamily: 'Barlow, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Email</label>
+                        <label className="form-label" style={{ display: 'block', marginBottom: 3 }}>Email</label>
                         <input type="email" value={teamInviteEmail} onChange={e => setTeamInviteEmail(e.target.value)} placeholder="email@company.com" required style={{ ...inp, width: '100%' }} />
                       </div>
                       <div style={{ minWidth: 100 }}>
-                        <label style={{ fontSize: '0.68rem', fontWeight: 600, color: C.muted, display: 'block', marginBottom: 3, fontFamily: 'Barlow, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Project</label>
+                        <label className="form-label" style={{ display: 'block', marginBottom: 3 }}>Project</label>
                         <select value={teamInviteOrg} onChange={e => setTeamInviteOrg(e.target.value)} required style={{ ...inp, width: '100%', cursor: 'pointer' }}>
                           <option value="">Select…</option>
                           {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                         </select>
                       </div>
                       <div style={{ minWidth: 80 }}>
-                        <label style={{ fontSize: '0.68rem', fontWeight: 600, color: C.muted, display: 'block', marginBottom: 3, fontFamily: 'Barlow, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Role</label>
+                        <label className="form-label" style={{ display: 'block', marginBottom: 3 }}>Role</label>
                         <select value={teamInviteRole} onChange={e => setTeamInviteRole(e.target.value)} style={{ ...inp, width: '100%', cursor: 'pointer' }}>
                           <option value="viewer">Viewer</option>
                           <option value="member">Member</option>
                           <option value="admin">Admin</option>
                         </select>
                       </div>
-                      <button type="submit" disabled={teamInviting} style={{ padding: '8px 16px', background: teamInviting ? '#ccc' : C.ink, color: teamInviting ? C.muted : C.accent, fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.8rem', border: 'none', borderRadius: 6, cursor: teamInviting ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
+                      <button type="submit" disabled={teamInviting} className="btn btn-dark btn-sm">
                         {teamInviting ? 'Sending…' : 'Send invite'}
                       </button>
                     </form>
@@ -447,12 +439,12 @@ export default function ProjectsPage() {
                 )}
               </div>
 
-              <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflowX: 'auto' }}>
+              <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640 }}>
                   <thead>
                     <tr style={{ background: C.cream }}>
                       {['Member', 'Projects', 'Status', 'Last seen', ''].map(h => (
-                        <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.muted, fontFamily: 'Barlow, sans-serif', borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                        <th key={h} className="label" style={{ padding: '10px 16px', textAlign: 'left', borderBottom: `1px solid ${C.border}` }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -470,7 +462,7 @@ export default function ProjectsPage() {
                             <div style={{ minWidth: 0 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                 <span style={{ fontSize: '0.85rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif' }}>{m.full_name || m.email || 'Unnamed'}</span>
-                                {m.is_superadmin && <span style={{ fontSize: '0.6rem', fontWeight: 700, background: C.ink, color: C.accent, padding: '1px 5px', borderRadius: 4, letterSpacing: '0.05em', fontFamily: 'Barlow, sans-serif' }}>ATTOMIK</span>}
+                                {m.is_superadmin && <span className="badge badge-black">ATTOMIK</span>}
                               </div>
                               {m.full_name && m.email && <div style={{ fontSize: '0.7rem', color: '#aaa', fontFamily: 'DM Mono, monospace', marginTop: 1 }}>{m.email}</div>}
                             </div>
@@ -479,7 +471,7 @@ export default function ProjectsPage() {
                         <td style={{ padding: '12px 16px' }}>
                           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                             {m.orgs.map(o => (
-                              <span key={o.id} style={{ fontSize: '0.68rem', fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: C.cream, color: C.ink, fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap', border: `1px solid ${C.border}` }}>
+                              <span key={o.id} className="badge badge-gray" style={{ border: `1px solid ${C.border}` }}>
                                 {o.name} <span style={{ color: C.muted, fontWeight: 400 }}>· {o.role}</span>
                               </span>
                             ))}
@@ -488,10 +480,7 @@ export default function ProjectsPage() {
                         </td>
                         <td style={{ padding: '12px 16px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '2px 8px', borderRadius: 20, fontFamily: 'Barlow, sans-serif',
-                              background: m.status === 'joined' ? '#e6fff5' : '#fff8e1',
-                              color: m.status === 'joined' ? '#007a48' : '#b45309',
-                            }}>
+                            <span className={`badge ${m.status === 'joined' ? 'badge-green' : 'badge-yellow'}`}>
                               {m.status === 'joined' ? 'Joined' : 'Invited'}
                             </span>
                             {resendResult[m.id] && (
@@ -555,7 +544,7 @@ export default function ProjectsPage() {
                       {expandedMember === m.id && !m.is_superadmin && (
                         <tr key={`${m.id}-assign`} style={{ background: '#fafafa' }}>
                           <td colSpan={5} style={{ padding: '12px 16px 16px 56px', borderTop: 'none' }}>
-                            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Barlow, sans-serif', marginBottom: 8 }}>Assign projects</div>
+                            <div className="label" style={{ marginBottom: 8 }}>Assign projects</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                               {orgs.map(org => {
                                 const memberOrg = m.orgs.find(o => o.id === org.id)
@@ -608,12 +597,12 @@ export default function ProjectsPage() {
             ) : chatLogs.length === 0 ? (
               <div style={{ color: '#ccc', fontSize: '0.8rem', fontFamily: 'Barlow, sans-serif' }}>No chat activity yet.</div>
             ) : (
-              <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflowX: 'auto' }}>
+              <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
                   <thead>
                     <tr style={{ background: C.cream }}>
                       {['User', 'Project', 'Type', 'Question', 'Time'].map(h => (
-                        <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.muted, fontFamily: 'Barlow, sans-serif', borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                        <th key={h} className="label" style={{ padding: '10px 12px', textAlign: 'left', borderBottom: `1px solid ${C.border}` }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -626,10 +615,7 @@ export default function ProjectsPage() {
                         <td style={{ padding: '10px 12px', fontSize: '0.78rem', fontFamily: 'Barlow, sans-serif', fontWeight: 600, whiteSpace: 'nowrap' }}>{log.email}</td>
                         <td style={{ padding: '10px 12px', fontSize: '0.75rem', fontFamily: 'Barlow, sans-serif', color: C.muted, whiteSpace: 'nowrap' }}>{log.org_name ?? '—'}</td>
                         <td style={{ padding: '10px 12px' }}>
-                          <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 7px', borderRadius: 20, fontFamily: 'Barlow, sans-serif', textTransform: 'uppercase',
-                            background: log.type === 'insights' ? '#e6fff5' : '#f0f0ff',
-                            color: log.type === 'insights' ? '#007a48' : '#4f46e5',
-                          }}>{log.type}</span>
+                          <span className={`badge ${log.type === 'insights' ? 'badge-green' : 'badge-blue'}`}>{log.type}</span>
                         </td>
                         <td style={{ padding: '10px 12px', fontSize: '0.78rem', fontFamily: 'Barlow, sans-serif', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.question}</td>
                         <td style={{ padding: '10px 12px', fontSize: '0.72rem', fontFamily: 'Barlow, sans-serif', color: '#999', whiteSpace: 'nowrap' }}>
@@ -640,11 +626,11 @@ export default function ProjectsPage() {
                         <tr style={{ background: '#fafafa' }}>
                           <td colSpan={5} style={{ padding: '16px 20px' }}>
                             <div style={{ marginBottom: 12 }}>
-                              <div style={{ fontSize: '0.68rem', fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Barlow, sans-serif', marginBottom: 6 }}>Question</div>
+                              <div className="label" style={{ marginBottom: 6 }}>Question</div>
                               <div style={{ fontSize: '0.82rem', fontFamily: 'Barlow, sans-serif', lineHeight: 1.5 }}>{log.question}</div>
                             </div>
                             <div>
-                              <div style={{ fontSize: '0.68rem', fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Barlow, sans-serif', marginBottom: 6 }}>Answer</div>
+                              <div className="label" style={{ marginBottom: 6 }}>Answer</div>
                               <div style={{ fontSize: '0.82rem', fontFamily: 'Barlow, sans-serif', color: C.muted, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{log.answer}</div>
                             </div>
                           </td>
@@ -658,14 +644,14 @@ export default function ProjectsPage() {
           {chatLogs.length > LOGS_PER_PAGE && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '16px 0' }}>
               <button onClick={() => setLogsPage(p => Math.max(0, p - 1))} disabled={logsPage === 0}
-                style={{ padding: '6px 14px', background: logsPage === 0 ? C.cream : C.ink, color: logsPage === 0 ? C.muted : C.accent, border: 'none', borderRadius: 6, fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.78rem', cursor: logsPage === 0 ? 'not-allowed' : 'pointer' }}>
+                className={`btn ${logsPage === 0 ? 'btn-secondary' : 'btn-dark'} btn-sm`}>
                 Previous
               </button>
               <span style={{ fontSize: '0.78rem', color: C.muted, fontFamily: 'Barlow, sans-serif' }}>
                 Page {logsPage + 1} of {Math.ceil(chatLogs.length / LOGS_PER_PAGE)}
               </span>
               <button onClick={() => setLogsPage(p => p + 1)} disabled={(logsPage + 1) * LOGS_PER_PAGE >= chatLogs.length}
-                style={{ padding: '6px 14px', background: (logsPage + 1) * LOGS_PER_PAGE >= chatLogs.length ? C.cream : C.ink, color: (logsPage + 1) * LOGS_PER_PAGE >= chatLogs.length ? C.muted : C.accent, border: 'none', borderRadius: 6, fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.78rem', cursor: (logsPage + 1) * LOGS_PER_PAGE >= chatLogs.length ? 'not-allowed' : 'pointer' }}>
+                className={`btn ${(logsPage + 1) * LOGS_PER_PAGE >= chatLogs.length ? 'btn-secondary' : 'btn-dark'} btn-sm`}>
                 Next
               </button>
             </div>
@@ -678,7 +664,7 @@ export default function ProjectsPage() {
         {loading ? (
           <div style={{ textAlign: 'center', padding: '80px 0', color: C.muted, fontFamily: 'Barlow, sans-serif' }}>Loading…</div>
         ) : (
-          <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
             {orgs.map((org, i) => {
               const isOpen = expanded === org.id
               const orgChannels = channels[org.id] ?? {}
@@ -718,7 +704,7 @@ export default function ProjectsPage() {
                     </div>
                     <button
                       onClick={e => { e.stopPropagation(); localStorage.setItem('activeOrgId', org.id); router.push('/dashboard/analytics') }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: C.ink, color: C.accent, fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.75rem', border: 'none', borderRadius: 6, cursor: 'pointer', flexShrink: 0 }}
+                      className="btn btn-dark btn-xs" style={{ flexShrink: 0 }}
                     >
                       <BarChart2 size={12} /> Analytics
                     </button>
@@ -729,10 +715,10 @@ export default function ProjectsPage() {
                     <div style={{ borderTop: `1px solid ${C.border}`, background: '#fafafa' }}>
 
                       {/* Tabs */}
-                      <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, padding: '0 24px' }}>
+                      <div className="tabs" style={{ padding: '0 24px' }}>
                         {(['channels', 'members', 'settings'] as const).map(t => (
                           <button key={t} onClick={() => setActiveTab(p => ({ ...p, [org.id]: t }))}
-                            style={{ padding: '10px 16px', border: 'none', background: 'transparent', fontFamily: 'Barlow, sans-serif', fontSize: '0.8rem', fontWeight: 600, textTransform: 'capitalize', cursor: 'pointer', color: tab === t ? C.ink : C.muted, borderBottom: `2px solid ${tab === t ? C.accent : 'transparent'}`, marginBottom: -1, transition: '0.15s' }}>
+                            className={`tab-btn${tab === t ? ' active' : ''}`} style={{ textTransform: 'capitalize' }}>
                             {t}
                           </button>
                         ))}
@@ -758,7 +744,7 @@ export default function ProjectsPage() {
                               })}
                             </div>
                             <button onClick={() => saveChannels(org.id)} disabled={savingChannels === org.id}
-                              style={{ padding: '7px 16px', background: savingChannels === org.id ? '#ccc' : C.accent, color: C.ink, fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.8rem', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+                              className="btn btn-primary btn-sm">
                               {savingChannels === org.id ? 'Saving…' : 'Save channels'}
                             </button>
                           </div>
@@ -768,9 +754,9 @@ export default function ProjectsPage() {
                         {tab === 'members' && (
                           <div style={{ maxWidth: 560 }}>
                             {inviteMsg[org.id]?.text && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 10px', borderRadius: 6, marginBottom: 10, background: inviteMsg[org.id].ok ? '#e6fff5' : '#fee2e2', border: `1px solid ${inviteMsg[org.id].ok ? '#00cc78' : '#fca5a5'}` }}>
-                                {inviteMsg[org.id].ok ? <CheckCircle size={13} color="#007a48" /> : <AlertCircle size={13} color="#b91c1c" />}
-                                <span style={{ fontSize: '0.78rem', color: inviteMsg[org.id].ok ? '#007a48' : '#b91c1c', fontFamily: 'Barlow, sans-serif' }}>{inviteMsg[org.id].text}</span>
+                              <div className={`alert ${inviteMsg[org.id].ok ? 'alert-success' : 'alert-error'}`} style={{ marginBottom: 10 }}>
+                                {inviteMsg[org.id].ok ? <CheckCircle size={13} /> : <AlertCircle size={13} />}
+                                <span>{inviteMsg[org.id].text}</span>
                               </div>
                             )}
                             <form onSubmit={e => handleInvite(e, org.id)} style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
@@ -787,7 +773,7 @@ export default function ProjectsPage() {
                                   <option value="admin">Admin</option>
                                 </select>
                                 <button type="submit" disabled={inviting === org.id}
-                                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 14px', background: inviting === org.id ? '#ccc' : C.ink, color: inviting === org.id ? C.muted : C.accent, fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.8rem', border: 'none', borderRadius: 6, cursor: inviting === org.id ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
+                                  className="btn btn-dark btn-sm">
                                   <UserPlus size={13} />{inviting === org.id ? '…' : 'Invite'}
                                 </button>
                               </div>
@@ -811,10 +797,10 @@ export default function ProjectsPage() {
                                         {m.last_seen_at ? `Seen ${fmtTime(m.last_seen_at)}` : m.invited_at ? `Invited ${fmtTime(m.invited_at)}` : ''}
                                       </div>
                                     </div>
-                                    <span style={{ fontSize: '0.62rem', fontWeight: 700, padding: '1px 6px', borderRadius: 20, background: m.role === 'admin' ? C.ink : C.cream, color: m.role === 'admin' ? C.accent : C.muted, fontFamily: 'Barlow, sans-serif', textTransform: 'uppercase', flexShrink: 0 }}>
+                                    <span className={`badge badge-${m.role}`} style={{ flexShrink: 0 }}>
                                       {m.role}
                                     </span>
-                                    <span style={{ fontSize: '0.62rem', fontWeight: 700, padding: '1px 6px', borderRadius: 20, fontFamily: 'Barlow, sans-serif', flexShrink: 0, background: m.status === 'joined' ? '#e6fff5' : '#fff8e1', color: m.status === 'joined' ? '#007a48' : '#b45309' }}>
+                                    <span className={`badge ${m.status === 'joined' ? 'badge-green' : 'badge-yellow'}`} style={{ flexShrink: 0 }}>
                                       {m.status === 'joined' ? '✓ Joined' : '⏳ Invited'}
                                     </span>
                                     {m.status === 'joined' && (
@@ -849,7 +835,7 @@ export default function ProjectsPage() {
                         {tab === 'settings' && (
                           <div style={{ maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 16 }}>
                             <div>
-                              <label style={{ fontSize: '0.72rem', fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'Barlow, sans-serif', display: 'block', marginBottom: 6 }}>Project name</label>
+                              <label className="form-label" style={{ display: 'block', marginBottom: 6 }}>Project name</label>
                               <input value={settingsState[org.id]?.name ?? org.name}
                                 onChange={e => setSettingsState(p => ({ ...p, [org.id]: { ...p[org.id], name: e.target.value } }))}
                                 style={{ ...inp, width: '100%' }}
@@ -857,11 +843,11 @@ export default function ProjectsPage() {
                                 onBlur={e => (e.target.style.borderColor = C.border)} />
                             </div>
                             <div>
-                              <label style={{ fontSize: '0.72rem', fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'Barlow, sans-serif', display: 'block', marginBottom: 6 }}>Slug</label>
+                              <label className="form-label" style={{ display: 'block', marginBottom: 6 }}>Slug</label>
                               <div style={{ ...inp, background: C.cream, color: '#aaa', fontFamily: 'DM Mono, monospace', fontSize: '0.8rem' }}>{org.slug}</div>
                             </div>
                             <div>
-                              <label style={{ fontSize: '0.72rem', fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'Barlow, sans-serif', display: 'block', marginBottom: 6 }}>Timezone</label>
+                              <label className="form-label" style={{ display: 'block', marginBottom: 6 }}>Timezone</label>
                               <p style={{ fontSize: '0.8rem', color: C.muted, marginBottom: 8, fontFamily: 'Barlow, sans-serif' }}>
                                 Match this to your Shopify store timezone so date filters line up correctly.
                               </p>
@@ -877,7 +863,7 @@ export default function ProjectsPage() {
                               </div>
                             </div>
                             <div>
-                              <label style={{ fontSize: '0.72rem', fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'Barlow, sans-serif', display: 'block', marginBottom: 6 }}>GA4 Property ID</label>
+                              <label className="form-label" style={{ display: 'block', marginBottom: 6 }}>GA4 Property ID</label>
                               <p style={{ fontSize: '0.8rem', color: C.muted, marginBottom: 8, fontFamily: 'Barlow, sans-serif' }}>
                                 Enter your Google Analytics 4 Property ID to display website traffic data on the analytics page.
                               </p>
@@ -890,7 +876,7 @@ export default function ProjectsPage() {
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                               <button onClick={() => saveSettings(org.id)} disabled={savingSettings === org.id}
-                                style={{ padding: '8px 20px', background: savingSettings === org.id ? '#ccc' : C.accent, color: C.ink, fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+                                className="btn btn-primary">
                                 {savingSettings === org.id ? 'Saving…' : 'Save settings'}
                               </button>
                               {settingsSaved === org.id && (
@@ -900,11 +886,11 @@ export default function ProjectsPage() {
 
                             {/* Branding */}
                             <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 16, marginTop: 4 }}>
-                              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'Barlow, sans-serif', marginBottom: 14 }}>Branding</div>
+                              <div className="label" style={{ marginBottom: 14 }}>Branding</div>
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                                 {/* Logo */}
                                 <div>
-                                  <label style={{ fontSize: '0.72rem', fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8, fontFamily: 'Barlow, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Square Logo</label>
+                                  <label className="form-label" style={{ display: 'block', marginBottom: 8 }}>Square Logo</label>
                                   <div
                                     onClick={() => document.getElementById(`logo-${org.id}`)?.click()}
                                     style={{ width: 72, height: 72, borderRadius: 10, border: `2px dashed ${C.border}`, background: C.cream, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 8, cursor: 'pointer' }}>
@@ -917,14 +903,14 @@ export default function ProjectsPage() {
                                     onChange={e => e.target.files?.[0] && uploadImage(org.id, e.target.files[0], 'logo')} />
                                   <button onClick={() => document.getElementById(`logo-${org.id}`)?.click()}
                                     disabled={uploadingImage[`${org.id}-logo`]}
-                                    style={{ padding: '5px 12px', background: C.ink, color: C.paper, border: 'none', borderRadius: 6, fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}>
+                                    className="btn btn-dark btn-xs">
                                     {uploadingImage[`${org.id}-logo`] ? 'Uploading…' : settingsState[org.id]?.logo_url ? 'Replace' : 'Upload'}
                                   </button>
                                   <p style={{ fontSize: '0.65rem', color: '#bbb', marginTop: 4, fontFamily: 'Barlow, sans-serif' }}>Square, PNG/JPG</p>
                                 </div>
                                 {/* Header */}
                                 <div>
-                                  <label style={{ fontSize: '0.72rem', fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8, fontFamily: 'Barlow, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Header Image</label>
+                                  <label className="form-label" style={{ display: 'block', marginBottom: 8 }}>Header Image</label>
                                   <div
                                     onClick={() => document.getElementById(`header-${org.id}`)?.click()}
                                     style={{ width: '100%', height: 72, borderRadius: 10, border: `2px dashed ${C.border}`, background: C.cream, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 8, cursor: 'pointer' }}>
@@ -937,7 +923,7 @@ export default function ProjectsPage() {
                                     onChange={e => e.target.files?.[0] && uploadImage(org.id, e.target.files[0], 'header')} />
                                   <button onClick={() => document.getElementById(`header-${org.id}`)?.click()}
                                     disabled={uploadingImage[`${org.id}-header`]}
-                                    style={{ padding: '5px 12px', background: C.ink, color: C.paper, border: 'none', borderRadius: 6, fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}>
+                                    className="btn btn-dark btn-xs">
                                     {uploadingImage[`${org.id}-header`] ? 'Uploading…' : settingsState[org.id]?.header_url ? 'Replace' : 'Upload'}
                                   </button>
                                   <p style={{ fontSize: '0.65rem', color: '#bbb', marginTop: 4, fontFamily: 'Barlow, sans-serif' }}>Wide, 1200×300px recommended</p>
@@ -958,11 +944,6 @@ export default function ProjectsPage() {
         </>)}
       </div>
 
-      <style>{`
-        @media (max-width: 640px) {
-          .proj-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
     </div>
   )
 }

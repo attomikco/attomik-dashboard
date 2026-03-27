@@ -48,8 +48,8 @@ interface Props {
 
 export default function MoMSummaryTable({ rows, currentLabel, previousLabel }: Props) {
   return (
-    <div style={{ border: '1px solid #e0e0e0', borderRadius: 10, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520 }}>
+    <div className="table-wrapper table-sticky"><div className="table-scroll">
+      <table style={{ minWidth: 520 }}>
         <thead>
           <tr>
             {[
@@ -59,12 +59,7 @@ export default function MoMSummaryTable({ rows, currentLabel, previousLabel }: P
               { label: 'Change',       align: 'right' },
               { label: 'Trend',        align: 'right' },
             ].map(h => (
-              <th key={h.label} style={{
-                padding: '10px 20px', background: '#f2f2f2',
-                fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase',
-                letterSpacing: '0.06em', color: '#666', textAlign: h.align as any,
-                fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap',
-              }}>
+              <th key={h.label} style={{ textAlign: h.align as any }}>
                 {h.label}
               </th>
             ))}
@@ -82,12 +77,10 @@ export default function MoMSummaryTable({ rows, currentLabel, previousLabel }: P
             if (isSection) {
               return (
                 <tr key={i}>
-                  <td colSpan={5} style={{
+                  <td colSpan={5} className="label" style={{
                     padding: '8px 20px 4px', background: '#fafafa',
-                    fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase',
-                    letterSpacing: '0.08em', color: '#999', fontFamily: 'Barlow, sans-serif',
-                    borderTop: i > 0 ? '1px solid #e0e0e0' : 'none',
-                    whiteSpace: 'nowrap',
+                    borderTop: i > 0 ? '1px solid var(--border)' : 'none',
+                    whiteSpace: 'nowrap', color: 'var(--subtle)',
                   }}>
                     {row.label}
                   </td>
@@ -96,31 +89,22 @@ export default function MoMSummaryTable({ rows, currentLabel, previousLabel }: P
             }
 
             return (
-              <tr key={i} style={{ borderTop: '1px solid #f2f2f2' }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#fafafa')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                <td style={{ padding: '13px 20px', fontSize: '0.875rem', fontFamily: 'Barlow, sans-serif', color: '#000', whiteSpace: 'nowrap' }}>
+              <tr key={i}>
+                <td style={{ whiteSpace: 'nowrap' }}>
                   {row.label}
                 </td>
-                <td style={{ padding: '13px 20px', textAlign: 'right', fontFamily: 'DM Mono, monospace', fontSize: '0.875rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                <td className="td-mono td-right td-strong" style={{ whiteSpace: 'nowrap' }}>
                   {fmt(row.current, row.format, row.format === 'currency' && (row.current >= 1000 || row.previous >= 1000))}
                 </td>
-                <td style={{ padding: '13px 20px', textAlign: 'right', fontFamily: 'DM Mono, monospace', fontSize: '0.875rem', color: '#999', whiteSpace: 'nowrap' }}>
+                <td className="td-mono td-right td-muted" style={{ whiteSpace: 'nowrap' }}>
                   {fmt(row.previous, row.format, row.format === 'currency' && (row.current >= 1000 || row.previous >= 1000))}
                 </td>
-                <td style={{ padding: '13px 20px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 3,
-                    fontSize: '0.8rem', fontWeight: 700,
-                    fontFamily: 'Barlow, sans-serif',
-                    padding: '3px 8px', borderRadius: 4,
-                    background: isGood ? '#e6fff5' : '#fee2e2',
-                    color: isGood ? '#007a48' : '#b91c1c',
-                  }}>
+                <td className="td-right" style={{ whiteSpace: 'nowrap' }}>
+                  <span className={`badge ${isGood ? 'pill-up' : 'pill-down'}`}>
                     {isUp ? '↑' : '↓'} {Math.abs(pct).toFixed(1)}%
                   </span>
                 </td>
-                <td style={{ padding: '13px 20px', textAlign: 'right' }}>
+                <td className="td-right">
                   {row.sparkline && (
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                       <Sparkline values={row.sparkline} isGood={isGood} />
@@ -132,6 +116,6 @@ export default function MoMSummaryTable({ rows, currentLabel, previousLabel }: P
           })}
         </tbody>
       </table>
-    </div>
+    </div></div>
   )
 }

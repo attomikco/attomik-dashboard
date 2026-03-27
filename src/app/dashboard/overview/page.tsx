@@ -61,12 +61,9 @@ function DeltaBadge({ value, invert = false }: { value: number; invert?: boolean
   const good = invert ? !up : up
   if (Math.abs(value) < 0.05) return <span style={{ fontSize: '0.72rem', color: '#ccc', fontFamily: 'Barlow, sans-serif' }}>—</span>
   return (
-    <span style={{
+    <span className={`badge ${good ? 'pill-up' : 'pill-down'}`} style={{
       display: 'inline-flex', alignItems: 'center', gap: 2,
-      fontSize: '0.72rem', fontWeight: 700, fontFamily: 'Barlow, sans-serif',
-      padding: '2px 6px', borderRadius: 5,
-      background: good ? '#e6fff5' : '#fee2e2',
-      color: good ? '#007a48' : '#b91c1c',
+      fontFamily: 'Barlow, sans-serif',
     }}>
       {up ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
       {Math.abs(value).toFixed(1)}%
@@ -85,6 +82,15 @@ export default function OverviewPage() {
   const [syncResult, setSyncResult] = useState<{ ok: boolean; text: string } | null>(null)
   const supabase = createClient()
   const router = useRouter()
+
+  // Topbar scroll shadow
+  useEffect(() => {
+    const handler = () => {
+      document.querySelector('.topbar')?.classList.toggle('topbar-scrolled', window.scrollY > 4)
+    }
+    window.addEventListener('scroll', handler, { passive: true })
+    return () => window.removeEventListener('scroll', handler)
+  }, [])
 
   // Single effect — re-runs when range changes, loads orgs fresh each time
   useEffect(() => {
@@ -272,13 +278,8 @@ export default function OverviewPage() {
   const SortBtn = ({ field, label }: { field: typeof sortBy; label: string }) => (
     <button
       onClick={() => setSortBy(field)}
-      style={{
-        padding: '4px 10px', border: 'none', borderRadius: 5, cursor: 'pointer',
-        fontFamily: 'Barlow, sans-serif', fontSize: '0.75rem', fontWeight: 700,
-        background: sortBy === field ? C.ink : C.cream,
-        color: sortBy === field ? C.accent : C.muted,
-        transition: '0.15s',
-      }}
+      className={`toggle-btn${sortBy === field ? ' active' : ''}`}
+      style={{ cursor: 'pointer' }}
     >
       {label}
     </button>
@@ -288,12 +289,11 @@ export default function OverviewPage() {
     <div style={{ background: C.paper, minHeight: '100vh' }}>
 
       {/* Topbar */}
-      <div className="overview-topbar" style={{
-        padding: '16px 20px', borderBottom: `1px solid ${C.border}`,
+      <div className="overview-topbar topbar" style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-        position: 'sticky', top: 0, background: C.paper, zIndex: 50,
+        padding: '16px 20px',
       }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
+        <div className="topbar-title" style={{ minWidth: 0, flex: 1 }}>
           <h1 style={{ fontSize: 'clamp(1.1rem, 3vw, 1.6rem)', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'Barlow, sans-serif', color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             Overview
           </h1>
@@ -333,12 +333,12 @@ export default function OverviewPage() {
             )}
           </div>
         </div>
-        <div style={{ flexShrink: 0 }}>
+        <div className="topbar-actions" style={{ flexShrink: 0 }}>
           <DateRangePicker value={range} onChange={r => setRange(r)} />
         </div>
       </div>
 
-      <div className="overview-content" style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 80px' }}>
+      <div className="overview-content page-content" style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 80px' }}>
 
         {/* Summary strip — only meaningful with 2+ orgs */}
         {!loadingOrgs && orgs.length > 1 && (
@@ -351,9 +351,9 @@ export default function OverviewPage() {
               { label: 'Total Ad Spend', value: fmt$(totalSpend),   delta: pct(totalSpend, totalPrevSp), invert: true },
               { label: 'Blended ROAS',   value: blendedRoas > 0 ? `${blendedRoas.toFixed(2)}x` : '—', delta: pct(blendedRoas, prevRoas) },
             ].map(k => (
-              <div key={k.label} style={{ background: C.paper, border: `1px solid ${C.border}`, borderRadius: 10, padding: '18px 20px' }}>
-                <div style={{ fontSize: '0.7rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'Barlow, sans-serif', marginBottom: 8 }}>{k.label}</div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'Barlow, sans-serif', marginBottom: 6 }}>{k.value}</div>
+              <div key={k.label} className="kpi-card" style={{ padding: '18px 20px' }}>
+                <div className="kpi-label">{k.label}</div>
+                <div className="kpi-value" style={{ fontSize: '1.5rem', marginBottom: 6 }}>{k.value}</div>
                 <DeltaBadge value={k.delta} invert={k.invert} />
               </div>
             ))}
@@ -364,16 +364,18 @@ export default function OverviewPage() {
         {/* Sort controls */}
         {!loadingOrgs && orgs.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 2 }}>
-            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'Barlow, sans-serif' }}>Sort</span>
-            <SortBtn field="revenue"  label="Total Sales"  />
-            <SortBtn field="orders"   label="Orders"   />
-            <SortBtn field="roas"     label="ROAS"     />
-            <SortBtn field="adSpend"  label="Ad Spend" />
+            <span className="label">Sort</span>
+            <div className="toggle-group">
+              <SortBtn field="revenue"  label="Total Sales"  />
+              <SortBtn field="orders"   label="Orders"   />
+              <SortBtn field="roas"     label="ROAS"     />
+              <SortBtn field="adSpend"  label="Ad Spend" />
+            </div>
           </div>
         )}
 
         {loadingOrgs ? (
-          <div style={{ textAlign: 'center', padding: '80px 0', color: C.muted, fontFamily: 'Barlow, sans-serif' }}>Loading projects…</div>
+          <div className="text-muted" style={{ textAlign: 'center', padding: '80px 0', fontFamily: 'Barlow, sans-serif' }}>Loading projects…</div>
         ) : orgs.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '80px 24px', border: `2px dashed ${C.border}`, borderRadius: 10 }}>
             <Building2 size={32} style={{ color: '#ccc', margin: '0 auto 12px', display: 'block' }} />
@@ -383,16 +385,13 @@ export default function OverviewPage() {
         ) : (
           <>
             {/* ── Desktop table ── */}
-            <div className="overview-table" style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 780 }}>
+            <div className="overview-table table-wrapper"><div className="table-scroll">
+              <table style={{ minWidth: 780 }}>
                 <thead>
-                  <tr style={{ background: C.cream }}>
+                  <tr>
                     {['Project', 'Total Sales', 'Orders', 'AOV', 'Ad Spend', 'ROAS', ''].map((h, i) => (
                       <th key={i} style={{
-                        padding: '11px 20px', textAlign: h === '' ? 'right' : 'left',
-                        fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase',
-                        letterSpacing: '0.07em', color: C.muted, fontFamily: 'Barlow, sans-serif',
-                        borderBottom: `1px solid ${C.border}`,
+                        textAlign: h === '' ? 'right' : 'left',
                       }}>{h}</th>
                     ))}
                   </tr>
@@ -414,7 +413,7 @@ export default function OverviewPage() {
                           </div>
                           <div>
                             <div style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>{org.name}</div>
-                            <div style={{ fontFamily: 'DM Mono, monospace', fontSize: '0.68rem', color: '#aaa' }}>{org.slug}</div>
+                            <div className="mono" style={{ fontSize: '0.68rem', color: '#aaa' }}>{org.slug}</div>
                           </div>
                         </div>
                       </td>
@@ -431,12 +430,12 @@ export default function OverviewPage() {
                               {org.revenue > 0 && (
                                 <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
                                   {org.shopifyRev > 0 && (
-                                    <span style={{ fontSize: '0.68rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', padding: '2px 7px', borderRadius: 4, background: '#f0fdf4', color: '#166534', whiteSpace: 'nowrap' }}>
+                                    <span className="badge badge-shopify" style={{ fontSize: '0.68rem', whiteSpace: 'nowrap' }}>
                                       Shopify {fmt$(org.shopifyRev)} · {(org.shopifyRev / org.revenue * 100).toFixed(0)}%
                                     </span>
                                   )}
                                   {org.amazonRev > 0 && (
-                                    <span style={{ fontSize: '0.68rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', padding: '2px 7px', borderRadius: 4, background: '#fef3c7', color: '#92400e', whiteSpace: 'nowrap' }}>
+                                    <span className="badge badge-amazon" style={{ fontSize: '0.68rem', whiteSpace: 'nowrap' }}>
                                       Amazon {fmt$(org.amazonRev)} · {(org.amazonRev / org.revenue * 100).toFixed(0)}%
                                     </span>
                                   )}
@@ -506,7 +505,7 @@ export default function OverviewPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </div></div>
 
             {/* ── Mobile cards ── */}
             <div className="overview-cards" style={{ display: 'none', flexDirection: 'column', gap: 10 }}>
@@ -514,7 +513,8 @@ export default function OverviewPage() {
                 <div
                   key={org.id}
                   onClick={() => openOrg(org)}
-                  style={{ background: C.paper, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16, cursor: 'pointer' }}
+                  className="card"
+                  style={{ cursor: 'pointer' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -523,7 +523,7 @@ export default function OverviewPage() {
                       </div>
                       <div>
                         <div style={{ fontWeight: 700, fontSize: '0.95rem', fontFamily: 'Barlow, sans-serif' }}>{org.name}</div>
-                        <div style={{ fontFamily: 'DM Mono, monospace', fontSize: '0.68rem', color: '#aaa' }}>{org.slug}</div>
+                        <div className="mono" style={{ fontSize: '0.68rem', color: '#aaa' }}>{org.slug}</div>
                       </div>
                     </div>
                     <ArrowRight size={16} color={C.muted} />
@@ -543,7 +543,7 @@ export default function OverviewPage() {
                         { label: 'ROAS',    value: org.roas > 0 ? `${org.roas.toFixed(2)}x` : '—', delta: org.roas > 0 ? pct(org.roas, org.prevRoas) : null },
                       ].map(k => (
                         <div key={k.label} style={{ background: C.cream, borderRadius: 8, padding: '10px 12px' }}>
-                          <div style={{ fontSize: '0.68rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'Barlow, sans-serif', marginBottom: 4 }}>{k.label}</div>
+                          <div className="kpi-label" style={{ marginBottom: 4 }}>{k.label}</div>
                           <div style={{ fontWeight: 800, fontSize: '1rem', fontFamily: 'Barlow, sans-serif', marginBottom: 4 }}>{k.value}</div>
                           {k.delta !== null && <DeltaBadge value={k.delta} />}
                         </div>
@@ -552,12 +552,12 @@ export default function OverviewPage() {
                     {org.revenue > 0 && (org.shopifyRev > 0 || org.amazonRev > 0) && (
                       <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
                         {org.shopifyRev > 0 && (
-                          <span style={{ fontSize: '0.68rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', padding: '2px 7px', borderRadius: 4, background: '#f0fdf4', color: '#166534' }}>
+                          <span className="badge badge-shopify" style={{ fontSize: '0.68rem' }}>
                             Shopify {fmt$(org.shopifyRev)} · {(org.shopifyRev / org.revenue * 100).toFixed(0)}%
                           </span>
                         )}
                         {org.amazonRev > 0 && (
-                          <span style={{ fontSize: '0.68rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', padding: '2px 7px', borderRadius: 4, background: '#fef3c7', color: '#92400e' }}>
+                          <span className="badge badge-amazon" style={{ fontSize: '0.68rem' }}>
                             Amazon {fmt$(org.amazonRev)} · {(org.amazonRev / org.revenue * 100).toFixed(0)}%
                           </span>
                         )}

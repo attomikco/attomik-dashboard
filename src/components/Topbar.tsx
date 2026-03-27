@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface TopbarProps {
@@ -16,31 +17,28 @@ const periods = ['7D', '30D', '90D', '1Y']
 export default function Topbar({ title, subtitle, period, onPeriodChange, action, className }: TopbarProps) {
   const router = useRouter()
 
+  useEffect(() => {
+    const handler = () => {
+      document.querySelector('.topbar')?.classList.toggle('topbar-scrolled', window.scrollY > 4)
+    }
+    window.addEventListener('scroll', handler, { passive: true })
+    return () => window.removeEventListener('scroll', handler)
+  }, [])
+
   return (
-    <div className={className} style={{
-      padding: 'clamp(14px, 3vw, 20px) clamp(16px, 4vw, 40px)',
-      borderBottom: '1px solid var(--border)',
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      position: 'sticky', top: 0, background: 'var(--paper)', zIndex: 50,
-    }}>
-      <div>
-        <h1 style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.03em' }}>{title}</h1>
-        {subtitle && <p style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: 2 }}>{subtitle}</p>}
+    <div className={`topbar${className ? ` ${className}` : ''}`}>
+      <div className="topbar-title">
+        <h1>{title}</h1>
+        {subtitle && <p className="caption" style={{ marginTop: 2 }}>{subtitle}</p>}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div className="topbar-actions">
         {onPeriodChange && (
-          <div style={{ display: 'flex', gap: 4 }}>
+          <div className="toggle-group">
             {periods.map(p => (
               <button
                 key={p}
                 onClick={() => onPeriodChange(p)}
-                style={{
-                  padding: '5px 12px', borderRadius: 6, fontSize: '0.75rem', fontWeight: 600,
-                  cursor: 'pointer', border: 'none', fontFamily: 'var(--font-barlow)',
-                  background: period === p ? 'var(--ink)' : 'transparent',
-                  color: period === p ? 'var(--accent)' : 'var(--muted)',
-                  transition: '0.15s',
-                }}
+                className={`toggle-btn${period === p ? ' active' : ''}`}
               >
                 {p}
               </button>
@@ -50,14 +48,7 @@ export default function Topbar({ title, subtitle, period, onPeriodChange, action
         {action && (
           <button
             onClick={() => action.href ? router.push(action.href) : action.onClick?.()}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 16px', background: 'var(--accent)', color: '#000',
-              fontFamily: 'var(--font-barlow)', fontSize: '0.8rem', fontWeight: 700,
-              border: 'none', borderRadius: 6, cursor: 'pointer', transition: '0.15s',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = '#00e085')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'var(--accent)')}
+            className="btn btn-primary btn-sm"
           >
             {action.label}
           </button>

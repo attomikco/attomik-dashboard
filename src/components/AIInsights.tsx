@@ -42,7 +42,7 @@ export default function AIInsights({ metrics, period, preset, orgName, platform 
   }
 
   return (
-    <div style={{ background: '#000', border: '1px solid #222', borderRadius: 10, padding: isMobile ? 16 : 24, marginBottom: 8 }}>
+    <div className="card card-dark" style={{ padding: isMobile ? 16 : 24, marginBottom: 8, borderColor: '#222' }}>
       {/* Header row */}
       <div style={{
         display: 'flex',
@@ -71,16 +71,10 @@ export default function AIInsights({ metrics, period, preset, orgName, platform 
         <button
           onClick={generate}
           disabled={loading}
+          className={`btn ${loading ? 'btn-ghost' : 'btn-primary'}`}
           style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            padding: '9px 16px',
-            background: loading ? 'rgba(255,255,255,0.05)' : '#00ff97',
-            color: loading ? 'rgba(255,255,255,0.4)' : '#000',
-            border: 'none', borderRadius: 6,
-            fontFamily: 'Barlow, sans-serif', fontWeight: 700,
-            fontSize: '0.875rem', cursor: loading ? 'not-allowed' : 'pointer',
-            transition: '0.15s',
             width: isMobile ? '100%' : 'auto',
+            ...(loading ? { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.4)' } : {}),
           }}
         >
           {loading ? (

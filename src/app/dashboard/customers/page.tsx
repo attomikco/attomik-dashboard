@@ -62,9 +62,9 @@ export default async function CustomersPage() {
     <div>
       <Topbar title="Customers & Retention" subtitle="Last 30 days" action={{ label: '↑ Import CSV', href: '/dashboard/import' }} />
 
-      <div style={{ padding: '32px 40px 48px' }}>
+      <div className="page-content" style={{ padding: '32px 40px 48px' }}>
         {/* KPIs */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
+        <div className="grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
           <KpiCard label="Total Customers" value={data.total.toLocaleString()} accent />
           <KpiCard label="New (30d)" value={data.newCustomers.toLocaleString()} />
           <KpiCard label="Repeat Rate" value={`${data.repeatRate.toFixed(1)}%`} />
@@ -72,17 +72,17 @@ export default async function CustomersPage() {
         </div>
 
         {/* Top customers table */}
-        <div style={{ background: 'var(--paper)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+        <div className="table-wrapper" style={{ background: 'var(--paper)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
           <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
             <div style={{ fontSize: '0.875rem', fontWeight: 700 }}>Top Customers</div>
             <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 2 }}>By lifetime value</div>
           </div>
-          <div style={{ overflowX: 'auto' }}>
+          <div className="table-scroll" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
                   {['Customer', 'Orders', 'LTV', 'Last Order', 'Segment'].map(h => (
-                    <th key={h} style={{ padding: '10px 24px', background: 'var(--cream)', fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)', textAlign: 'left' }}>
+                    <th key={h}>
                       {h}
                     </th>
                   ))}
@@ -98,9 +98,9 @@ export default async function CustomersPage() {
                       onMouseEnter={e => (e.currentTarget.style.background = '#fafafa')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                       <td style={{ padding: '13px 24px', fontWeight: 500 }}>{c.name}</td>
-                      <td style={{ padding: '13px 24px', fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>{c.orders}</td>
-                      <td style={{ padding: '13px 24px', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>${c.ltv.toFixed(2)}</td>
-                      <td style={{ padding: '13px 24px', color: 'var(--muted)', fontSize: '0.875rem' }}>
+                      <td className="td-mono" style={{ padding: '13px 24px', fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>{c.orders}</td>
+                      <td className="td-mono" style={{ padding: '13px 24px', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>${c.ltv.toFixed(2)}</td>
+                      <td className="td-muted" style={{ padding: '13px 24px', color: 'var(--muted)', fontSize: '0.875rem' }}>
                         {new Date(c.lastOrder).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </td>
                       <td style={{ padding: '13px 24px' }}>

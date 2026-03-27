@@ -165,18 +165,14 @@ export default function DateRangePicker({ value, onChange }: Props) {
       <div ref={ref} style={{ position: 'relative', zIndex: 100 }}>
         <button
           onClick={() => setOpen(!open)}
+          className="btn btn-secondary"
           style={{
-            display: 'flex', alignItems: 'center', gap: 6,
             padding: isMobile ? '7px 10px' : '8px 14px',
-            border: '1px solid #e0e0e0',
-            borderRadius: 6, background: '#fff', cursor: 'pointer',
-            fontFamily: 'Barlow, sans-serif',
             fontSize: isMobile ? '0.8rem' : '0.875rem',
-            fontWeight: 600, color: '#000', transition: '0.15s',
             whiteSpace: 'nowrap', maxWidth: isMobile ? 190 : 'none',
           }}
-          onMouseEnter={e => (e.currentTarget.style.borderColor = '#00ff97')}
-          onMouseLeave={e => (e.currentTarget.style.borderColor = '#e0e0e0')}
+          onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
+          onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
         >
           <Calendar size={isMobile ? 13 : 15} color="#666" style={{ flexShrink: 0 }} />
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{buttonLabel}</span>
@@ -214,13 +210,13 @@ export default function DateRangePicker({ value, onChange }: Props) {
             </div>
 
             <div style={{ flex: 1, padding: 20 }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16, fontFamily: 'Barlow, sans-serif' }}>
+              <div className="form-label" style={{ marginBottom: 16 }}>
                 {isCustom ? 'Custom date range' : 'Selected range'}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
                 <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#666', display: 'block', marginBottom: 4, fontFamily: 'Barlow, sans-serif' }}>Start date</label>
+                  <label className="form-label" style={{ display: 'block', marginBottom: 4 }}>Start date</label>
                   <input
                     type="date" value={customStart}
                     onChange={e => { setCustomStart(e.target.value); setActivePreset('Custom range') }}
@@ -230,7 +226,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#666', display: 'block', marginBottom: 4, fontFamily: 'Barlow, sans-serif' }}>End date</label>
+                  <label className="form-label" style={{ display: 'block', marginBottom: 4 }}>End date</label>
                   <input
                     type="date" value={customEnd}
                     onChange={e => { setCustomEnd(e.target.value); setActivePreset('Custom range') }}
@@ -253,9 +249,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
               <button
                 onClick={applyCustom}
                 disabled={!customStart || !customEnd || customStart > customEnd}
-                style={{ width: '100%', padding: '10px', background: '#00ff97', color: '#000', fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.875rem', border: 'none', borderRadius: 6, cursor: 'pointer', transition: '0.15s' }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#00e085')}
-                onMouseLeave={e => (e.currentTarget.style.background = '#00ff97')}
+                className="btn btn-primary w-full"
               >
                 Apply
               </button>
@@ -316,12 +310,12 @@ export default function DateRangePicker({ value, onChange }: Props) {
 
             {/* Custom range */}
             <div style={{ padding: '0 16px 32px' }}>
-              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10, fontFamily: 'Barlow, sans-serif' }}>
+              <div className="form-label" style={{ marginBottom: 10 }}>
                 Custom range
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
                 <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#666', display: 'block', marginBottom: 4, fontFamily: 'Barlow, sans-serif' }}>Start</label>
+                  <label className="form-label" style={{ display: 'block', marginBottom: 4 }}>Start</label>
                   <input
                     type="date" value={customStart}
                     onChange={e => { setCustomStart(e.target.value); setActivePreset('Custom range') }}
@@ -329,7 +323,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#666', display: 'block', marginBottom: 4, fontFamily: 'Barlow, sans-serif' }}>End</label>
+                  <label className="form-label" style={{ display: 'block', marginBottom: 4 }}>End</label>
                   <input
                     type="date" value={customEnd}
                     onChange={e => { setCustomEnd(e.target.value); setActivePreset('Custom range') }}
@@ -340,7 +334,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
               <button
                 onClick={applyCustom}
                 disabled={!customStart || !customEnd || customStart > customEnd}
-                style={{ width: '100%', padding: '14px', background: '#00ff97', color: '#000', fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.9375rem', border: 'none', borderRadius: 8, cursor: 'pointer' }}
+                className="btn btn-primary btn-lg w-full"
               >
                 Apply custom range
               </button>
