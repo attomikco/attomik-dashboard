@@ -294,7 +294,7 @@ export default function OverviewPage() {
         padding: '16px 20px',
       }}>
         <div className="topbar-title" style={{ minWidth: 0, flex: 1 }}>
-          <h1 style={{ fontSize: 'clamp(1.1rem, 3vw, 1.6rem)', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'Barlow, sans-serif', color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <h1 style={{ fontSize: 'clamp(1.1rem, 3vw, 1.6rem)', fontWeight: 900, letterSpacing: '-0.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             Overview
           </h1>
           <div className="overview-subtitle" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
@@ -353,7 +353,7 @@ export default function OverviewPage() {
             ].map(k => (
               <div key={k.label} className="kpi-card" style={{ padding: '18px 20px' }}>
                 <div className="kpi-label">{k.label}</div>
-                <div className="kpi-value" style={{ fontSize: '1.5rem', marginBottom: 6 }}>{k.value}</div>
+                <div className="kpi-value" style={{ marginBottom: 6 }}>{k.value}</div>
                 <DeltaBadge value={k.delta} invert={k.invert} />
               </div>
             ))}
@@ -544,7 +544,7 @@ export default function OverviewPage() {
                       ].map(k => (
                         <div key={k.label} style={{ background: C.cream, borderRadius: 8, padding: '10px 12px' }}>
                           <div className="kpi-label" style={{ marginBottom: 4 }}>{k.label}</div>
-                          <div style={{ fontWeight: 800, fontSize: '1rem', fontFamily: 'Barlow, sans-serif', marginBottom: 4 }}>{k.value}</div>
+                          <div className="kpi-value" style={{ fontSize: '1rem', marginBottom: 4 }}>{k.value}</div>
                           {k.delta !== null && <DeltaBadge value={k.delta} />}
                         </div>
                       ))}
