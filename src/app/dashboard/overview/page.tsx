@@ -41,6 +41,7 @@ interface OrgKpi {
   slug: string
   timezone?: string
   channels?: Record<string, boolean>
+  ga_property_id?: string
   revenue: number
   prevRevenue: number
   orders: number
@@ -53,6 +54,10 @@ interface OrgKpi {
   prevRoas: number
   shopifyRev: number
   amazonRev: number
+  shopifyOrders: number
+  prevShopifyOrders: number
+  convRate: number
+  prevConvRate: number
   loading: boolean
 }
 
@@ -115,7 +120,8 @@ export default function OverviewPage() {
       const initial: OrgKpi[] = orgList.map(o => ({
         ...o, revenue: 0, prevRevenue: 0, orders: 0, prevOrders: 0,
         aov: 0, prevAov: 0, adSpend: 0, prevAdSpend: 0, roas: 0, prevRoas: 0,
-        shopifyRev: 0, amazonRev: 0, loading: true,
+        shopifyRev: 0, amazonRev: 0, shopifyOrders: 0, prevShopifyOrders: 0,
+        convRate: 0, prevConvRate: 0, loading: true,
       }))
       setOrgs(initial)
       setLoadingOrgs(false)
@@ -222,9 +228,34 @@ export default function OverviewPage() {
         const prevRoas    = prevAdSpend > 0 ? prevRevenue / prevAdSpend : 0
         const shopifyRev  = cur.filter(o => o.source === 'shopify').reduce((s, o) => s + Number(o.total_price || 0), 0)
         const amazonRev   = cur.filter(o => o.source === 'amazon').reduce((s, o) => s + Number(o.total_price || 0), 0)
+        const shopifyOrders = cur.filter(o => o.source === 'shopify').length
+        const prevShopifyOrders = prev.filter(o => o.source === 'shopify').length
+
+        // Fetch GA4 traffic for conv rate if org has GA configured
+        let convRate = 0
+        let prevConvRate = 0
+        const gaId = (org as any).ga_property_id
+        if (gaId && shopifyOrders > 0) {
+          try {
+            const [curTraffic, prevTraffic] = await Promise.all([
+              fetch('/api/analytics/traffic', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ org_id: org.id, startDate: orgCurStart, endDate: orgCurEnd }),
+              }).then(r => r.ok ? r.json() : null),
+              fetch('/api/analytics/traffic', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ org_id: org.id, startDate: prevStart, endDate: prevEnd }),
+              }).then(r => r.ok ? r.json() : null),
+            ])
+            if (curTraffic?.users > 0) convRate = (shopifyOrders / curTraffic.users) * 100
+            if (prevTraffic?.users > 0 && prevShopifyOrders > 0) prevConvRate = (prevShopifyOrders / prevTraffic.users) * 100
+          } catch {}
+        }
 
         if (!cancelled) setOrgs(prev => prev.map(o => o.id === org.id
-          ? { ...o, revenue, prevRevenue, orders, prevOrders: prevOrdCnt, aov, prevAov, adSpend, prevAdSpend, roas, prevRoas, shopifyRev, amazonRev, loading: false }
+          ? { ...o, revenue, prevRevenue, orders, prevOrders: prevOrdCnt, aov, prevAov, adSpend, prevAdSpend, roas, prevRoas, shopifyRev, amazonRev, shopifyOrders, prevShopifyOrders, convRate, prevConvRate, loading: false }
           : o
         ))
       } catch {
@@ -381,10 +412,10 @@ export default function OverviewPage() {
           <>
             {/* ── Desktop table ── */}
             <div className="overview-table table-wrapper"><div className="table-scroll">
-              <table style={{ minWidth: 780 }}>
+              <table style={{ minWidth: 880 }}>
                 <thead>
                   <tr>
-                    {['Project', 'Total Sales', 'Orders', 'AOV', 'Ad Spend', 'ROAS', ''].map((h, i) => (
+                    {['Project', 'Total Sales', 'Orders', 'AOV', 'Ad Spend', 'ROAS', 'Conv. Rate', ''].map((h, i) => (
                       <th key={i} style={{
                         textAlign: h === '' ? 'right' : 'left',
                       }}>{h}</th>
@@ -492,6 +523,19 @@ export default function OverviewPage() {
                         }
                       </td>
 
+                      {/* Conv. Rate */}
+                      <td style={{ padding: '16px 20px', minWidth: 110 }}>
+                        {org.loading
+                          ? <div style={{ height: 14, width: 50, background: '#f0f0f0', borderRadius: 3 }} className="animate-pulse" />
+                          : org.convRate > 0
+                            ? <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{org.convRate.toFixed(2)}%</span>
+                                {org.prevConvRate > 0 && <DeltaBadge value={pct(org.convRate, org.prevConvRate)} />}
+                              </div>
+                            : <span style={{ fontSize: '0.8rem', color: '#ccc' }}>—</span>
+                        }
+                      </td>
+
                       {/* Arrow */}
                       <td style={{ padding: '16px 20px', textAlign: 'right' }}>
                         <ChevronRight size={16} color={C.muted} />
@@ -536,6 +580,7 @@ export default function OverviewPage() {
                         { label: 'Orders',  value: fmtN(org.orders),   delta: pct(org.orders, org.prevOrders) },
                         { label: 'AOV',     value: org.aov > 0 ? fmt$(org.aov) : '—', delta: org.aov > 0 ? pct(org.aov, org.prevAov) : null },
                         { label: 'ROAS',    value: org.roas > 0 ? `${org.roas.toFixed(2)}x` : '—', delta: org.roas > 0 ? pct(org.roas, org.prevRoas) : null },
+                        { label: 'Conv. Rate', value: org.convRate > 0 ? `${org.convRate.toFixed(2)}%` : '—', delta: org.convRate > 0 && org.prevConvRate > 0 ? pct(org.convRate, org.prevConvRate) : null },
                       ].map(k => (
                         <div key={k.label} style={{ background: C.cream, borderRadius: 8, padding: '10px 12px' }}>
                           <div className="kpi-label" style={{ marginBottom: 4 }}>{k.label}</div>
