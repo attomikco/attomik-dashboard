@@ -289,10 +289,7 @@ export default function OverviewPage() {
     <div style={{ background: C.paper, minHeight: '100vh' }}>
 
       {/* Topbar */}
-      <div className="overview-topbar topbar" style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-        padding: '16px 20px',
-      }}>
+      <div className="overview-topbar topbar">
         <div className="topbar-title" style={{ minWidth: 0, flex: 1 }}>
           <h1 style={{ fontSize: 'clamp(1.1rem, 3vw, 1.6rem)', fontWeight: 900, letterSpacing: '-0.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             Overview
