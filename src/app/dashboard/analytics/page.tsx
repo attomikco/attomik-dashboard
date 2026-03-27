@@ -587,6 +587,15 @@ export default function AnalyticsPage() {
     Object.values(days).forEach((d: any) => { d.roas = d.spend > 0 ? d.revenue / d.spend : 0 })
     const dayArr = Object.values(days) as any[]
 
+    // Debug: check bucketing
+    const dayKeys = Object.keys(days)
+    const janKeys = dayKeys.filter(k => k.startsWith('2026-01'))
+    const janWithRev = janKeys.filter(k => days[k].revenue > 0)
+    const janWithSpend = janKeys.filter(k => days[k].spend > 0)
+    const unmatchedOrders = enabledOrders.filter(o => o.status !== 'refunded' && !days[utcToOrgDate(o.created_at)]).length
+    const unmatchedSpend = cSpend.filter((s: any) => !days[s.date]).length
+    setDebugInfo(prev => prev + ` || BUCKETS: ${dayKeys.length} day keys, ${janKeys.length} Jan keys, ${janWithRev.length} Jan days w/revenue, ${janWithSpend.length} Jan days w/spend | Unmatched: ${unmatchedOrders} orders, ${unmatchedSpend} spend | enabledOrders: ${enabledOrders.length} (showShopify=${showShopify}, showAmazon=${showAmazon}) | chartData[0]: ${JSON.stringify(dayArr[0])} | chartData[30]: ${JSON.stringify(dayArr[30])}`)
+
     setRevenueRoasData(dayArr.map(d => ({ date: d.date, revenue: d.revenue, roas: d.roas })))
     setSpendSalesData(dayArr.map(d => ({ date: d.date, revenue: d.revenue, spend: d.spend })))
     setRoasData(dayArr.filter(d => d.roas > 0).map(d => ({ date: d.date, roas: d.roas })))
