@@ -105,7 +105,7 @@ export default function ProductsBreakdownPage() {
       {/* Topbar */}
       <div className="topbar">
         <div className="topbar-title" style={{ minWidth: 0, flex: 1 }}>
-          <h1 style={{ fontSize: 'clamp(1.1rem, 4vw, 1.6rem)', fontWeight: 900, letterSpacing: '-0.04em' }}>{orgName} — Products</h1>
+          <h1 style={{ fontSize: 'clamp(1.1rem, 4vw, 1.6rem)', fontWeight: 800, letterSpacing: '-0.04em' }}>{orgName} — Products</h1>
           <p className="caption" style={{ marginTop: 2 }}>
             {fmtDate(range.start)} – {fmtDate(range.end)} · {fmtN(products.length)} product{products.length !== 1 ? 's' : ''}
           </p>
