@@ -104,7 +104,7 @@ function MetricRow({ items }: { items: { label: string; value: string; sub?: str
               <div style={{ fontSize: '0.75rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>
                 {item.label}
               </div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.03em', color: C.ink }}>{item.value}</div>
+              <div className="kpi-value" style={{ fontSize: '1.4rem' }}>{item.value}</div>
               {item.sub && (
                 <div className={`badge ${isGood ? 'pill-up' : isGood === false ? 'pill-down' : ''}`} style={{ marginTop: 6, ...(isGood === null ? { background: 'transparent', color: '#999' } : {}) }}>
                   {item.sub}
@@ -778,8 +778,8 @@ export default function AnalyticsPage() {
       {/* Sticky topbar */}
       <div className="analytics-topbar topbar">
         <div className="topbar-title" style={{ minWidth: 0, flex: 1 }}>
-          <h1 className="analytics-title" style={{ fontSize: 'clamp(1.1rem, 4vw, 2rem)', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'var(--font-barlow), Barlow, sans-serif', color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{orgName}<span className="analytics-title-sep"> — </span><span className="analytics-title-sub">Analytics</span></h1>
-          <p style={{ fontSize: '0.75rem', color: C.muted, marginTop: 2, fontFamily: 'var(--font-barlow), Barlow, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <h1 className="analytics-title" style={{ fontSize: 'clamp(1.1rem, 4vw, 2rem)', fontWeight: 900, letterSpacing: '-0.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{orgName}<span className="analytics-title-sep"> — </span><span className="analytics-title-sub">Analytics</span></h1>
+          <p className="caption" style={{ marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {fmtDate(range.start)} – {fmtDate(range.end)} · vs previous {dayCount} days
             {lastSynced && <span style={{ color: '#ccc' }}> · Synced {new Date(lastSynced).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>}
           </p>

@@ -143,7 +143,7 @@ h1{font-size:var(--text-2xl);} h2{font-size:var(--text-xl);} h3{font-size:var(--
 .badge-paid{background:var(--accent-light);color:#007a48;} .badge-pending{background:var(--warning-light);color:var(--warning);} .badge-failed{background:var(--danger-light);color:var(--danger);} .badge-refunded{background:var(--danger-light);color:var(--danger);} .badge-cancelled{background:var(--cream);color:var(--muted);} .badge-active{background:var(--accent-light);color:#007a48;} .badge-inactive{background:var(--cream);color:var(--muted);} .badge-draft{background:var(--warning-light);color:var(--warning);} .badge-live{background:var(--accent);color:var(--ink);}
 .badge-admin{background:var(--ink);color:var(--accent);} .badge-member{background:var(--cream);color:var(--ink);} .badge-viewer{background:var(--cream);color:var(--muted);}
 .badge-shopify{background:#f0f7e6;color:#3d7a00;} .badge-amazon{background:#fff3e0;color:#b35900;} .badge-walmart{background:#e3f0ff;color:#0057a8;} .badge-meta{background:#e8eeff;color:#1877f2;} .badge-google{background:#e8f0fe;color:#1a73e8;} .badge-tiktok{background:var(--cream);color:var(--ink);}
-.pill-up{background:var(--accent-light);color:#007a48;font-weight:700;} .pill-down{background:var(--danger-light);color:var(--danger);font-weight:700;}
+.pill-up{background:var(--accent-light);color:#007a48;font-weight:900;} .pill-down{background:var(--danger-light);color:var(--danger);font-weight:900;}
 
 /* ── FORMS ── */
 .form-group{display:flex;flex-direction:column;gap:var(--sp-1);}

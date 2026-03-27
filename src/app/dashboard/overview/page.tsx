@@ -298,7 +298,7 @@ export default function OverviewPage() {
             Overview
           </h1>
           <div className="overview-subtitle" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
-            <p style={{ fontSize: '0.75rem', color: C.muted, fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap', margin: 0 }}>
+            <p className="caption" style={{ whiteSpace: 'nowrap', margin: 0 }}>
               {loadingOrgs ? '…' : `${orgs.length} project${orgs.length !== 1 ? 's' : ''}`} · vs previous {dayCount} days
             </p>
             {isSuperadmin && (
