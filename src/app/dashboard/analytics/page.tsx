@@ -202,6 +202,7 @@ export default function AnalyticsPage() {
   const [estEOM, setEstEOM] = useState<number | null>(null)
   const [activeOrgId, setActiveOrgId] = useState<string>('')
   const [isSuperadmin, setIsSuperadmin] = useState(false)
+  const [debugInfo, setDebugInfo] = useState<string>('')
   const supabase = createClient()
 
   useEffect(() => { fetchData() }, [range])
@@ -326,9 +327,10 @@ export default function AnalyticsPage() {
       const size = 1000
       let from = 0, all: any[] = []
       while (true) {
-        const { data } = await supabase.from('orders').select(cols)
+        const { data, error } = await supabase.from('orders').select(cols)
           .eq('org_id', orgId).gte('created_at', gteDate).lte('created_at', lteDate)
-          .range(from, from + size - 1)
+          .order('created_at', { ascending: true }).range(from, from + size - 1)
+        if (error) { console.error('[fetchAllOrders] Supabase error:', error, { from, gteDate, lteDate }); break }
         if (!data || data.length === 0) break
         all = all.concat(data)
         if (data.length < size) break
@@ -352,13 +354,30 @@ export default function AnalyticsPage() {
     const fetchAmazon = (gte: string, lte: string, cols: string) =>
       fetchAllOrders(gte, lte, cols).then(orders => orders.filter(o => o.source === 'amazon'))
 
+    // Paginated fetch to bypass Supabase row limit for ad_spend
+    const fetchAllAdSpend = async (cols: string, gteDate: string, lteDate: string) => {
+      const size = 1000
+      let from = 0, all: any[] = []
+      while (true) {
+        const { data, error } = await supabase.from('ad_spend').select(cols)
+          .eq('org_id', orgId).gte('date', gteDate).lte('date', lteDate)
+          .order('date', { ascending: true }).range(from, from + size - 1)
+        if (error) { console.error('[fetchAllAdSpend] Supabase error:', error, { from, gteDate, lteDate }); break }
+        if (!data || data.length === 0) break
+        all = all.concat(data)
+        if (data.length < size) break
+        from += size
+      }
+      return { data: all }
+    }
+
     const [curNonAmazon, curAmazon, prevNonAmazon, prevAmazon, curS, prevS, allOrdRaw, allSpRaw] = await Promise.all([
       fetchNonAmazon(thisStart, thisEnd, orderCols),
       fetchAmazon(amazonCurStart, amazonCurEnd, orderCols),
       fetchNonAmazon(prevStartISO, prevEndISO, orderCols),
       fetchAmazon(amazonPrevStart, amazonPrevEnd, orderCols),
-      supabase.from('ad_spend').select('spend,platform,impressions,clicks,conversions,date').eq('org_id', orgId).gte('date', resolvedRange.start).lte('date', resolvedRange.end).limit(5000),
-      supabase.from('ad_spend').select('spend,platform,impressions,clicks,conversions').eq('org_id', orgId).gte('date', prevStart).lte('date', prevEnd).limit(5000),
+      fetchAllAdSpend('spend,platform,impressions,clicks,conversions,date', resolvedRange.start, resolvedRange.end),
+      fetchAllAdSpend('spend,platform,impressions,clicks,conversions', prevStart, prevEnd),
       fetchAllOrders(sixMonthsAgo, new Date().toISOString(), orderColsLight),
       (async () => {
         const all: any[] = []
@@ -381,6 +400,13 @@ export default function AnalyticsPage() {
     const cSpend = curS.data ?? [], pSpend = prevS.data ?? []
     const allOrd = allOrdRaw ?? []
     const allSp = allSpRaw?.data ?? []
+
+    // Debug: show data ranges to diagnose missing months
+    const orderDates = cur.map(o => o.created_at?.slice(0, 10)).sort()
+    const spendDates = cSpend.map((s: any) => s.date).sort()
+    const janOrders = cur.filter(o => o.created_at?.startsWith('2026-01'))
+    const janSpend = cSpend.filter((s: any) => s.date?.startsWith('2026-01'))
+    setDebugInfo(`Orders: ${cur.length} total (${curNonAmazon.length} non-amz, ${curAmazon.length} amz) | First: ${orderDates[0]} Last: ${orderDates[orderDates.length - 1]} | Jan orders: ${janOrders.length} | Ad spend: ${cSpend.length} rows | First: ${spendDates[0]} Last: ${spendDates[spendDates.length - 1]} | Jan spend rows: ${janSpend.length} | Range: ${resolvedRange.start} to ${resolvedRange.end}`)
     const shopAllC = cur.filter(o => o.source === 'shopify')
     const shopAllP = prev.filter(o => o.source === 'shopify')
     // Exclude fully refunded orders from revenue calculations (match Shopify's gross sales)
@@ -749,6 +775,12 @@ export default function AnalyticsPage() {
 
   return (
     <div style={{ background: C.paper, minHeight: '100vh' }}>
+      {/* DEBUG BANNER — remove after diagnosing */}
+      {debugInfo && (
+        <div style={{ background: '#fef3c7', padding: '8px 16px', fontSize: '0.7rem', fontFamily: 'monospace', color: '#92400e', borderBottom: '1px solid #fcd34d', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+          DEBUG: {debugInfo}
+        </div>
+      )}
       {/* Sticky topbar */}
       <div className="analytics-topbar" style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, position: 'sticky', top: 0, background: C.paper, zIndex: 50 }}>
         <div style={{ minWidth: 0, flex: 1 }}>

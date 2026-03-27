@@ -228,11 +228,25 @@ export default function MetaAdsPage() {
     const prevEnd = new Date(new Date(range.start).getTime() - 864e5).toISOString().split('T')[0]
     const prevStart = new Date(new Date(prevEnd).getTime() - (dayCount - 1) * 864e5).toISOString().split('T')[0]
 
-    const [{ data }, { data: prevData }] = await Promise.all([
-      supabase.from('ad_spend').select('campaign_name, adset_name, ad_name, spend, impressions, reach, clicks, conversions, conversion_value, cpc, cpm, ctr, date')
-        .eq('org_id', orgId).eq('platform', 'meta').gte('date', range.start).lte('date', range.end),
-      supabase.from('ad_spend').select('spend, clicks, conversions, conversion_value, impressions, reach')
-        .eq('org_id', orgId).eq('platform', 'meta').gte('date', prevStart).lte('date', prevEnd),
+    // Paginated fetch to bypass Supabase row limit
+    const fetchAllAdSpend = async (cols: string, gteDate: string, lteDate: string) => {
+      const size = 1000
+      let from = 0, all: any[] = []
+      while (true) {
+        const { data: page } = await supabase.from('ad_spend').select(cols)
+          .eq('org_id', orgId).eq('platform', 'meta').gte('date', gteDate).lte('date', lteDate)
+          .order('date', { ascending: true }).range(from, from + size - 1)
+        if (!page || page.length === 0) break
+        all = all.concat(page)
+        if (page.length < size) break
+        from += size
+      }
+      return all
+    }
+
+    const [data, prevData] = await Promise.all([
+      fetchAllAdSpend('campaign_name, adset_name, ad_name, spend, impressions, reach, clicks, conversions, conversion_value, cpc, cpm, ctr, date', range.start, range.end),
+      fetchAllAdSpend('spend, clicks, conversions, conversion_value, impressions, reach', prevStart, prevEnd),
     ])
 
     const rows = (data ?? []) as AdRow[]
