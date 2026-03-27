@@ -778,7 +778,7 @@ export default function AnalyticsPage() {
       {/* Sticky topbar */}
       <div className="analytics-topbar topbar">
         <div className="topbar-title" style={{ minWidth: 0, flex: 1 }}>
-          <h1 className="analytics-title" style={{ fontSize: 'clamp(1.1rem, 4vw, 2rem)', fontWeight: 800, letterSpacing: '-0.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{orgName}<span className="analytics-title-sep"> — </span><span className="analytics-title-sub">Analytics</span></h1>
+          <h1 className="analytics-title">{orgName}<span className="analytics-title-sep"> — </span><span className="analytics-title-sub">Analytics</span></h1>
           <p className="caption" style={{ marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {fmtDate(range.start)} – {fmtDate(range.end)} · vs previous {dayCount} days
             {lastSynced && <span style={{ color: '#ccc' }}> · Synced {new Date(lastSynced).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>}

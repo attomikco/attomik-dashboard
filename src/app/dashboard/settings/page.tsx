@@ -196,9 +196,7 @@ export default function SettingsPage() {
     <div>
       <div className="topbar">
         <div className="topbar-title">
-          <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>
-            {org?.name ? `${org.name} — ` : ''}Settings
-          </h1>
+          <h1>{org?.name ? `${org.name} — ` : ''}Settings</h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--muted)', marginTop: 2 }}>Organization & integrations</p>
         </div>
       </div>

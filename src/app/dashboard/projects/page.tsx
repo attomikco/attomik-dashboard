@@ -332,7 +332,7 @@ export default function ProjectsPage() {
       {/* Topbar */}
       <div className="topbar" style={{ flexDirection: 'column', alignItems: 'stretch', height: 'auto' }}>
         <div style={{ padding: '16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h1 className="topbar-title">Admin</h1>
+          <div className="topbar-title"><h1>Admin</h1></div>
         </div>
         <div className="tabs" style={{ borderBottom: 'none' }}>
           {(['projects', 'team', 'logs'] as const).map(tab => (
