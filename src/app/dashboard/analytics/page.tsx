@@ -202,7 +202,6 @@ export default function AnalyticsPage() {
   const [estEOM, setEstEOM] = useState<number | null>(null)
   const [activeOrgId, setActiveOrgId] = useState<string>('')
   const [isSuperadmin, setIsSuperadmin] = useState(false)
-  const [debugInfo, setDebugInfo] = useState<string>('')
   const supabase = createClient()
 
   useEffect(() => { fetchData() }, [range])
@@ -401,12 +400,6 @@ export default function AnalyticsPage() {
     const allOrd = allOrdRaw ?? []
     const allSp = allSpRaw?.data ?? []
 
-    // Debug: show data ranges to diagnose missing months
-    const orderDates = cur.map(o => o.created_at?.slice(0, 10)).sort()
-    const spendDates = cSpend.map((s: any) => s.date).sort()
-    const janOrders = cur.filter(o => o.created_at?.startsWith('2026-01'))
-    const janSpend = cSpend.filter((s: any) => s.date?.startsWith('2026-01'))
-    setDebugInfo(`Orders: ${cur.length} total (${curNonAmazon.length} non-amz, ${curAmazon.length} amz) | First: ${orderDates[0]} Last: ${orderDates[orderDates.length - 1]} | Jan orders: ${janOrders.length} | Ad spend: ${cSpend.length} rows | First: ${spendDates[0]} Last: ${spendDates[spendDates.length - 1]} | Jan spend rows: ${janSpend.length} | Range: ${resolvedRange.start} to ${resolvedRange.end}`)
     const shopAllC = cur.filter(o => o.source === 'shopify')
     const shopAllP = prev.filter(o => o.source === 'shopify')
     // Exclude fully refunded orders from revenue calculations (match Shopify's gross sales)
@@ -586,15 +579,6 @@ export default function AnalyticsPage() {
     cSpend.forEach(s => { if (days[s.date]) days[s.date].spend += Number(s.spend) })
     Object.values(days).forEach((d: any) => { d.roas = d.spend > 0 ? d.revenue / d.spend : 0 })
     const dayArr = Object.values(days) as any[]
-
-    // Debug: check bucketing
-    const dayKeys = Object.keys(days)
-    const janKeys = dayKeys.filter(k => k.startsWith('2026-01'))
-    const janWithRev = janKeys.filter(k => days[k].revenue > 0)
-    const janWithSpend = janKeys.filter(k => days[k].spend > 0)
-    const unmatchedOrders = enabledOrders.filter(o => o.status !== 'refunded' && !days[utcToOrgDate(o.created_at)]).length
-    const unmatchedSpend = cSpend.filter((s: any) => !days[s.date]).length
-    setDebugInfo(prev => prev + ` || BUCKETS: ${dayKeys.length} day keys, ${janKeys.length} Jan keys, ${janWithRev.length} Jan days w/revenue, ${janWithSpend.length} Jan days w/spend | Unmatched: ${unmatchedOrders} orders, ${unmatchedSpend} spend | enabledOrders: ${enabledOrders.length} (showShopify=${showShopify}, showAmazon=${showAmazon}) | chartData[0]: ${JSON.stringify(dayArr[0])} | chartData[30]: ${JSON.stringify(dayArr[30])}`)
 
     setRevenueRoasData(dayArr.map(d => ({ date: d.date, revenue: d.revenue, roas: d.roas })))
     setSpendSalesData(dayArr.map(d => ({ date: d.date, revenue: d.revenue, spend: d.spend })))
@@ -784,12 +768,6 @@ export default function AnalyticsPage() {
 
   return (
     <div style={{ background: C.paper, minHeight: '100vh' }}>
-      {/* DEBUG BANNER — remove after diagnosing */}
-      {debugInfo && (
-        <div style={{ background: '#fef3c7', padding: '8px 16px', fontSize: '0.7rem', fontFamily: 'monospace', color: '#92400e', borderBottom: '1px solid #fcd34d', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-          DEBUG: {debugInfo}
-        </div>
-      )}
       {/* Sticky topbar */}
       <div className="analytics-topbar" style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, position: 'sticky', top: 0, background: C.paper, zIndex: 50 }}>
         <div style={{ minWidth: 0, flex: 1 }}>

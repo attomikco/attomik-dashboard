@@ -76,22 +76,37 @@ export async function POST(request: Request) {
     const amazonStart = `${spendStart}T00:00:00.000Z`
     const amazonEnd = `${spendEnd}T23:59:59.999Z`
 
+    // Paginated fetch for ad_spend (same pattern as orders)
+    const fetchAllAdSpend = async (gte: string, lte: string) => {
+      const size = 1000
+      let from = 0
+      const all: any[] = []
+      while (true) {
+        const { data } = await serviceClient.from('ad_spend').select('spend')
+          .eq('org_id', org_id).gte('date', gte).lte('date', lte)
+          .order('date', { ascending: true }).range(from, from + size - 1)
+        if (!data || data.length === 0) break
+        all.push(...data)
+        if (data.length < size) break
+        from += size
+      }
+      return all
+    }
+
     const [curNonAmazon, curAmazon, prevOrders, curSpend, prevSpend] = await Promise.all([
       fetchAllOrders(start, end, undefined).then(orders => orders.filter(o => o.source !== 'amazon')),
       fetchAllOrders(amazonStart, amazonEnd, 'amazon'),
       fetchAllOrders(prevStart, prevEnd),
-      serviceClient.from('ad_spend').select('spend')
-        .eq('org_id', org_id).gte('date', spendStart).lte('date', spendEnd),
-      serviceClient.from('ad_spend').select('spend')
-        .eq('org_id', org_id).gte('date', prevStart).lte('date', prevEnd),
+      fetchAllAdSpend(spendStart, spendEnd),
+      fetchAllAdSpend(prevStart, prevEnd),
     ])
     const curOrders = [...curNonAmazon, ...curAmazon]
 
     return NextResponse.json({
       curOrders,
       prevOrders,
-      curSpend: curSpend.data ?? [],
-      prevSpend: prevSpend.data ?? [],
+      curSpend,
+      prevSpend,
     })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
