@@ -40,8 +40,8 @@
   --sidebar-border: rgba(255,255,255,0.07);
   --sidebar-w:      260px;
   --topbar-h:       64px;
-  --font-sans:      'Barlow', sans-serif;
-  --font-mono:      'DM Mono', monospace;
+  --font-sans:      var(--font-barlow), 'Barlow', sans-serif;
+  --font-mono:      var(--font-dm-mono), 'DM Mono', monospace;
   --text-xs:   0.72rem;    /* 11.5px — labels, badges        */
   --text-sm:   0.8rem;     /* 12.8px — captions, helper text */
   --text-base: 0.9375rem;  /* 15px   — body, table cells     */
