@@ -64,6 +64,12 @@ export async function POST(request: Request) {
       .select()
     if (dbError) throw dbError
 
+    // Track Amazon sync timestamp
+    await serviceClient.from('sync_timestamps').upsert(
+      { org_id: orgId, source: 'amazon', last_synced_at: new Date().toISOString() },
+      { onConflict: 'org_id,source' }
+    )
+
     const totalRevenue = records.reduce((s, r) => s + r.revenue, 0)
     const totalUnits   = records.reduce((s, r) => s + r.units, 0)
     const totalOrders  = records.reduce((s, r) => s + r.orders, 0)

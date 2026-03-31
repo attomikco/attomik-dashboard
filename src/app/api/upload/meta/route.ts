@@ -79,6 +79,12 @@ export async function POST(request: Request) {
     const { data, error: dbError } = await serviceClient.from('ad_spend').insert(records).select()
     if (dbError) throw dbError
 
+    // Track Meta Ads sync timestamp
+    await serviceClient.from('sync_timestamps').upsert(
+      { org_id: orgId, source: 'meta', last_synced_at: new Date().toISOString() },
+      { onConflict: 'org_id,source' }
+    )
+
     const totalSpend     = summaryRow ? clean(summaryRow['Amount spent (USD)']) : records.reduce((s, r) => s + r.spend, 0)
     const totalPurchases = summaryRow ? cleanInt(summaryRow['Purchases']) : records.reduce((s, r) => s + r.conversions, 0)
     const totalConvValue = summaryRow ? clean(summaryRow['Purchases conversion value']) : records.reduce((s, r) => s + r.conversion_value, 0)
