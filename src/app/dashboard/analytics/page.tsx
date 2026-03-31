@@ -40,6 +40,18 @@ function getPrevPeriod(start: string, end: string) {
   return { prevStart: new Date(s - diff).toISOString().split('T')[0], prevEnd: new Date(s - 1).toISOString().split('T')[0] }
 }
 
+function timeAgo(iso: string | null): string {
+  if (!iso) return 'Never'
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  return `${days}d ago`
+}
+
 // ── BRAND KIT TOKENS ──
 const C = {
   ink:     '#000000',
@@ -200,6 +212,7 @@ export default function AnalyticsPage() {
   const [estEOM, setEstEOM] = useState<number | null>(null)
   const [activeOrgId, setActiveOrgId] = useState<string>('')
   const [isSuperadmin, setIsSuperadmin] = useState(false)
+  const [syncTimestamps, setSyncTimestamps] = useState<Record<string, string | null>>({ shopify: null, amazon: null, meta: null })
   const supabase = createClient()
 
   useEffect(() => { fetchData() }, [range])
@@ -249,6 +262,15 @@ export default function AnalyticsPage() {
       .from('organizations').select('channels, timezone, name, shopify_synced_at, ga_property_id').eq('id', orgId).single()
     if (orgData?.name) { setOrgName(orgData.name); document.title = `${orgData.name} Analytics | Attomik` }
     if (orgData?.shopify_synced_at) setLastSynced(orgData.shopify_synced_at)
+
+    // Fetch sync timestamps for all sources
+    const { data: syncRows } = await supabase
+      .from('sync_timestamps').select('source, last_synced_at').eq('org_id', orgId)
+    if (syncRows) {
+      const ts: Record<string, string | null> = { shopify: null, amazon: null, meta: null }
+      for (const row of syncRows) ts[row.source] = row.last_synced_at
+      setSyncTimestamps(ts)
+    }
     const orgTimezone = orgData?.timezone ?? 'America/New_York'
     setTimezone(orgTimezone)
     // Compute org-timezone-aware dates for this fetch (don't mutate range state)
@@ -811,6 +833,22 @@ export default function AnalyticsPage() {
           />}
           <DateRangePicker value={range} onChange={r => setRange(r)} />
         </div>
+      </div>
+
+      {/* Sync status bar */}
+      <div style={{ background: '#000', padding: '10px clamp(16px, 4vw, 40px)', display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center', fontFamily: 'var(--font-dm-mono), DM Mono, monospace', fontSize: '0.75rem' }}>
+        {[
+          { label: 'Shopify', ts: syncTimestamps.shopify },
+          { label: 'Amazon', ts: syncTimestamps.amazon },
+          { label: 'Meta Ads', ts: syncTimestamps.meta },
+        ].map(({ label, ts }) => (
+          <span key={label} style={{ color: '#999', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: ts ? '#00ff97' : '#444', display: 'inline-block' }} />
+            <span style={{ color: '#ccc' }}>{label}</span>
+            {' '}
+            <span style={{ color: ts ? '#00ff97' : '#666' }}>{timeAgo(ts)}</span>
+          </span>
+        ))}
       </div>
 
       <div className="analytics-content page-content" style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 80px' }}>

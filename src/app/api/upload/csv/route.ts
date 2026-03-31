@@ -189,6 +189,31 @@ export async function POST(request: Request) {
       inserted = data?.length ?? records.length
       skipped = records.length - inserted
 
+      // Detect platform for sync timestamp (meta or google)
+      const platform = records[0]?.platform
+      if (platform === 'meta') {
+        await serviceClient.from('sync_timestamps').upsert(
+          { org_id: orgId, source: 'meta', last_synced_at: new Date().toISOString() },
+          { onConflict: 'org_id,source' }
+        )
+      }
+
+    } else if (fileType === 'amazon_sales') {
+      const records = parseAmazonSalesCSV(headers, rows, orgId)
+      const { data, error } = await serviceClient
+        .from('ad_spend')
+        .insert(records)
+        .select()
+      if (error) throw error
+      inserted = data?.length ?? records.length
+      skipped = records.length - inserted
+
+      // Track Amazon sync timestamp
+      await serviceClient.from('sync_timestamps').upsert(
+        { org_id: orgId, source: 'amazon', last_synced_at: new Date().toISOString() },
+        { onConflict: 'org_id,source' }
+      )
+
     } else {
       return NextResponse.json({ error: 'Could not detect file type. Make sure your CSV has order or ad spend columns.' }, { status: 400 })
     }

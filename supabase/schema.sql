@@ -74,6 +74,14 @@ create table order_items (
   created_at timestamptz not null default now()
 );
 
+create table sync_timestamps (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid references organizations(id) not null,
+  source text not null check (source in ('shopify', 'amazon', 'meta')),
+  last_synced_at timestamptz not null default now(),
+  unique(org_id, source)
+);
+
 -- ============================================
 -- Indexes for performance
 -- ============================================
@@ -88,6 +96,7 @@ alter table organizations enable row level security;
 alter table profiles enable row level security;
 alter table orders enable row level security;
 alter table ad_spend enable row level security;
+alter table sync_timestamps enable row level security;
 
 create policy "org members only" on organizations
   for all using (id = (select org_id from profiles where id = auth.uid()));
@@ -99,6 +108,9 @@ create policy "org orders only" on orders
   for all using (org_id = (select org_id from profiles where id = auth.uid()));
 
 create policy "org ad spend only" on ad_spend
+  for all using (org_id = (select org_id from profiles where id = auth.uid()));
+
+create policy "org sync timestamps only" on sync_timestamps
   for all using (org_id = (select org_id from profiles where id = auth.uid()));
 
 -- ============================================
