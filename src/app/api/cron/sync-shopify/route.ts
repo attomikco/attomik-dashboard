@@ -48,6 +48,10 @@ async function syncOrg(orgId: string, org: any, supabase: any): Promise<{ orgId:
 
     if (allOrders.length === 0) {
       await supabase.from('organizations').update({ shopify_synced_at: new Date().toISOString() }).eq('id', orgId)
+      await supabase.from('sync_timestamps').upsert(
+        { org_id: orgId, source: 'shopify', last_synced_at: new Date().toISOString() },
+        { onConflict: 'org_id,source' }
+      )
       return { orgId, name: org.name, synced: 0 }
     }
 
@@ -117,6 +121,10 @@ async function syncOrg(orgId: string, org: any, supabase: any): Promise<{ orgId:
     }
 
     await supabase.from('organizations').update({ shopify_synced_at: new Date().toISOString() }).eq('id', orgId)
+    await supabase.from('sync_timestamps').upsert(
+      { org_id: orgId, source: 'shopify', last_synced_at: new Date().toISOString() },
+      { onConflict: 'org_id,source' }
+    )
 
     return { orgId, name: org.name, synced: rows.length }
   } catch (err: any) {

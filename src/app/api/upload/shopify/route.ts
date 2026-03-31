@@ -130,6 +130,12 @@ export async function POST(request: Request) {
       }
     }
 
+    // Track Shopify sync timestamp
+    await serviceClient.from('sync_timestamps').upsert(
+      { org_id: orgId, source: 'shopify', last_synced_at: new Date().toISOString() },
+      { onConflict: 'org_id,source' }
+    )
+
     const totalRevenue  = (deduped as any[]).reduce((s: number, r: any) => s + r.total_price, 0)
     const totalDiscount = (deduped as any[]).reduce((s: number, r: any) => s + r.discount_amount, 0)
     const totalRefunded = (deduped as any[]).reduce((s: number, r: any) => s + r.refunded_amount, 0)

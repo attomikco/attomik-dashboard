@@ -838,18 +838,18 @@ export default function AnalyticsPage() {
       {/* Sync status bar */}
       <div style={{ background: '#000', padding: '10px clamp(16px, 4vw, 40px)', display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center', fontFamily: 'var(--font-dm-mono), DM Mono, monospace', fontSize: '0.75rem' }}>
         {[
-          { label: 'Shopify Sync', ts: syncTimestamps.shopify, showDateTime: true },
-          { label: 'Amazon Import', ts: syncTimestamps.amazon, showDateTime: false },
-          { label: 'Meta Ads Import', ts: syncTimestamps.meta, showDateTime: false },
-        ].map(({ label, ts, showDateTime }) => (
+          { label: 'Shopify Sync', ts: syncTimestamps.shopify },
+          { label: 'Amazon Import', ts: syncTimestamps.amazon },
+          { label: 'Meta Ads Import', ts: syncTimestamps.meta },
+        ].map(({ label, ts }) => (
           <span key={label} style={{ color: '#999', display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: ts ? '#00ff97' : '#444', display: 'inline-block' }} />
             <span style={{ color: '#ccc' }}>{label}</span>
             {' '}
             <span style={{ color: ts ? '#00ff97' : '#666' }}>
-              {ts && showDateTime
-                ? new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-                : timeAgo(ts)}
+              {ts
+                ? `${new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} (${timeAgo(ts)})`
+                : 'Never'}
             </span>
           </span>
         ))}
