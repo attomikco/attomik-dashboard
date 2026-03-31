@@ -263,14 +263,15 @@ export default function AnalyticsPage() {
     if (orgData?.name) { setOrgName(orgData.name); document.title = `${orgData.name} Analytics | Attomik` }
     if (orgData?.shopify_synced_at) setLastSynced(orgData.shopify_synced_at)
 
-    // Fetch sync timestamps for all sources
-    const { data: syncRows } = await supabase
-      .from('sync_timestamps').select('source, last_synced_at').eq('org_id', orgId)
-    if (syncRows) {
-      const ts: Record<string, string | null> = { shopify: null, amazon: null, meta: null }
-      for (const row of syncRows) ts[row.source] = row.last_synced_at
-      setSyncTimestamps(ts)
-    }
+    // Fetch sync timestamps for all sources (via API to bypass RLS)
+    fetch(`/api/sync/timestamps?org_id=${orgId}`)
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: { source: string; last_synced_at: string }[]) => {
+        const ts: Record<string, string | null> = { shopify: null, amazon: null, meta: null }
+        for (const row of rows) ts[row.source] = row.last_synced_at
+        setSyncTimestamps(ts)
+      })
+      .catch(() => {})
     const orgTimezone = orgData?.timezone ?? 'America/New_York'
     setTimezone(orgTimezone)
     // Compute org-timezone-aware dates for this fetch (don't mutate range state)

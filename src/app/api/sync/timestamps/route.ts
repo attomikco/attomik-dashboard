@@ -1,0 +1,17 @@
+import { NextResponse } from 'next/server'
+import { createServiceClient } from '@/lib/supabase/server'
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const orgId = searchParams.get('org_id')
+  if (!orgId) return NextResponse.json({ error: 'org_id required' }, { status: 400 })
+
+  const supabase = createServiceClient()
+  const { data, error } = await supabase
+    .from('sync_timestamps')
+    .select('source, last_synced_at')
+    .eq('org_id', orgId)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(data ?? [])
+}
