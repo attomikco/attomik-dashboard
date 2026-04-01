@@ -265,13 +265,17 @@ export default function AnalyticsPage() {
 
     // Fetch sync timestamps for all sources (via API to bypass RLS)
     fetch(`/api/sync/timestamps?org_id=${orgId}`)
-      .then(r => r.ok ? r.json() : [])
+      .then(r => {
+        console.log('[sync-timestamps] response status:', r.status)
+        return r.ok ? r.json() : r.json().then(e => { console.error('[sync-timestamps] API error:', e); return [] })
+      })
       .then((rows: { source: string; last_synced_at: string }[]) => {
+        console.log('[sync-timestamps] rows:', rows)
         const ts: Record<string, string | null> = { shopify: null, amazon: null, meta: null }
         for (const row of rows) ts[row.source] = row.last_synced_at
         setSyncTimestamps(ts)
       })
-      .catch(() => {})
+      .catch((e) => console.error('[sync-timestamps] fetch error:', e))
     const orgTimezone = orgData?.timezone ?? 'America/New_York'
     setTimezone(orgTimezone)
     // Compute org-timezone-aware dates for this fetch (don't mutate range state)

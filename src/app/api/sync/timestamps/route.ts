@@ -12,6 +12,8 @@ export async function GET(request: Request) {
     .select('source, last_synced_at')
     .eq('org_id', orgId)
 
+  console.log('[sync-timestamps API] org_id:', orgId, 'data:', data, 'error:', error)
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data ?? [])
 }
