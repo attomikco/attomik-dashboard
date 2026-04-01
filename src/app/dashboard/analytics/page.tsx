@@ -297,16 +297,12 @@ export default function AnalyticsPage() {
       })
       .catch((e) => console.error('[sync-timestamps] fetch error:', e))
 
-    // Fetch monthly targets for the selected period
+    // Fetch monthly targets for the selected period (via API to bypass RLS)
     const rangeStart = new Date(range.start)
-    supabase
-      .from('monthly_targets')
-      .select('*')
-      .eq('org_id', orgId)
-      .eq('year', rangeStart.getFullYear())
-      .eq('month', rangeStart.getMonth() + 1)
-      .maybeSingle()
-      .then(({ data: mt }) => setMonthlyTarget(mt))
+    fetch(`/api/targets?org_id=${orgId}&year=${rangeStart.getFullYear()}&month=${rangeStart.getMonth() + 1}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(mt => setMonthlyTarget(mt))
+      .catch(() => setMonthlyTarget(null))
 
     const orgTimezone = orgData?.timezone ?? 'America/New_York'
     setTimezone(orgTimezone)

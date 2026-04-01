@@ -74,44 +74,49 @@ export default function SettingsPage() {
   const loadTargets = async (year: number, month: number) => {
     const id = orgId()
     if (!id) return
-    const { data } = await supabase
-      .from('monthly_targets')
-      .select('*')
-      .eq('org_id', id)
-      .eq('year', year)
-      .eq('month', month)
-      .maybeSingle()
-    if (data) {
-      setTargets({
-        sales_target: data.sales_target?.toString() ?? '',
-        aov_target: data.aov_target?.toString() ?? '',
-        cac_target: data.cac_target?.toString() ?? '',
-        roas_target: data.roas_target?.toString() ?? '',
-        ad_spend_budget: data.ad_spend_budget?.toString() ?? '',
-      })
-    } else {
-      setTargets({ sales_target: '', aov_target: '', cac_target: '', roas_target: '', ad_spend_budget: '' })
-    }
+    try {
+      const res = await fetch(`/api/targets?org_id=${id}&year=${year}&month=${month}`)
+      const data = res.ok ? await res.json() : null
+      if (data) {
+        setTargets({
+          sales_target: data.sales_target?.toString() ?? '',
+          aov_target: data.aov_target?.toString() ?? '',
+          cac_target: data.cac_target?.toString() ?? '',
+          roas_target: data.roas_target?.toString() ?? '',
+          ad_spend_budget: data.ad_spend_budget?.toString() ?? '',
+        })
+      } else {
+        setTargets({ sales_target: '', aov_target: '', cac_target: '', roas_target: '', ad_spend_budget: '' })
+      }
+    } catch { setTargets({ sales_target: '', aov_target: '', cac_target: '', roas_target: '', ad_spend_budget: '' }) }
   }
 
   const handleSaveTargets = async () => {
     setSavingTargets(true); setTargetMsg(null)
     const id = orgId()
     if (!id) { setTargetMsg({ type: 'error', text: 'No active org found' }); setSavingTargets(false); return }
-    const { error } = await supabase.from('monthly_targets').upsert({
-      org_id: id,
-      year: targetYear,
-      month: targetMonth,
-      sales_target: targets.sales_target ? parseFloat(targets.sales_target) : null,
-      aov_target: targets.aov_target ? parseFloat(targets.aov_target) : null,
-      cac_target: targets.cac_target ? parseFloat(targets.cac_target) : null,
-      roas_target: targets.roas_target ? parseFloat(targets.roas_target) : null,
-      ad_spend_budget: targets.ad_spend_budget ? parseFloat(targets.ad_spend_budget) : null,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'org_id,year,month' })
+    try {
+      const res = await fetch('/api/targets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          org_id: id,
+          year: targetYear,
+          month: targetMonth,
+          sales_target: targets.sales_target ? parseFloat(targets.sales_target) : null,
+          aov_target: targets.aov_target ? parseFloat(targets.aov_target) : null,
+          cac_target: targets.cac_target ? parseFloat(targets.cac_target) : null,
+          roas_target: targets.roas_target ? parseFloat(targets.roas_target) : null,
+          ad_spend_budget: targets.ad_spend_budget ? parseFloat(targets.ad_spend_budget) : null,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to save')
+      setTargetMsg({ type: 'success', text: `Targets saved for ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][targetMonth - 1]} ${targetYear}` })
+    } catch (e: any) {
+      setTargetMsg({ type: 'error', text: e.message })
+    }
     setSavingTargets(false)
-    if (error) setTargetMsg({ type: 'error', text: error.message })
-    else setTargetMsg({ type: 'success', text: `Targets saved for ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][targetMonth - 1]} ${targetYear}` })
   }
 
   const handleSaveShopify = async () => {
