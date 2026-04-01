@@ -63,9 +63,11 @@ const C = {
   success: '#00cc78',
 }
 
-function KpiCard({ label, value, change, invertColors, subtitle, children }: { label: string; value: string; change?: number; invertColors?: boolean; subtitle?: string; children?: React.ReactNode }) {
+function KpiCard({ label, value, change, invertColors, subtitle, children, target }: { label: string; value: string; change?: number; invertColors?: boolean; subtitle?: string; children?: React.ReactNode; target?: { value: number; current: number; label?: string; format?: (n: number) => string } }) {
   const up = change === undefined ? null : change >= 0
   const isGood = up === null ? null : (invertColors ? !up : up)
+  const tPct = target && target.value > 0 ? Math.min(100, (target.current / target.value) * 100) : 0
+  const tFmt = target?.format || fmt$
   return (
     <div className="kpi-card">
       <div className="kpi-label">
@@ -81,6 +83,23 @@ function KpiCard({ label, value, change, invertColors, subtitle, children }: { l
         <span className={`badge ${isGood ? 'pill-up' : 'pill-down'}`}>
           {up ? '↑' : '↓'} {Math.abs(change).toFixed(1)}%
         </span>
+      )}
+      {target && target.value > 0 && (
+        <div style={{ marginTop: 8, width: '100%' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: C.muted, marginBottom: 4, fontFamily: 'Barlow, sans-serif' }}>
+            <span>{tPct.toFixed(0)}% of {target.label || 'target'}</span>
+            <span>{tFmt(target.value)}</span>
+          </div>
+          <div style={{ height: 4, background: C.cream, borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              width: `${tPct}%`,
+              background: tPct >= 100 ? C.success : C.accent,
+              borderRadius: 2,
+              transition: 'width 0.5s ease',
+            }} />
+          </div>
+        </div>
       )}
       {children}
     </div>
@@ -213,6 +232,7 @@ export default function AnalyticsPage() {
   const [activeOrgId, setActiveOrgId] = useState<string>('')
   const [isSuperadmin, setIsSuperadmin] = useState(false)
   const [syncTimestamps, setSyncTimestamps] = useState<Record<string, string | null>>({ shopify: null, amazon: null, meta: null })
+  const [monthlyTarget, setMonthlyTarget] = useState<any>(null)
   const supabase = createClient()
 
   useEffect(() => { fetchData() }, [range])
@@ -276,6 +296,18 @@ export default function AnalyticsPage() {
         setSyncTimestamps(ts)
       })
       .catch((e) => console.error('[sync-timestamps] fetch error:', e))
+
+    // Fetch monthly targets for the selected period
+    const rangeStart = new Date(range.start)
+    supabase
+      .from('monthly_targets')
+      .select('*')
+      .eq('org_id', orgId)
+      .eq('year', rangeStart.getFullYear())
+      .eq('month', rangeStart.getMonth() + 1)
+      .maybeSingle()
+      .then(({ data: mt }) => setMonthlyTarget(mt))
+
     const orgTimezone = orgData?.timezone ?? 'America/New_York'
     setTimezone(orgTimezone)
     // Compute org-timezone-aware dates for this fetch (don't mutate range state)
@@ -969,17 +1001,22 @@ export default function AnalyticsPage() {
           {/* ── OVERVIEW KPIs ── */}
           <SectionHeader title="Overview" />
           <div className="kpi-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
-            <KpiCard label="Total Sales"    value={fmt$(d.totalRevC)} change={pct(d.totalRevC, d.totalRevP)} />
-            <KpiCard label="Total Ad Spend" value={fmt$(d.totalSpC)}  change={pct(d.totalSpC, d.totalSpP)} invertColors />
-            <KpiCard label="ROAS"           value={fmtX(d.roasC)}     change={pct(d.roasC, d.roasP)} />
+            <KpiCard label="Total Sales"    value={fmt$(d.totalRevC)} change={pct(d.totalRevC, d.totalRevP)}
+              target={monthlyTarget?.sales_target ? { value: monthlyTarget.sales_target, current: d.totalRevC, label: 'target' } : undefined} />
+            <KpiCard label="Total Ad Spend" value={fmt$(d.totalSpC)}  change={pct(d.totalSpC, d.totalSpP)} invertColors
+              target={monthlyTarget?.ad_spend_budget ? { value: monthlyTarget.ad_spend_budget, current: d.totalSpC, label: 'budget' } : undefined} />
+            <KpiCard label="ROAS"           value={fmtX(d.roasC)}     change={pct(d.roasC, d.roasP)}
+              target={monthlyTarget?.roas_target ? { value: monthlyTarget.roas_target, current: d.roasC, label: 'target', format: fmtX } : undefined} />
           </div>
           <div className="kpi-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
             <KpiCard label="Orders" value={fmtN(d.ordC)} change={pct(d.ordC, d.ordP)} />
-            <KpiCard label="AOV"    value={fmt$(d.aovC)} change={pct(d.aovC, d.aovP)} />
+            <KpiCard label="AOV"    value={fmt$(d.aovC)} change={pct(d.aovC, d.aovP)}
+              target={monthlyTarget?.aov_target ? { value: monthlyTarget.aov_target, current: d.aovC, label: 'target' } : undefined} />
             {trafficData && trafficData.users > 0 ? (
               <KpiCard label="Conv. Rate (Users)" value={fmtPct(d.shopOrdC / trafficData.users * 100)} change={trafficData.usersP > 0 && d.shopOrdP > 0 ? pct(d.shopOrdC / trafficData.users * 100, d.shopOrdP / trafficData.usersP * 100) : undefined} subtitle="Shopify Orders ÷ Users" />
             ) : (
-              <KpiCard label="CAC" value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors />
+              <KpiCard label="CAC" value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors
+                target={monthlyTarget?.cac_target ? { value: monthlyTarget.cac_target, current: d.cacC, label: 'target' } : undefined} />
             )}
           </div>
 
@@ -987,7 +1024,8 @@ export default function AnalyticsPage() {
           {(d.cltvC > 0 || (trafficData && trafficData.users > 0 && d.cacC > 0)) && (
             <div className="kpi-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
               {d.cltvC > 0 && <KpiCard label="CLTV" value={fmt$(d.cltvC)} change={d.cltvP > 0 ? pct(d.cltvC, d.cltvP) : undefined} subtitle="Shopify · ACL (2) × AOV × Freq" />}
-              {trafficData && trafficData.users > 0 && <KpiCard label="CAC" value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors />}
+              {trafficData && trafficData.users > 0 && <KpiCard label="CAC" value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors
+                target={monthlyTarget?.cac_target ? { value: monthlyTarget.cac_target, current: d.cacC, label: 'target' } : undefined} />}
               {d.cltvC > 0 && d.cacC > 0 && <KpiCard label="CLTV / CAC" value={`${(d.cltvC / d.cacC).toFixed(2)}x`} change={d.cltvP > 0 && d.cacP > 0 ? pct(d.cltvC / d.cacC, d.cltvP / d.cacP) : undefined} />}
             </div>
           )}

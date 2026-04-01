@@ -38,6 +38,12 @@ export default function SettingsPage() {
   const [savingGa, setSavingGa]       = useState(false)
   const [gaMsg, setGaMsg]             = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  const [targetYear, setTargetYear]   = useState(new Date().getFullYear())
+  const [targetMonth, setTargetMonth] = useState(new Date().getMonth() + 1)
+  const [targets, setTargets]         = useState({ sales_target: '', aov_target: '', cac_target: '', roas_target: '', ad_spend_budget: '' })
+  const [savingTargets, setSavingTargets] = useState(false)
+  const [targetMsg, setTargetMsg]     = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
   useEffect(() => { loadData() }, [])
 
   const loadData = async () => {
@@ -59,10 +65,54 @@ export default function SettingsPage() {
       else setDomain('')
       if (activeOrg?.ga_property_id) setGaPropertyId(activeOrg.ga_property_id)
       else setGaPropertyId('')
+      loadTargets(targetYear, targetMonth)
     }
   }
 
   const orgId = () => localStorage.getItem('activeOrgId') || org?.id
+
+  const loadTargets = async (year: number, month: number) => {
+    const id = orgId()
+    if (!id) return
+    const { data } = await supabase
+      .from('monthly_targets')
+      .select('*')
+      .eq('org_id', id)
+      .eq('year', year)
+      .eq('month', month)
+      .maybeSingle()
+    if (data) {
+      setTargets({
+        sales_target: data.sales_target?.toString() ?? '',
+        aov_target: data.aov_target?.toString() ?? '',
+        cac_target: data.cac_target?.toString() ?? '',
+        roas_target: data.roas_target?.toString() ?? '',
+        ad_spend_budget: data.ad_spend_budget?.toString() ?? '',
+      })
+    } else {
+      setTargets({ sales_target: '', aov_target: '', cac_target: '', roas_target: '', ad_spend_budget: '' })
+    }
+  }
+
+  const handleSaveTargets = async () => {
+    setSavingTargets(true); setTargetMsg(null)
+    const id = orgId()
+    if (!id) { setTargetMsg({ type: 'error', text: 'No active org found' }); setSavingTargets(false); return }
+    const { error } = await supabase.from('monthly_targets').upsert({
+      org_id: id,
+      year: targetYear,
+      month: targetMonth,
+      sales_target: targets.sales_target ? parseFloat(targets.sales_target) : null,
+      aov_target: targets.aov_target ? parseFloat(targets.aov_target) : null,
+      cac_target: targets.cac_target ? parseFloat(targets.cac_target) : null,
+      roas_target: targets.roas_target ? parseFloat(targets.roas_target) : null,
+      ad_spend_budget: targets.ad_spend_budget ? parseFloat(targets.ad_spend_budget) : null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'org_id,year,month' })
+    setSavingTargets(false)
+    if (error) setTargetMsg({ type: 'error', text: error.message })
+    else setTargetMsg({ type: 'success', text: `Targets saved for ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][targetMonth - 1]} ${targetYear}` })
+  }
 
   const handleSaveShopify = async () => {
     setSaving(true)
@@ -366,6 +416,56 @@ export default function SettingsPage() {
             loadData()
           }} disabled={savingGa}>
             {savingGa ? 'Saving…' : gaPropertyId ? 'Save Property ID' : 'Disconnect GA4'}
+          </button>
+        </Section>
+
+        <Section title="Monthly Targets">
+          <p style={{ fontSize: '0.8rem', color: 'var(--muted)', marginBottom: 16, lineHeight: 1.5 }}>
+            Set monthly targets for key metrics. Progress will show on KPI cards in the analytics page.
+          </p>
+
+          <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+            <select value={targetMonth} onChange={e => { const m = Number(e.target.value); setTargetMonth(m); loadTargets(targetYear, m) }}
+              style={{ padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.875rem', outline: 'none' }}>
+              {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => (
+                <option key={i} value={i + 1}>{m}</option>
+              ))}
+            </select>
+            <select value={targetYear} onChange={e => { const y = Number(e.target.value); setTargetYear(y); loadTargets(y, targetMonth) }}
+              style={{ padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.875rem', outline: 'none' }}>
+              {[targetYear - 1, targetYear, targetYear + 1].map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+
+          {targetMsg && (
+            <div className={`alert ${targetMsg.type === 'success' ? 'alert-success' : 'alert-error'}`} style={{ marginBottom: 16 }}>
+              {targetMsg.type === 'success' ? <CheckCircle size={16} /> : <XCircle size={16} />}
+              <span style={{ fontWeight: 600 }}>{targetMsg.text}</span>
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+            {[
+              { key: 'sales_target', label: 'Sales Target ($)', placeholder: 'e.g. 50000' },
+              { key: 'ad_spend_budget', label: 'Ad Spend Budget ($)', placeholder: 'e.g. 10000' },
+              { key: 'roas_target', label: 'ROAS Target (x)', placeholder: 'e.g. 4.0' },
+              { key: 'aov_target', label: 'AOV Target ($)', placeholder: 'e.g. 65' },
+              { key: 'cac_target', label: 'CAC Target ($)', placeholder: 'e.g. 15' },
+            ].map(f => (
+              <div key={f.key}>
+                <label className="form-label" style={{ display: 'block', marginBottom: 4 }}>{f.label}</label>
+                <input type="number" step="any" placeholder={f.placeholder}
+                  value={targets[f.key as keyof typeof targets]}
+                  onChange={e => setTargets(prev => ({ ...prev, [f.key]: e.target.value }))}
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', outline: 'none' }} />
+              </div>
+            ))}
+          </div>
+
+          <button className="btn btn-dark" onClick={handleSaveTargets} disabled={savingTargets}>
+            {savingTargets ? 'Saving…' : 'Save Targets'}
           </button>
         </Section>
 

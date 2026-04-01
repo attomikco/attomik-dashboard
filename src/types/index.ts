@@ -48,6 +48,19 @@ export interface AdSpend {
   synced_at: string
 }
 
+export interface MonthlyTarget {
+  id: string
+  org_id: string
+  year: number
+  month: number
+  sales_target: number | null
+  aov_target: number | null
+  cac_target: number | null
+  roas_target: number | null
+  ad_spend_budget: number | null
+  updated_at: string
+}
+
 export interface KPI {
   label: string
   value: string
@@ -62,6 +75,7 @@ export interface Database {
       profiles: { Row: Profile; Insert: Partial<Profile>; Update: Partial<Profile> }
       orders: { Row: Order; Insert: Partial<Order>; Update: Partial<Order> }
       ad_spend: { Row: AdSpend; Insert: Partial<AdSpend>; Update: Partial<AdSpend> }
+      monthly_targets: { Row: MonthlyTarget; Insert: Partial<MonthlyTarget>; Update: Partial<MonthlyTarget> }
     }
   }
 }
