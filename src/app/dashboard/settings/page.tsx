@@ -44,6 +44,12 @@ export default function SettingsPage() {
   const [savingTargets, setSavingTargets] = useState(false)
   const [targetMsg, setTargetMsg]     = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  const [amzYear, setAmzYear]       = useState(new Date().getFullYear())
+  const [amzMonth, setAmzMonth]     = useState(new Date().getMonth() + 1)
+  const [amzSpend, setAmzSpend]     = useState('')
+  const [savingAmz, setSavingAmz]   = useState(false)
+  const [amzMsg, setAmzMsg]         = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
   useEffect(() => { loadData() }, [])
 
   const loadData = async () => {
@@ -66,6 +72,7 @@ export default function SettingsPage() {
       if (activeOrg?.ga_property_id) setGaPropertyId(activeOrg.ga_property_id)
       else setGaPropertyId('')
       loadTargets(targetYear, targetMonth)
+      loadAmzSpend(amzYear, amzMonth)
     }
   }
 
@@ -89,6 +96,38 @@ export default function SettingsPage() {
         setTargets({ sales_target: '', aov_target: '', cac_target: '', roas_target: '', ad_spend_budget: '' })
       }
     } catch { setTargets({ sales_target: '', aov_target: '', cac_target: '', roas_target: '', ad_spend_budget: '' }) }
+  }
+
+  const loadAmzSpend = async (year: number, month: number) => {
+    const id = orgId()
+    if (!id) return
+    try {
+      const res = await fetch(`/api/ad-spend/amazon?org_id=${id}&year=${year}&month=${month}`, {
+        headers: { 'x-active-org': id },
+      })
+      const data = res.ok ? await res.json() : null
+      setAmzSpend(data?.total ? data.total.toString() : '')
+    } catch { setAmzSpend('') }
+  }
+
+  const handleSaveAmzSpend = async () => {
+    setSavingAmz(true); setAmzMsg(null)
+    const id = orgId()
+    if (!id) { setAmzMsg({ type: 'error', text: 'No active org found' }); setSavingAmz(false); return }
+    try {
+      const res = await fetch('/api/ad-spend/amazon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-active-org': id },
+        body: JSON.stringify({ year: amzYear, month: amzMonth, total_spend: amzSpend || '0' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to save')
+      const monthName = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][amzMonth - 1]
+      setAmzMsg({ type: 'success', text: `Amazon ad spend saved for ${monthName} ${amzYear} — $${parseFloat(amzSpend || '0').toLocaleString()} spread across ${data.days} days` })
+    } catch (e: any) {
+      setAmzMsg({ type: 'error', text: e.message })
+    }
+    setSavingAmz(false)
   }
 
   const handleSaveTargets = async () => {
@@ -421,6 +460,46 @@ export default function SettingsPage() {
             loadData()
           }} disabled={savingGa}>
             {savingGa ? 'Saving…' : gaPropertyId ? 'Save Property ID' : 'Disconnect GA4'}
+          </button>
+        </Section>
+
+        <Section title="Amazon Ad Spend">
+          <p style={{ fontSize: '0.8rem', color: 'var(--muted)', marginBottom: 16, lineHeight: 1.5 }}>
+            Enter your total Amazon ad spend for a month. It will be spread evenly across days and included in all ad spend calculations (Total Ad Spend, ROAS, CAC).
+          </p>
+
+          <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+            <select value={amzMonth} onChange={e => { const m = Number(e.target.value); setAmzMonth(m); loadAmzSpend(amzYear, m) }}
+              style={{ padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.875rem', outline: 'none' }}>
+              {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => (
+                <option key={i} value={i + 1}>{m}</option>
+              ))}
+            </select>
+            <select value={amzYear} onChange={e => { const y = Number(e.target.value); setAmzYear(y); loadAmzSpend(y, amzMonth) }}
+              style={{ padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.875rem', outline: 'none' }}>
+              {[amzYear - 1, amzYear, amzYear + 1].map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+
+          {amzMsg && (
+            <div className={`alert ${amzMsg.type === 'success' ? 'alert-success' : 'alert-error'}`} style={{ marginBottom: 16 }}>
+              {amzMsg.type === 'success' ? <CheckCircle size={16} /> : <XCircle size={16} />}
+              <span style={{ fontWeight: 600 }}>{amzMsg.text}</span>
+            </div>
+          )}
+
+          <div style={{ marginBottom: 16 }}>
+            <label className="form-label" style={{ display: 'block', marginBottom: 4 }}>Total Amazon Ad Spend ($)</label>
+            <input type="number" step="any" placeholder="e.g. 5000"
+              value={amzSpend}
+              onChange={e => setAmzSpend(e.target.value)}
+              style={{ width: '100%', maxWidth: 280, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', outline: 'none' }} />
+          </div>
+
+          <button className="btn btn-dark" onClick={handleSaveAmzSpend} disabled={savingAmz}>
+            {savingAmz ? 'Saving…' : 'Save Amazon Ad Spend'}
           </button>
         </Section>
 

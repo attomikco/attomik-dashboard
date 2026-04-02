@@ -1,5 +1,5 @@
 export type Role = 'admin' | 'viewer' | 'member'
-export type Platform = 'meta' | 'google' | 'tiktok'
+export type Platform = 'meta' | 'google' | 'tiktok' | 'amazon'
 export type OrderStatus = 'paid' | 'pending' | 'refunded' | 'cancelled'
 export type OrderSource = 'shopify' | 'amazon' | 'csv'
 
