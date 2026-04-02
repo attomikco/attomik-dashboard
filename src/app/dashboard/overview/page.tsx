@@ -228,8 +228,8 @@ export default function OverviewPage() {
         const prevRoas    = prevAdSpend > 0 ? prevRevenue / prevAdSpend : 0
         const shopifyRev  = cur.filter(o => o.source === 'shopify').reduce((s, o) => s + Number(o.total_price || 0), 0)
         const amazonRev   = cur.filter(o => o.source === 'amazon').reduce((s, o) => s + Number(o.total_price || 0), 0)
-        const shopifyOrders = cur.filter(o => o.source === 'shopify').length
-        const prevShopifyOrders = prev.filter(o => o.source === 'shopify').length
+        const shopifyOrders = cur.filter(o => o.source === 'shopify' && o.status !== 'refunded').length
+        const prevShopifyOrders = prev.filter(o => o.source === 'shopify' && o.status !== 'refunded').length
 
         // Fetch GA4 traffic for conv rate if org has GA configured
         let convRate = 0
