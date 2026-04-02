@@ -77,15 +77,30 @@ export async function POST(request: Request) {
     const propertyId = org.ga_property_id
     const accessToken = await getGoogleAccessToken()
 
-    // Call GA4 Data API
-    const gaRes = await fetch(
-      `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
-      {
+    const headers = {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    }
+    const apiUrl = `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`
+
+    // Two requests: one for period-level totals (no date dimension = true unique users),
+    // one for daily breakdown (for charts). Summing daily users double-counts multi-day visitors.
+    const [totalsRes, dailyRes] = await Promise.all([
+      fetch(apiUrl, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
+        body: JSON.stringify({
+          dateRanges: [{ startDate, endDate }],
+          metrics: [
+            { name: 'totalUsers' },
+            { name: 'sessions' },
+            { name: 'newUsers' },
+          ],
+        }),
+      }),
+      fetch(apiUrl, {
+        method: 'POST',
+        headers,
         body: JSON.stringify({
           dateRanges: [{ startDate, endDate }],
           metrics: [
@@ -96,35 +111,30 @@ export async function POST(request: Request) {
           dimensions: [{ name: 'date' }],
           orderBys: [{ dimension: { dimensionName: 'date' } }],
         }),
-      }
-    )
+      }),
+    ])
 
-    if (!gaRes.ok) {
-      const errText = await gaRes.text()
+    if (!totalsRes.ok || !dailyRes.ok) {
+      const errText = await (totalsRes.ok ? dailyRes : totalsRes).text()
       console.error('GA4 API error:', errText)
       return NextResponse.json({ error: 'GA4 API request failed', details: errText }, { status: 502 })
     }
 
-    const gaData = await gaRes.json()
-    const rows = gaData.rows ?? []
+    const [totalsData, dailyData] = await Promise.all([totalsRes.json(), dailyRes.json()])
 
-    // Aggregate totals
-    let totalUsers = 0
-    let totalSessions = 0
-    let totalNewUsers = 0
+    // Period-level totals (deduplicated unique users across the full date range)
+    const totalsRow = totalsData.rows?.[0]
+    const totalUsers = parseInt(totalsRow?.metricValues?.[0]?.value ?? '0', 10)
+    const totalSessions = parseInt(totalsRow?.metricValues?.[1]?.value ?? '0', 10)
+    const totalNewUsers = parseInt(totalsRow?.metricValues?.[2]?.value ?? '0', 10)
+
+    // Daily breakdown (for charts)
     const daily: { date: string; users: number; sessions: number }[] = []
-
-    for (const row of rows) {
-      const dateRaw = row.dimensionValues?.[0]?.value ?? '' // YYYYMMDD
+    for (const row of (dailyData.rows ?? [])) {
+      const dateRaw = row.dimensionValues?.[0]?.value ?? ''
       const users = parseInt(row.metricValues?.[0]?.value ?? '0', 10)
       const sessions = parseInt(row.metricValues?.[1]?.value ?? '0', 10)
-      const newUsers = parseInt(row.metricValues?.[2]?.value ?? '0', 10)
 
-      totalUsers += users
-      totalSessions += sessions
-      totalNewUsers += newUsers
-
-      // Format date as YYYY-MM-DD
       const formattedDate = dateRaw.length === 8
         ? `${dateRaw.slice(0, 4)}-${dateRaw.slice(4, 6)}-${dateRaw.slice(6, 8)}`
         : dateRaw

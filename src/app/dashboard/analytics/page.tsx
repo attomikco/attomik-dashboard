@@ -301,10 +301,11 @@ export default function AnalyticsPage() {
     // Fetch monthly targets for the selected period (via API to bypass RLS)
     // Parse YYYY-MM-DD directly to avoid UTC-vs-local timezone shift
     const [tYear, tMonth] = range.start.split('-').map(Number)
+    console.log('[monthly-targets] fetching', { orgId, tYear, tMonth, rangeStart: range.start })
     fetch(`/api/targets?org_id=${orgId}&year=${tYear}&month=${tMonth}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(mt => setMonthlyTarget(mt))
-      .catch(() => setMonthlyTarget(null))
+      .then(r => { console.log('[monthly-targets] response status:', r.status); return r.ok ? r.json() : null })
+      .then(mt => { console.log('[monthly-targets] data:', mt); setMonthlyTarget(mt) })
+      .catch(e => { console.error('[monthly-targets] error:', e); setMonthlyTarget(null) })
 
     const orgTimezone = orgData?.timezone ?? 'America/New_York'
     setTimezone(orgTimezone)
@@ -496,9 +497,9 @@ export default function AnalyticsPage() {
       s + (o.source === 'amazon' ? (Number(o.units) || 1) : 1), 0)
     const ordC  = countOrders(enabledOrders)
     const ordP  = countOrders(enabledOrdersP)
-    // Shopify-only order counts for conversion rate (GA4 traffic is Shopify-only)
-    const shopOrdC = shopAllC.length
-    const shopOrdP = shopAllP.length
+    // Shopify-only PAID order counts for conversion rate (GA4 traffic is Shopify-only)
+    const shopOrdC = shopC.length
+    const shopOrdP = shopP.length
     const netRevC = enabledOrders.reduce((s, o) => s + Number(o.subtotal || o.total_price || 0), 0)
     const netRevP = enabledOrdersP.reduce((s, o) => s + Number(o.subtotal || o.total_price || 0), 0)
     const aovC  = ordC > 0 ? netRevC / ordC : 0
