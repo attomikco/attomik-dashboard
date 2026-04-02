@@ -299,8 +299,9 @@ export default function AnalyticsPage() {
       .catch((e) => console.error('[sync-timestamps] fetch error:', e))
 
     // Fetch monthly targets for the selected period (via API to bypass RLS)
-    const rangeStart = new Date(range.start)
-    fetch(`/api/targets?org_id=${orgId}&year=${rangeStart.getFullYear()}&month=${rangeStart.getMonth() + 1}`)
+    // Parse YYYY-MM-DD directly to avoid UTC-vs-local timezone shift
+    const [tYear, tMonth] = range.start.split('-').map(Number)
+    fetch(`/api/targets?org_id=${orgId}&year=${tYear}&month=${tMonth}`)
       .then(r => r.ok ? r.json() : null)
       .then(mt => setMonthlyTarget(mt))
       .catch(() => setMonthlyTarget(null))
