@@ -16,6 +16,7 @@ import ReturnGrowthChart from '@/components/ReturnGrowthChart'
 import AIInsights from '@/components/AIInsights'
 import EmailInsights from '@/components/EmailInsights'
 import AskAttomik from '@/components/AskAttomik'
+import ChannelSalesChart from '@/components/ChannelSalesChart'
 
 function pct(current: number, prev: number) {
   if (prev === 0) return current > 0 ? 100 : 0
@@ -1089,6 +1090,20 @@ export default function AnalyticsPage() {
             <ChartCard title="CAC Trend" subtitle="Cost per new customer · bars = new customers">
               <CacTrendChart data={cacData} />
             </ChartCard>
+          </div>
+
+          {/* ── CHARTS ROW 4 ── */}
+          <div className="chart-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+            {d.showShopify && (
+              <ChartCard title="Shopify Sales" subtitle="Daily revenue from Shopify">
+                <ChannelSalesChart data={channelData.map(c => ({ date: c.date, sales: c.shopify }))} color="#00ff97" />
+              </ChartCard>
+            )}
+            {d.showAmazon && (
+              <ChartCard title="Amazon Sales" subtitle="Daily revenue from Amazon">
+                <ChannelSalesChart data={channelData.map(c => ({ date: c.date, sales: c.amazon }))} color="#00cc78" />
+              </ChartCard>
+            )}
           </div>
 
           {/* ── DAY OF WEEK ── */}
