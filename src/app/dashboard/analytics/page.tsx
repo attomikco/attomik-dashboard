@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import DateRangePicker, { DateRange } from '@/components/DateRangePicker'
+import DateRangePicker, { DateRange, getComparisonPeriod } from '@/components/DateRangePicker'
 import RevenueRoasChart from '@/components/RevenueRoasChart'
 import SpendVsSalesChart from '@/components/SpendVsSalesChart'
 import RoasChart from '@/components/RoasChart'
@@ -34,11 +34,8 @@ function chg(cur: number, prev: number) {
   const p = pct(cur, prev)
   return `${p >= 0 ? '↑' : '↓'} ${Math.abs(p).toFixed(1)}%`
 }
-function getPrevPeriod(start: string, end: string) {
-  const s = new Date(start).getTime()
-  const e = new Date(end).getTime()
-  const diff = e - s + 864e5
-  return { prevStart: new Date(s - diff).toISOString().split('T')[0], prevEnd: new Date(s - 1).toISOString().split('T')[0] }
+function getPrevPeriod(start: string, end: string, mode?: import('@/components/DateRangePicker').CompareMode) {
+  return getComparisonPeriod(start, end, mode)
 }
 
 function timeAgo(iso: string | null): string {
@@ -327,7 +324,7 @@ export default function AnalyticsPage() {
     })()
 
     // Fetch GA4 traffic data if property is configured (current + previous period)
-    const gaPrev = getPrevPeriod(resolvedRange.start, resolvedRange.end)
+    const gaPrev = getPrevPeriod(resolvedRange.start, resolvedRange.end, range.compareMode)
     if (orgData?.ga_property_id) {
       const fetchTraffic = (start: string, end: string) =>
         fetch('/api/analytics/traffic', {
@@ -381,7 +378,7 @@ export default function AnalyticsPage() {
 
     const thisStart = toUTC(resolvedRange.start, false)
     const thisEnd   = toUTC(resolvedRange.end, true)
-    const { prevStart, prevEnd } = getPrevPeriod(resolvedRange.start, resolvedRange.end)
+    const { prevStart, prevEnd } = getPrevPeriod(resolvedRange.start, resolvedRange.end, range.compareMode)
     const prevStartISO = toUTC(prevStart, false)
     const prevEndISO   = toUTC(prevEnd, true)
     const sixMonthsAgo = '2020-01-01T00:00:00.000Z' // fetch full history for accurate returning customer calc
@@ -827,8 +824,7 @@ export default function AnalyticsPage() {
 
   const d = data
   const fmtDate = (s: string) => new Date(s + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  const dayCount = Math.round((new Date(range.end).getTime() - new Date(range.start).getTime()) / 864e5) + 1
-  const { prevStart, prevEnd: prevEndLabel } = getPrevPeriod(range.start, range.end)
+  const { prevStart, prevEnd: prevEndLabel } = getPrevPeriod(range.start, range.end, range.compareMode)
   const prevLabel = `${fmtDate(prevStart)} – ${fmtDate(prevEndLabel)}`
 
   return (
@@ -838,7 +834,7 @@ export default function AnalyticsPage() {
         <div className="topbar-title" style={{ minWidth: 0, flex: 1 }}>
           <h1 className="analytics-title">{orgName}<span className="analytics-title-sep"> — </span><span className="analytics-title-sub">Analytics</span></h1>
           <p className="caption" style={{ marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {fmtDate(range.start)} – {fmtDate(range.end)} · vs previous {dayCount} days
+            {fmtDate(range.start)} – {fmtDate(range.end)} · vs {fmtDate(prevStart)} – {fmtDate(prevEndLabel)}
             {lastSynced && <span style={{ color: '#ccc' }}> · Synced {new Date(lastSynced).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>}
           </p>
         </div>

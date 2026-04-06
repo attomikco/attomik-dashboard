@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import DateRangePicker, { DateRange } from '@/components/DateRangePicker'
+import DateRangePicker, { DateRange, getComparisonPeriod } from '@/components/DateRangePicker'
 import { ChevronDown, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import AIInsights from '@/components/AIInsights'
@@ -201,9 +201,7 @@ export default function MetaAdsPage() {
     if (orgData?.name) { setOrgName(orgData.name); document.title = `${orgData.name} Meta Ads | Attomik` }
 
     // Calc prev period dates
-    const dayCount = Math.round((new Date(range.end).getTime() - new Date(range.start).getTime()) / 864e5) + 1
-    const prevEnd = new Date(new Date(range.start).getTime() - 864e5).toISOString().split('T')[0]
-    const prevStart = new Date(new Date(prevEnd).getTime() - (dayCount - 1) * 864e5).toISOString().split('T')[0]
+    const { prevStart, prevEnd } = getComparisonPeriod(range.start, range.end, range.compareMode)
 
     // Paginated fetch to bypass Supabase row limit
     const fetchAllAdSpend = async (cols: string, gteDate: string, lteDate: string) => {

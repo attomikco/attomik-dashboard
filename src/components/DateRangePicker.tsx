@@ -3,10 +3,70 @@
 import { useState, useRef, useEffect } from 'react'
 import { Calendar, ChevronDown, X } from 'lucide-react'
 
+export type CompareMode = 'previous_period' | 'previous_month' | 'previous_year'
+
 export type DateRange = {
   start: string  // YYYY-MM-DD
   end: string    // YYYY-MM-DD
   label: string
+  compareMode?: CompareMode
+}
+
+const COMPARE_OPTIONS: { value: CompareMode; label: string }[] = [
+  { value: 'previous_period', label: 'Previous period' },
+  { value: 'previous_month', label: 'Previous month' },
+  { value: 'previous_year', label: 'Previous year' },
+]
+
+/** Smart default compare mode based on the selected preset */
+function defaultCompareMode(label: string): CompareMode {
+  switch (label) {
+    case 'Month to date':
+    case 'Last month':
+      return 'previous_month'
+    case 'Last 12 months':
+    case 'This year':
+    case 'Last year':
+      return 'previous_year'
+    default:
+      return 'previous_period'
+  }
+}
+
+/** Calculate comparison period dates based on mode */
+export function getComparisonPeriod(start: string, end: string, mode: CompareMode = 'previous_period'): { prevStart: string; prevEnd: string } {
+  const s = new Date(start + 'T12:00:00')
+  const e = new Date(end + 'T12:00:00')
+  const fmt = (d: Date) => d.toISOString().split('T')[0]
+
+  if (mode === 'previous_month') {
+    const ps = new Date(s)
+    ps.setMonth(ps.getMonth() - 1)
+    const pe = new Date(e)
+    pe.setMonth(pe.getMonth() - 1)
+    // Handle month-end overflow (e.g. Mar 31 → Feb 28)
+    if (ps.getDate() !== s.getDate()) ps.setDate(0) // last day of prev month
+    if (pe.getDate() !== e.getDate()) pe.setDate(0)
+    return { prevStart: fmt(ps), prevEnd: fmt(pe) }
+  }
+
+  if (mode === 'previous_year') {
+    const ps = new Date(s)
+    ps.setFullYear(ps.getFullYear() - 1)
+    const pe = new Date(e)
+    pe.setFullYear(pe.getFullYear() - 1)
+    // Handle leap year (Feb 29 → Feb 28)
+    if (ps.getDate() !== s.getDate()) ps.setDate(0)
+    if (pe.getDate() !== e.getDate()) pe.setDate(0)
+    return { prevStart: fmt(ps), prevEnd: fmt(pe) }
+  }
+
+  // previous_period: shift back by period length
+  const diff = e.getTime() - s.getTime() + 864e5
+  return {
+    prevStart: new Date(s.getTime() - diff).toISOString().split('T')[0],
+    prevEnd: new Date(s.getTime() - 864e5).toISOString().split('T')[0],
+  }
 }
 
 const today = () => {
@@ -67,11 +127,11 @@ function getSavedRange(): DateRange | null {
       const preset = PRESETS.find(p => p.label === saved.label)
       if (preset) {
         const range = preset.getRange()
-        return { ...range, label: saved.label }
+        return { ...range, label: saved.label, compareMode: saved.compareMode ?? defaultCompareMode(saved.label) }
       }
     }
     // For custom ranges, return as-is
-    if (saved.start && saved.end && saved.label) return saved
+    if (saved.start && saved.end && saved.label) return { ...saved, compareMode: saved.compareMode ?? 'previous_period' }
     return null
   } catch { return null }
 }
@@ -81,6 +141,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
   const [customStart, setCustomStart] = useState(value.start)
   const [customEnd, setCustomEnd] = useState(value.end)
   const [activePreset, setActivePreset] = useState(value.label)
+  const [compareMode, setCompareMode] = useState<CompareMode>(value.compareMode ?? defaultCompareMode(value.label))
   const [isMobile, setIsMobile] = useState(false)
   const [restored, setRestored] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -93,6 +154,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
       setCustomStart(saved.start)
       setCustomEnd(saved.end)
       setActivePreset(saved.label)
+      setCompareMode(saved.compareMode ?? defaultCompareMode(saved.label))
       onChange(saved)
     }
     setRestored(true)
@@ -132,8 +194,10 @@ export default function DateRangePicker({ value, onChange }: Props) {
     setCustomStart(range.start)
     setCustomEnd(range.end)
     setActivePreset(preset.label)
+    const newMode = defaultCompareMode(preset.label)
+    setCompareMode(newMode)
     if (preset.label !== 'Custom range') {
-      const newRange = { ...range, label: preset.label }
+      const newRange = { ...range, label: preset.label, compareMode: newMode }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newRange))
       onChange(newRange)
       setOpen(false)
@@ -142,11 +206,19 @@ export default function DateRangePicker({ value, onChange }: Props) {
 
   const applyCustom = () => {
     if (customStart && customEnd && customStart <= customEnd) {
-      const newRange = { start: customStart, end: customEnd, label: 'Custom range' }
+      const newRange = { start: customStart, end: customEnd, label: 'Custom range', compareMode }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newRange))
       onChange(newRange)
       setOpen(false)
     }
+  }
+
+  const handleCompareModeChange = (mode: CompareMode) => {
+    setCompareMode(mode)
+    // Apply immediately if we already have a valid range selected
+    const newRange = { ...value, compareMode: mode }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newRange))
+    onChange(newRange)
   }
 
   const fmt = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -246,6 +318,28 @@ export default function DateRangePicker({ value, onChange }: Props) {
                 </div>
               </div>
 
+              <div style={{ marginBottom: 16 }}>
+                <label className="form-label" style={{ display: 'block', marginBottom: 6 }}>Compare to</label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {COMPARE_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => handleCompareModeChange(opt.value)}
+                      style={{
+                        flex: 1, padding: '7px 6px', border: `1.5px solid ${compareMode === opt.value ? '#000' : '#e0e0e0'}`,
+                        borderRadius: 6, cursor: 'pointer', fontFamily: 'Barlow, sans-serif', fontSize: '0.75rem',
+                        fontWeight: compareMode === opt.value ? 700 : 500,
+                        background: compareMode === opt.value ? '#000' : '#fff',
+                        color: compareMode === opt.value ? '#00ff97' : '#444',
+                        transition: '0.15s', whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <button
                 onClick={applyCustom}
                 disabled={!customStart || !customEnd || customStart > customEnd}
@@ -306,6 +400,31 @@ export default function DateRangePicker({ value, onChange }: Props) {
                   {p.label}
                 </button>
               ))}
+            </div>
+
+            {/* Compare to */}
+            <div style={{ padding: '0 16px 16px' }}>
+              <div className="form-label" style={{ marginBottom: 8 }}>Compare to</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {COMPARE_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => handleCompareModeChange(opt.value)}
+                    style={{
+                      flex: 1, padding: '10px 8px',
+                      border: `1.5px solid ${compareMode === opt.value ? '#000' : '#e0e0e0'}`,
+                      borderRadius: 8, cursor: 'pointer', textAlign: 'center',
+                      fontFamily: 'Barlow, sans-serif', fontSize: '0.8rem',
+                      fontWeight: compareMode === opt.value ? 700 : 500,
+                      background: compareMode === opt.value ? '#000' : '#fff',
+                      color: compareMode === opt.value ? '#00ff97' : '#333',
+                      transition: '0.15s',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Custom range */}
