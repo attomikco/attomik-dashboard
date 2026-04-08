@@ -150,14 +150,11 @@ export default function OverviewPage() {
         default:               return { start: currentRange.start, end: currentRange.end }
       }
     }
-    const curStart = currentRange.start
-    const curEnd   = currentRange.end
-    const { prevStart, prevEnd } = getComparisonPeriod(curStart, curEnd, currentRange.compareMode)
-
     await Promise.all(orgList.map(async (org) => {
       try {
         const tz = (org as any).timezone ?? 'America/New_York'
         const { start: orgCurStart, end: orgCurEnd } = resolveOrgRange(tz)
+        const { prevStart, prevEnd } = getComparisonPeriod(orgCurStart, orgCurEnd, currentRange.compareMode)
         const toUTC = (dateStr: string, endOfDay = false) => {
           const time = endOfDay ? '23:59:59' : '00:00:00'
           const utcMidnight = new Date(`${dateStr}T${time}Z`)
@@ -179,11 +176,13 @@ export default function OverviewPage() {
             org_id: org.id,
             start: toUTC(orgCurStart, false),
             end: toUTC(orgCurEnd, true),
-            prevStart,
-            prevEnd,
+            prevStart: toUTC(prevStart, false),
+            prevEnd: toUTC(prevEnd, true),
             // Plain dates for ad_spend table (stores date, not timestamp)
             adSpendStart: orgCurStart,
             adSpendEnd: orgCurEnd,
+            adSpendPrevStart: prevStart,
+            adSpendPrevEnd: prevEnd,
           }),
         })
         const fetched = await res.json()

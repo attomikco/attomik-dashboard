@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { org_id, start, end, prevStart, prevEnd, adSpendStart, adSpendEnd } = await request.json()
+    const { org_id, start, end, prevStart, prevEnd, adSpendStart, adSpendEnd, adSpendPrevStart, adSpendPrevEnd } = await request.json()
     if (!org_id || !start || !end) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 })
     }
@@ -50,6 +50,8 @@ export async function POST(request: Request) {
     // Use plain dates for ad_spend (date column, not timestamp)
     const spendStart = adSpendStart ?? start.split('T')[0]
     const spendEnd = adSpendEnd ?? end.split('T')[0]
+    const spendPrevStart = adSpendPrevStart ?? (prevStart ? prevStart.split('T')[0] : null)
+    const spendPrevEnd = adSpendPrevEnd ?? (prevEnd ? prevEnd.split('T')[0] : null)
 
     // Paginated fetch to get ALL orders (Supabase caps at 1000 per query)
     const fetchAllOrders = async (gte: string, lte: string, source?: string) => {
@@ -75,6 +77,8 @@ export async function POST(request: Request) {
     // Fetch Amazon orders separately using midnight UTC boundaries (they're stored at 00:00 UTC)
     const amazonStart = `${spendStart}T00:00:00.000Z`
     const amazonEnd = `${spendEnd}T23:59:59.999Z`
+    const amazonPrevStart = spendPrevStart ? `${spendPrevStart}T00:00:00.000Z` : null
+    const amazonPrevEnd = spendPrevEnd ? `${spendPrevEnd}T23:59:59.999Z` : null
 
     // Paginated fetch for ad_spend (same pattern as orders)
     const fetchAllAdSpend = async (gte: string, lte: string) => {
@@ -93,14 +97,16 @@ export async function POST(request: Request) {
       return all
     }
 
-    const [curNonAmazon, curAmazon, prevOrders, curSpend, prevSpend] = await Promise.all([
+    const [curNonAmazon, curAmazon, prevNonAmazon, prevAmazon, curSpend, prevSpend] = await Promise.all([
       fetchAllOrders(start, end, undefined).then(orders => orders.filter(o => o.source !== 'amazon')),
       fetchAllOrders(amazonStart, amazonEnd, 'amazon'),
-      fetchAllOrders(prevStart, prevEnd),
+      prevStart ? fetchAllOrders(prevStart, prevEnd, undefined).then(orders => orders.filter(o => o.source !== 'amazon')) : Promise.resolve([]),
+      amazonPrevStart ? fetchAllOrders(amazonPrevStart, amazonPrevEnd!, 'amazon') : Promise.resolve([]),
       fetchAllAdSpend(spendStart, spendEnd),
-      fetchAllAdSpend(prevStart, prevEnd),
+      spendPrevStart ? fetchAllAdSpend(spendPrevStart, spendPrevEnd!) : Promise.resolve([]),
     ])
     const curOrders = [...curNonAmazon, ...curAmazon]
+    const prevOrders = [...prevNonAmazon, ...prevAmazon]
 
     return NextResponse.json({
       curOrders,
