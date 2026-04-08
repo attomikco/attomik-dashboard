@@ -37,6 +37,7 @@ const defaultRange: DateRange = {
   start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
   end: new Date().toISOString().split('T')[0],
   label: 'Month to date',
+  compareMode: 'previous_month',
 }
 
 
@@ -201,7 +202,7 @@ export default function MetaAdsPage() {
     if (orgData?.name) { setOrgName(orgData.name); document.title = `${orgData.name} Meta Ads | Attomik` }
 
     // Calc prev period dates
-    const { prevStart, prevEnd } = getComparisonPeriod(range.start, range.end, range.compareMode)
+    const { prevStart, prevEnd } = getComparisonPeriod(range.start, range.end, range.compareMode, range.customCompareStart, range.customCompareEnd)
 
     // Paginated fetch to bypass Supabase row limit
     const fetchAllAdSpend = async (cols: string, gteDate: string, lteDate: string) => {
@@ -287,7 +288,7 @@ export default function MetaAdsPage() {
   const activeCampaigns = Object.values(campaigns).filter(c => c.isActive).length
 
   const fmtDate = (s: string) => new Date(s + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  const dayCount = Math.round((new Date(range.end).getTime() - new Date(range.start).getTime()) / 864e5) + 1
+  const { prevStart: prevStartLabel, prevEnd: prevEndLabel } = getComparisonPeriod(range.start, range.end, range.compareMode, range.customCompareStart, range.customCompareEnd)
 
   return (
     <div>
@@ -296,7 +297,7 @@ export default function MetaAdsPage() {
         <div className="topbar-title">
           <h1>{orgName} — Meta Ads</h1>
           <p className="caption" style={{ marginTop: 2 }}>
-            {fmtDate(range.start)} – {fmtDate(range.end)} · vs previous {dayCount} days
+            {fmtDate(range.start)} – {fmtDate(range.end)} · vs {fmtDate(prevStartLabel)} – {fmtDate(prevEndLabel)}
           </p>
         </div>
         <div className="topbar-actions">

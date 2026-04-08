@@ -154,7 +154,7 @@ export default function OverviewPage() {
       try {
         const tz = (org as any).timezone ?? 'America/New_York'
         const { start: orgCurStart, end: orgCurEnd } = resolveOrgRange(tz)
-        const { prevStart, prevEnd } = getComparisonPeriod(orgCurStart, orgCurEnd, currentRange.compareMode)
+        const { prevStart, prevEnd } = getComparisonPeriod(orgCurStart, orgCurEnd, currentRange.compareMode, currentRange.customCompareStart, currentRange.customCompareEnd)
         const toUTC = (dateStr: string, endOfDay = false) => {
           const time = endOfDay ? '23:59:59' : '00:00:00'
           const utcMidnight = new Date(`${dateStr}T${time}Z`)
@@ -296,7 +296,7 @@ export default function OverviewPage() {
   const blendedRoas   = totalSpend > 0 ? totalRevenue / totalSpend : 0
   const prevRoas      = totalPrevSp > 0 ? totalPrevRev / totalPrevSp : 0
 
-  const { prevStart: prevStartLabel, prevEnd: prevEndLabel } = getComparisonPeriod(range.start, range.end, range.compareMode)
+  const { prevStart: prevStartLabel, prevEnd: prevEndLabel } = getComparisonPeriod(range.start, range.end, range.compareMode, range.customCompareStart, range.customCompareEnd)
   const fmtDate = (s: string) => new Date(s + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
   const SortBtn = ({ field, label }: { field: typeof sortBy; label: string }) => (

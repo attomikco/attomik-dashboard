@@ -34,8 +34,8 @@ function chg(cur: number, prev: number) {
   const p = pct(cur, prev)
   return `${p >= 0 ? '↑' : '↓'} ${Math.abs(p).toFixed(1)}%`
 }
-function getPrevPeriod(start: string, end: string, mode?: import('@/components/DateRangePicker').CompareMode) {
-  return getComparisonPeriod(start, end, mode)
+function getPrevPeriod(start: string, end: string, mode?: import('@/components/DateRangePicker').CompareMode, customCompareStart?: string, customCompareEnd?: string) {
+  return getComparisonPeriod(start, end, mode, customCompareStart, customCompareEnd)
 }
 
 function timeAgo(iso: string | null): string {
@@ -325,7 +325,7 @@ export default function AnalyticsPage() {
     })()
 
     // Fetch GA4 traffic data if property is configured (current + previous period)
-    const gaPrev = getPrevPeriod(resolvedRange.start, resolvedRange.end, range.compareMode)
+    const gaPrev = getPrevPeriod(resolvedRange.start, resolvedRange.end, range.compareMode, range.customCompareStart, range.customCompareEnd)
     if (orgData?.ga_property_id) {
       const fetchTraffic = (start: string, end: string) =>
         fetch('/api/analytics/traffic', {
@@ -379,7 +379,7 @@ export default function AnalyticsPage() {
 
     const thisStart = toUTC(resolvedRange.start, false)
     const thisEnd   = toUTC(resolvedRange.end, true)
-    const { prevStart, prevEnd } = getPrevPeriod(resolvedRange.start, resolvedRange.end, range.compareMode)
+    const { prevStart, prevEnd } = getPrevPeriod(resolvedRange.start, resolvedRange.end, range.compareMode, range.customCompareStart, range.customCompareEnd)
     const prevStartISO = toUTC(prevStart, false)
     const prevEndISO   = toUTC(prevEnd, true)
     const sixMonthsAgo = '2020-01-01T00:00:00.000Z' // fetch full history for accurate returning customer calc
@@ -825,7 +825,7 @@ export default function AnalyticsPage() {
 
   const d = data
   const fmtDate = (s: string) => new Date(s + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  const { prevStart, prevEnd: prevEndLabel } = getPrevPeriod(range.start, range.end, range.compareMode)
+  const { prevStart, prevEnd: prevEndLabel } = getPrevPeriod(range.start, range.end, range.compareMode, range.customCompareStart, range.customCompareEnd)
   const prevLabel = `${fmtDate(prevStart)} – ${fmtDate(prevEndLabel)}`
 
   return (
