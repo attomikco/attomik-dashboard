@@ -150,7 +150,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
   useEffect(() => {
     if (restored) return
     const saved = getSavedRange()
-    if (saved && (saved.label !== value.label || saved.start !== value.start || saved.end !== value.end)) {
+    if (saved && (saved.label !== value.label || saved.start !== value.start || saved.end !== value.end || saved.compareMode !== value.compareMode)) {
       setCustomStart(saved.start)
       setCustomEnd(saved.end)
       setActivePreset(saved.label)

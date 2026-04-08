@@ -27,6 +27,7 @@ const defaultRange: DateRange = {
   start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toLocaleDateString('en-CA'),
   end: new Date().toLocaleDateString('en-CA'),
   label: 'Month to date',
+  compareMode: 'previous_month',
 }
 
 interface OrgKpi {
@@ -402,53 +403,188 @@ export default function OverviewPage() {
             <p style={{ fontSize: '0.875rem', color: C.muted, fontFamily: 'Barlow, sans-serif' }}>You haven't been added to any projects yet.</p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {sorted.map(org => (
-              <div
-                key={org.id}
-                onClick={() => openOrg(org)}
-                className="card"
-                style={{ cursor: 'pointer', transition: 'box-shadow 0.15s' }}
-                onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.08)')}
-                onMouseLeave={e => (e.currentTarget.style.boxShadow = '')}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 8, background: C.ink, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                      <Building2 size={16} color={C.accent} />
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '1rem', fontFamily: 'Barlow, sans-serif' }}>{org.name}</div>
-                      <div className="mono" style={{ fontSize: '0.7rem', color: '#aaa' }}>{org.slug}</div>
-                    </div>
-                  </div>
-                  <ArrowRight size={16} color={C.muted} />
-                </div>
+          <>
+            {/* ── Desktop table ── */}
+            <div className="overview-table table-wrapper"><div className="table-scroll">
+              <table style={{ minWidth: 880 }}>
+                <thead>
+                  <tr>
+                    {['Project', 'Total Sales', 'Orders', 'AOV', 'Ad Spend', 'ROAS', 'Conv. Rate', ''].map((h, i) => (
+                      <th key={i} style={{
+                        textAlign: h === '' ? 'right' : 'left',
+                      }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sorted.map((org, i) => (
+                    <tr
+                      key={org.id}
+                      style={{ borderTop: i > 0 ? `1px solid ${C.border}` : 'none', cursor: 'pointer', transition: 'background 0.1s' }}
+                      onClick={() => openOrg(org)}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#fafafa')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      {/* Project */}
+                      <td style={{ padding: '16px 20px', minWidth: 160 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ width: 34, height: 34, borderRadius: 8, background: C.ink, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                            <Building2 size={15} color={C.accent} />
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>{org.name}</div>
+                            <div className="mono" style={{ fontSize: '0.68rem', color: '#aaa' }}>{org.slug}</div>
+                          </div>
+                        </div>
+                      </td>
 
-                {org.loading ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
-                    {[1,2,3,4,5,6].map(i => <div key={i} style={{ height: 52, background: '#f0f0f0', borderRadius: 6 }} className="animate-pulse" />)}
+                      {/* Total Sales */}
+                      <td style={{ padding: '16px 20px', minWidth: 130 }}>
+                        {org.loading
+                          ? <div style={{ height: 14, width: 80, background: '#f0f0f0', borderRadius: 3 }} className="animate-pulse" />
+                          : <>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                                <span style={{ fontWeight: 800, fontSize: '0.95rem', fontFamily: 'Barlow, sans-serif' }}>{fmt$(org.revenue)}</span>
+                                <DeltaBadge value={pct(org.revenue, org.prevRevenue)} />
+                              </div>
+                              {org.revenue > 0 && (
+                                <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                                  {org.shopifyRev > 0 && (
+                                    <span className="badge badge-shopify" style={{ fontSize: '0.68rem', whiteSpace: 'nowrap' }}>
+                                      Shopify {fmt$(org.shopifyRev)} · {(org.shopifyRev / org.revenue * 100).toFixed(0)}%
+                                    </span>
+                                  )}
+                                  {org.amazonRev > 0 && (
+                                    <span className="badge badge-amazon" style={{ fontSize: '0.68rem', whiteSpace: 'nowrap' }}>
+                                      Amazon {fmt$(org.amazonRev)} · {(org.amazonRev / org.revenue * 100).toFixed(0)}%
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </>
+                        }
+                      </td>
+
+                      {/* Orders */}
+                      <td style={{ padding: '16px 20px', minWidth: 110 }}>
+                        {org.loading
+                          ? <div style={{ height: 14, width: 60, background: '#f0f0f0', borderRadius: 3 }} className="animate-pulse" />
+                          : <>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                                <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>{fmtN(org.orders)}</span>
+                                <DeltaBadge value={pct(org.orders, org.prevOrders)} />
+                              </div>
+                            </>
+                        }
+                      </td>
+
+                      {/* AOV */}
+                      <td style={{ padding: '16px 20px', minWidth: 100 }}>
+                        {org.loading
+                          ? <div style={{ height: 14, width: 60, background: '#f0f0f0', borderRadius: 3 }} className="animate-pulse" />
+                          : <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>{org.aov > 0 ? fmt$(org.aov) : '—'}</span>
+                              {org.aov > 0 && <DeltaBadge value={pct(org.aov, org.prevAov)} />}
+                            </div>
+                        }
+                      </td>
+
+                      {/* Ad Spend */}
+                      <td style={{ padding: '16px 20px', minWidth: 110 }}>
+                        {org.loading
+                          ? <div style={{ height: 14, width: 60, background: '#f0f0f0', borderRadius: 3 }} className="animate-pulse" />
+                          : org.adSpend > 0
+                            ? <>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                                  <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>{fmt$(org.adSpend)}</span>
+                                  <DeltaBadge value={pct(org.adSpend, org.prevAdSpend)} invert />
+                                </div>
+                              </>
+                            : <span style={{ fontSize: '0.8rem', color: '#ccc', fontFamily: 'Barlow, sans-serif' }}>—</span>
+                        }
+                      </td>
+
+                      {/* ROAS */}
+                      <td style={{ padding: '16px 20px', minWidth: 90 }}>
+                        {org.loading
+                          ? <div style={{ height: 14, width: 50, background: '#f0f0f0', borderRadius: 3 }} className="animate-pulse" />
+                          : org.roas > 0
+                            ? <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>{org.roas.toFixed(2)}x</span>
+                                <DeltaBadge value={pct(org.roas, org.prevRoas)} />
+                              </div>
+                            : <span style={{ fontSize: '0.8rem', color: '#ccc', fontFamily: 'Barlow, sans-serif' }}>—</span>
+                        }
+                      </td>
+
+                      {/* Conv. Rate */}
+                      <td style={{ padding: '16px 20px', minWidth: 110 }}>
+                        {org.loading
+                          ? <div style={{ height: 14, width: 50, background: '#f0f0f0', borderRadius: 3 }} className="animate-pulse" />
+                          : org.convRate > 0
+                            ? <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{org.convRate.toFixed(2)}%</span>
+                                {org.prevConvRate > 0 && <DeltaBadge value={pct(org.convRate, org.prevConvRate)} />}
+                              </div>
+                            : <span style={{ fontSize: '0.8rem', color: '#ccc' }}>—</span>
+                        }
+                      </td>
+
+                      {/* Arrow */}
+                      <td style={{ padding: '16px 20px', textAlign: 'right' }}>
+                        <ChevronRight size={16} color={C.muted} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div></div>
+
+            {/* ── Mobile cards ── */}
+            <div className="overview-cards" style={{ display: 'none', flexDirection: 'column', gap: 10 }}>
+              {sorted.map(org => (
+                <div
+                  key={org.id}
+                  onClick={() => openOrg(org)}
+                  className="card"
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 34, height: 34, borderRadius: 8, background: C.ink, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                        <Building2 size={15} color={C.accent} />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '0.95rem', fontFamily: 'Barlow, sans-serif' }}>{org.name}</div>
+                        <div className="mono" style={{ fontSize: '0.68rem', color: '#aaa' }}>{org.slug}</div>
+                      </div>
+                    </div>
+                    <ArrowRight size={16} color={C.muted} />
                   </div>
-                ) : (
-                  <>
-                    <div className="overview-card-metrics" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
+
+                  {org.loading ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      {[1,2,3,4].map(i => <div key={i} style={{ height: 52, background: '#f0f0f0', borderRadius: 6 }} className="animate-pulse" />)}
+                    </div>
+                  ) : (
+                    <>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       {[
-                        { label: 'Total Sales', value: fmt$(org.revenue), delta: pct(org.revenue, org.prevRevenue) },
-                        { label: 'Orders', value: fmtN(org.orders), delta: pct(org.orders, org.prevOrders) },
-                        { label: 'AOV', value: org.aov > 0 ? fmt$(org.aov) : '—', delta: org.aov > 0 ? pct(org.aov, org.prevAov) : null },
-                        { label: 'Ad Spend', value: org.adSpend > 0 ? fmt$(org.adSpend) : '—', delta: org.adSpend > 0 ? pct(org.adSpend, org.prevAdSpend) : null, invert: true },
-                        { label: 'ROAS', value: org.roas > 0 ? `${org.roas.toFixed(2)}x` : '—', delta: org.roas > 0 ? pct(org.roas, org.prevRoas) : null },
+                        { label: 'Total Sales', value: fmt$(org.revenue),  delta: pct(org.revenue, org.prevRevenue) },
+                        { label: 'Orders',  value: fmtN(org.orders),   delta: pct(org.orders, org.prevOrders) },
+                        { label: 'AOV',     value: org.aov > 0 ? fmt$(org.aov) : '—', delta: org.aov > 0 ? pct(org.aov, org.prevAov) : null },
+                        { label: 'ROAS',    value: org.roas > 0 ? `${org.roas.toFixed(2)}x` : '—', delta: org.roas > 0 ? pct(org.roas, org.prevRoas) : null },
                         { label: 'Conv. Rate', value: org.convRate > 0 ? `${org.convRate.toFixed(2)}%` : '—', delta: org.convRate > 0 && org.prevConvRate > 0 ? pct(org.convRate, org.prevConvRate) : null },
                       ].map(k => (
                         <div key={k.label} style={{ background: C.cream, borderRadius: 8, padding: '10px 12px' }}>
                           <div className="kpi-label" style={{ marginBottom: 4 }}>{k.label}</div>
                           <div className="kpi-value" style={{ fontSize: '1rem', marginBottom: 4 }}>{k.value}</div>
-                          {k.delta !== null && <DeltaBadge value={k.delta} invert={'invert' in k && !!k.invert} />}
+                          {k.delta !== null && <DeltaBadge value={k.delta} />}
                         </div>
                       ))}
                     </div>
                     {org.revenue > 0 && (org.shopifyRev > 0 || org.amazonRev > 0) && (
-                      <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
                         {org.shopifyRev > 0 && (
                           <span className="badge badge-shopify" style={{ fontSize: '0.68rem' }}>
                             Shopify {fmt$(org.shopifyRev)} · {(org.shopifyRev / org.revenue * 100).toFixed(0)}%
@@ -461,11 +597,12 @@ export default function OverviewPage() {
                         )}
                       </div>
                     )}
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
@@ -476,7 +613,8 @@ export default function OverviewPage() {
           .overview-content { padding-top: 100px !important; }
           .overview-subtitle { flex-direction: column !important; align-items: flex-start !important; gap: 4px !important; }
           .overview-sync    { margin-left: 0 !important; }
-          .overview-card-metrics { grid-template-columns: 1fr 1fr !important; }
+          .overview-table { display: none !important; }
+          .overview-cards { display: flex !important; }
         }
       `}</style>
     </div>

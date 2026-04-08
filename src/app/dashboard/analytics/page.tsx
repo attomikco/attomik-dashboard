@@ -207,6 +207,7 @@ const defaultRange: DateRange = {
   start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toLocaleDateString('en-CA'),
   end: new Date().toLocaleDateString('en-CA'),
   label: 'Month to date',
+  compareMode: 'previous_month',
 }
 
 export default function AnalyticsPage() {
