@@ -123,7 +123,7 @@ export default function SettingsPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to save')
       const monthName = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][amzMonth - 1]
-      setAmzMsg({ type: 'success', text: `Amazon ad spend saved for ${monthName} ${amzYear} — $${parseFloat(amzSpend || '0').toLocaleString()} spread across ${data.days} days` })
+      setAmzMsg({ type: 'success', text: `Amazon ad spend saved for ${monthName} ${amzYear} — $${parseFloat(amzSpend || '0').toLocaleString()}` })
     } catch (e: any) {
       setAmzMsg({ type: 'error', text: e.message })
     }
@@ -465,7 +465,7 @@ export default function SettingsPage() {
 
         <Section title="Amazon Ad Spend">
           <p style={{ fontSize: '0.8rem', color: 'var(--muted)', marginBottom: 16, lineHeight: 1.5 }}>
-            Enter your total Amazon ad spend for a month. It will be spread evenly across days and included in all ad spend calculations (Total Ad Spend, ROAS, CAC).
+            Enter your total Amazon ad spend for a month. The full amount will be included in all ad spend calculations (Total Ad Spend, ROAS, CAC).
           </p>
 
           <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>

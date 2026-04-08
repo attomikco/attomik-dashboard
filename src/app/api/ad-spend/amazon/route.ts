@@ -47,13 +47,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid spend amount' }, { status: 400 })
   }
 
-  // Calculate days in month
-  const daysInMonth = new Date(year, month, 0).getDate()
-  const dailySpend = Math.round((spend / daysInMonth) * 100) / 100
-
-  // Adjust last day to absorb rounding difference
-  const remainder = Math.round((spend - dailySpend * daysInMonth) * 100) / 100
-
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`
   const endDate = month === 12
     ? `${year + 1}-01-01`
@@ -71,28 +64,24 @@ export async function POST(request: Request) {
     .lt('date', endDate)
 
   if (spend === 0) {
-    return NextResponse.json({ success: true, days: 0, daily_spend: 0, total: 0 })
+    return NextResponse.json({ success: true, total: 0 })
   }
 
-  // Create one row per day
-  const records = Array.from({ length: daysInMonth }, (_, i) => ({
+  // Store as a single row on the 1st of the month
+  const { error: dbErr } = await serviceClient.from('ad_spend').insert({
     org_id: orgId!,
     platform: 'amazon' as const,
     campaign_name: 'Amazon Ads',
-    spend: i === daysInMonth - 1 ? dailySpend + remainder : dailySpend,
+    spend,
     impressions: 0,
     clicks: 0,
     conversions: 0,
-    date: `${year}-${String(month).padStart(2, '0')}-${String(i + 1).padStart(2, '0')}`,
-  }))
-
-  const { error: dbErr } = await serviceClient.from('ad_spend').insert(records)
+    date: startDate,
+  })
   if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 })
 
   return NextResponse.json({
     success: true,
-    days: daysInMonth,
-    daily_spend: dailySpend,
     total: spend,
   })
 }

@@ -9,6 +9,7 @@ export async function GET(request: Request) {
   if (!orgId || !year || !month) return NextResponse.json({ error: 'org_id, year, month required' }, { status: 400 })
 
   const supabase = createServiceClient()
+  console.log('[targets API] GET', { orgId, year, month })
   const { data, error } = await supabase
     .from('monthly_targets')
     .select('*')
@@ -17,6 +18,7 @@ export async function GET(request: Request) {
     .eq('month', Number(month))
     .maybeSingle()
 
+  console.log('[targets API] result', { data, error })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
 }
