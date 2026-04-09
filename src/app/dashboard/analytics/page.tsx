@@ -827,21 +827,29 @@ export default function AnalyticsPage() {
   }
 
   const handleMetaSync = async () => {
-    if (!activeOrgId) return
+    const orgIdToSync = activeOrgId || localStorage.getItem('activeOrgId') || ''
+    console.log('[handleMetaSync] called', { activeOrgId, orgIdToSync })
+    if (!orgIdToSync) {
+      setMetaSyncResult({ ok: false, text: 'No org selected' })
+      return
+    }
     setSyncingMeta(true)
     setMetaSyncResult(null)
     try {
+      console.log('[handleMetaSync] calling /api/sync/meta with org_id:', orgIdToSync)
       const res = await fetch('/api/sync/meta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ org_id: activeOrgId }),
+        body: JSON.stringify({ org_id: orgIdToSync }),
       })
       const data = await res.json()
+      console.log('[handleMetaSync] response:', res.status, data)
       if (!res.ok) throw new Error(data.error || 'Sync failed')
       setMetaSyncResult({ ok: true, text: data.message })
       setSyncTimestamps(prev => ({ ...prev, meta: new Date().toISOString() }))
       fetchData()
     } catch (err: any) {
+      console.error('[handleMetaSync] error:', err)
       setMetaSyncResult({ ok: false, text: err.message })
     }
     setSyncingMeta(false)
