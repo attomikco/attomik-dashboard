@@ -184,6 +184,8 @@ export async function POST(request: Request) {
     console.log('[meta-sync] sync_timestamps upsert:', { org_id, error: tsError })
 
     const totalSpend = records.reduce((s, r) => s + r.spend, 0)
+    const latestDate = sortedDates[sortedDates.length - 1] ?? ''
+    const latestDaySpend = spendByDate[latestDate]?.spend ?? 0
 
     return NextResponse.json({
       inserted: insertedCount,
@@ -192,12 +194,13 @@ export async function POST(request: Request) {
       adsets: Array.from(new Set(records.map(r => r.adset_name).filter(Boolean))).length,
       ads: Array.from(new Set(records.map(r => r.ad_name).filter(Boolean))).length,
       total_spend: `$${totalSpend.toFixed(2)}`,
-      today_spend: `$${todayTotal.toFixed(2)}`,
-      today_rows: todayRows?.length ?? 0,
+      latest_date: latestDate,
+      latest_day_spend: `$${latestDaySpend.toFixed(2)}`,
+      latest_day_rows: spendByDate[latestDate]?.rows ?? 0,
       date_preset: datePreset,
       message: datePreset === 'this_year'
-        ? `Initial sync — ${insertedCount} records across ${dates.length} days · $${totalSpend.toFixed(2)} total · $${todayTotal.toFixed(2)} today`
-        : `Synced ${dates.length} days — ${insertedCount} records · $${totalSpend.toFixed(2)} total · $${todayTotal.toFixed(2)} today`,
+        ? `Initial sync — ${insertedCount} records across ${dates.length} days · $${totalSpend.toFixed(2)} total · $${latestDaySpend.toFixed(2)} on ${latestDate}`
+        : `Synced ${dates.length} days — ${insertedCount} records · $${totalSpend.toFixed(2)} total · $${latestDaySpend.toFixed(2)} on ${latestDate}`,
     })
 
   } catch (err: any) {
