@@ -20,6 +20,13 @@ export async function POST(request: Request) {
       .eq('id', org_id)
       .single()
 
+    console.log('[meta-sync] org credentials:', {
+      org_id,
+      meta_ad_account_id: org?.meta_ad_account_id ?? null,
+      has_access_token: !!org?.meta_access_token,
+      token_length: org?.meta_access_token?.length ?? 0,
+    })
+
     if (!org?.meta_ad_account_id || !org?.meta_access_token) {
       return NextResponse.json({ error: 'Meta Ads not configured for this org' }, { status: 400 })
     }
@@ -34,6 +41,7 @@ export async function POST(request: Request) {
       .eq('platform', 'meta')
 
     const datePreset = (count ?? 0) === 0 ? 'this_year' : 'last_30d'
+    console.log('[meta-sync] existing row count:', count, '→ date_preset:', datePreset)
 
     // Paginate through Meta Insights API
     const allRows: any[] = []
@@ -53,9 +61,17 @@ export async function POST(request: Request) {
         throw new Error(`Meta API error ${apiRes.status}: ${body}`)
       }
       const apiJson: any = await apiRes.json()
+      console.log('[meta-sync] API page response:', {
+        data_count: apiJson.data?.length ?? 0,
+        has_paging: !!apiJson.paging?.next,
+        sample_row: apiJson.data?.[0] ?? null,
+        error: apiJson.error ?? null,
+      })
       allRows.push(...(apiJson.data ?? []))
       nextUrl = apiJson.paging?.next ?? null
     }
+
+    console.log('[meta-sync] total rows from API:', allRows.length)
 
     if (allRows.length === 0) {
       // Still update sync timestamp
@@ -101,6 +117,8 @@ export async function POST(request: Request) {
       }
     }).filter(r => r.spend > 0 || r.impressions > 0)
 
+    console.log('[meta-sync] mapped records:', records.length, 'sample:', records[0] ?? null)
+
     if (records.length === 0) {
       await supabase.from('sync_timestamps').upsert(
         { org_id, source: 'meta', last_synced_at: new Date().toISOString() },
@@ -111,17 +129,28 @@ export async function POST(request: Request) {
 
     // Upsert: delete existing rows for these dates, then insert (matches CSV import logic)
     const dates = Array.from(new Set(records.map(r => r.date)))
+    console.log('[meta-sync] unique dates:', dates.length, 'range:', dates[0], '→', dates[dates.length - 1])
+
     if (dates.length > 0) {
-      await supabase.from('ad_spend').delete().eq('org_id', org_id).eq('platform', 'meta').in('date', dates)
+      const { error: delError, count: delCount } = await supabase.from('ad_spend').delete({ count: 'exact' }).eq('org_id', org_id).eq('platform', 'meta').in('date', dates)
+      console.log('[meta-sync] deleted existing rows:', delCount, 'error:', delError)
     }
 
     // Insert in batches of 500
     let insertedCount = 0
     for (let i = 0; i < records.length; i += 500) {
-      const { data, error: dbError } = await supabase.from('ad_spend').insert(records.slice(i, i + 500)).select()
+      const batch = records.slice(i, i + 500)
+      const { data, error: dbError } = await supabase.from('ad_spend').insert(batch).select()
+      console.log(`[meta-sync] insert batch ${i / 500 + 1}:`, {
+        attempted: batch.length,
+        inserted: data?.length ?? 0,
+        error: dbError ?? null,
+      })
       if (dbError) throw dbError
       insertedCount += data?.length ?? 0
     }
+
+    console.log('[meta-sync] total inserted:', insertedCount)
 
     // Update sync timestamp
     await supabase.from('sync_timestamps').upsert(
