@@ -293,6 +293,7 @@ export default function OverviewPage() {
         }
       } catch {}
     }))
+    console.log('[overview] refreshTimestamps:', latest)
     setSyncTimestamps(latest)
   }
 
@@ -412,7 +413,7 @@ export default function OverviewPage() {
                     — {shopifySyncResult.text}
                   </span>
                 )}
-                {!shopifySyncResult && syncTimestamps.shopify && !syncingShopify && (
+                {syncTimestamps.shopify && !syncingShopify && (
                   <span style={{ fontSize: '0.7rem', color: '#aaa', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap' }}>
                     {fmtTs(syncTimestamps.shopify)} ({timeAgo(syncTimestamps.shopify)})
                   </span>
@@ -438,7 +439,7 @@ export default function OverviewPage() {
                     — {metaSyncResult.text}
                   </span>
                 )}
-                {!metaSyncResult && syncTimestamps.meta && !syncingMeta && (
+                {syncTimestamps.meta && !syncingMeta && (
                   <span style={{ fontSize: '0.7rem', color: '#aaa', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap' }}>
                     {fmtTs(syncTimestamps.meta)} ({timeAgo(syncTimestamps.meta)})
                   </span>
