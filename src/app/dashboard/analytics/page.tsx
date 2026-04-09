@@ -845,9 +845,11 @@ export default function AnalyticsPage() {
       const data = await res.json()
       console.log('[handleMetaSync] response:', res.status, data)
       if (!res.ok) throw new Error(data.error || 'Sync failed')
-      setMetaSyncResult({ ok: true, text: data.message })
       setSyncTimestamps(prev => ({ ...prev, meta: new Date().toISOString() }))
-      fetchData()
+      console.log('[handleMetaSync] sync succeeded, refreshing data...')
+      await fetchData()
+      console.log('[handleMetaSync] data refreshed')
+      setMetaSyncResult({ ok: true, text: data.message })
     } catch (err: any) {
       console.error('[handleMetaSync] error:', err)
       setMetaSyncResult({ ok: false, text: err.message })
