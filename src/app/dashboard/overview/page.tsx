@@ -295,6 +295,12 @@ export default function OverviewPage() {
     setSyncTimestamps(latest)
   }
 
+  const refreshKpis = () => {
+    const current = orgs.map(o => ({ ...o, loading: true }))
+    setOrgs(current)
+    fetchAllKpis(current, range, false)
+  }
+
   const handleSyncShopify = async () => {
     setSyncingShopify(true)
     setShopifySyncResult(null)
@@ -303,12 +309,11 @@ export default function OverviewPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Sync failed')
       setShopifySyncResult({ ok: true, text: data.message })
-      const now = new Date().toISOString()
-      setOrgs(prev => prev.map(o => ({ ...o, shopify_synced_at: now })))
     } catch (err: any) {
       setShopifySyncResult({ ok: false, text: err.message })
     }
     await refreshTimestamps()
+    refreshKpis()
     setSyncingShopify(false)
   }
 
@@ -337,6 +342,7 @@ export default function OverviewPage() {
       setMetaSyncResult({ ok: false, text: err.message })
     }
     await refreshTimestamps()
+    refreshKpis()
     setSyncingMeta(false)
   }
 
