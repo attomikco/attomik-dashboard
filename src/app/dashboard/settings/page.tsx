@@ -43,6 +43,9 @@ export default function SettingsPage() {
   const [metaTokenSet, setMetaTokenSet]       = useState(false)
   const [savingMeta, setSavingMeta]           = useState(false)
   const [metaMsg, setMetaMsg]                 = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [syncingMeta, setSyncingMeta]         = useState(false)
+  const [metaSyncResult, setMetaSyncResult]   = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [syncTimestamps, setSyncTimestamps]   = useState<Record<string, string | null>>({ shopify: null, amazon: null, meta: null })
 
   const [targetYear, setTargetYear]   = useState(new Date().getFullYear())
   const [targetMonth, setTargetMonth] = useState(new Date().getMonth() + 1)
@@ -83,10 +86,24 @@ export default function SettingsPage() {
       setMetaAccessToken('')
       loadTargets(targetYear, targetMonth)
       loadAmzSpend(amzYear, amzMonth)
+      refreshTimestamps()
     }
   }
 
   const orgId = () => localStorage.getItem('activeOrgId') || org?.id
+
+  const refreshTimestamps = async () => {
+    const id = orgId()
+    if (!id) return
+    try {
+      const res = await fetch(`/api/sync/timestamps?org_id=${id}`)
+      if (!res.ok) return
+      const rows: { source: string; last_synced_at: string }[] = await res.json()
+      const ts: Record<string, string | null> = { shopify: null, amazon: null, meta: null }
+      for (const row of rows) ts[row.source] = row.last_synced_at
+      setSyncTimestamps(ts)
+    } catch {}
+  }
 
   const loadTargets = async (year: number, month: number) => {
     const id = orgId()
@@ -261,7 +278,29 @@ export default function SettingsPage() {
       if (!res.ok) setSyncError(data.error || 'Sync failed')
       else setSyncResult(data)
     }
+    await refreshTimestamps()
     setSyncing(false)
+  }
+
+  const handleMetaSync = async () => {
+    const id = orgId()
+    if (!id) return
+    setSyncingMeta(true)
+    setMetaSyncResult(null)
+    try {
+      const res = await fetch('/api/sync/meta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ org_id: id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Sync failed')
+      setMetaSyncResult({ type: 'success', text: data.message })
+      await refreshTimestamps()
+    } catch (e: any) {
+      setMetaSyncResult({ type: 'error', text: e.message })
+    }
+    setSyncingMeta(false)
   }
 
   const handleClean = async () => {
@@ -397,9 +436,9 @@ export default function SettingsPage() {
               {syncProgress}
             </p>
           )}
-          {org?.shopify_synced_at && !syncProgress && (
+          {(syncTimestamps.shopify || org?.shopify_synced_at) && !syncProgress && (
             <p style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
-              Last synced: {new Date(org.shopify_synced_at).toLocaleString()}
+              Last synced: {new Date(syncTimestamps.shopify || org.shopify_synced_at).toLocaleString()}
             </p>
           )}
 
@@ -517,21 +556,43 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <button className="btn btn-dark" onClick={async () => {
-            setSavingMeta(true); setMetaMsg(null)
-            const id = orgId()
-            if (!id) { setMetaMsg({ type: 'error', text: 'No active org found' }); setSavingMeta(false); return }
-            const updates: any = { meta_ad_account_id: metaAdAccountId.replace(/^act_/i, '').trim() || null }
-            if (metaAccessToken) updates.meta_access_token = metaAccessToken
-            else if (!metaAdAccountId.trim()) updates.meta_access_token = null
-            const { error } = await supabase.from('organizations').update(updates).eq('id', id)
-            setSavingMeta(false)
-            if (error) setMetaMsg({ type: 'error', text: error.message })
-            else setMetaMsg({ type: 'success', text: metaAdAccountId ? 'Meta Ads credentials saved' : 'Meta Ads disconnected' })
-            loadData()
-          }} disabled={savingMeta}>
-            {savingMeta ? 'Saving…' : metaAdAccountId ? 'Save Meta Ads' : 'Disconnect Meta Ads'}
-          </button>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+            <button className="btn btn-dark" onClick={async () => {
+              setSavingMeta(true); setMetaMsg(null)
+              const id = orgId()
+              if (!id) { setMetaMsg({ type: 'error', text: 'No active org found' }); setSavingMeta(false); return }
+              const updates: any = { meta_ad_account_id: metaAdAccountId.replace(/^act_/i, '').trim() || null }
+              if (metaAccessToken) updates.meta_access_token = metaAccessToken
+              else if (!metaAdAccountId.trim()) updates.meta_access_token = null
+              const { error } = await supabase.from('organizations').update(updates).eq('id', id)
+              setSavingMeta(false)
+              if (error) setMetaMsg({ type: 'error', text: error.message })
+              else setMetaMsg({ type: 'success', text: metaAdAccountId ? 'Meta Ads credentials saved' : 'Meta Ads disconnected' })
+              loadData()
+            }} disabled={savingMeta}>
+              {savingMeta ? 'Saving…' : metaAdAccountId ? 'Save Meta Ads' : 'Disconnect Meta Ads'}
+            </button>
+
+            {metaAdAccountId && metaTokenSet && (
+              <button className="btn btn-primary" onClick={handleMetaSync} disabled={syncingMeta}>
+                <RefreshCw size={14} style={{ animation: syncingMeta ? 'spin 1s linear infinite' : 'none' }} />
+                {syncingMeta ? 'Syncing…' : 'Sync Meta Ads'}
+              </button>
+            )}
+          </div>
+
+          {syncTimestamps.meta && !syncingMeta && (
+            <p style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
+              Last synced: {new Date(syncTimestamps.meta).toLocaleString()}
+            </p>
+          )}
+
+          {metaSyncResult && (
+            <div className={`alert ${metaSyncResult.type === 'success' ? 'alert-success' : 'alert-error'}`} style={{ marginTop: 12 }}>
+              {metaSyncResult.type === 'success' ? <CheckCircle size={16} /> : <XCircle size={16} />}
+              <span style={{ fontWeight: 600 }}>{metaSyncResult.text}</span>
+            </div>
+          )}
         </Section>
 
         <Section title="Amazon Ad Spend">

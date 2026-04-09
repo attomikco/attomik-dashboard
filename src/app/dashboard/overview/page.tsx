@@ -24,6 +24,20 @@ function dateInTz(tz: string, offsetDays = 0): string {
   if (offsetDays) d.setDate(d.getDate() + offsetDays)
   return d.toLocaleDateString('en-CA')
 }
+function timeAgo(iso: string | null): string {
+  if (!iso) return ''
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
+}
+function fmtTs(iso: string) {
+  return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+
 const defaultRange: DateRange = {
   start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toLocaleDateString('en-CA'),
   end: new Date().toLocaleDateString('en-CA'),
@@ -79,8 +93,11 @@ export default function OverviewPage() {
   const [loadingOrgs, setLoadingOrgs] = useState(true)
   const [sortBy, setSortBy] = useState<'revenue' | 'orders' | 'roas' | 'adSpend'>('revenue')
   const [isSuperadmin, setIsSuperadmin] = useState(false)
-  const [syncingAll, setSyncingAll] = useState(false)
-  const [syncResult, setSyncResult] = useState<{ ok: boolean; text: string } | null>(null)
+  const [syncingShopify, setSyncingShopify] = useState(false)
+  const [shopifySyncResult, setShopifySyncResult] = useState<{ ok: boolean; text: string } | null>(null)
+  const [syncingMeta, setSyncingMeta] = useState(false)
+  const [metaSyncResult, setMetaSyncResult] = useState<{ ok: boolean; text: string } | null>(null)
+  const [syncTimestamps, setSyncTimestamps] = useState<Record<string, string | null>>({ shopify: null, meta: null })
   const supabase = createClient()
   const router = useRouter()
 
@@ -122,7 +139,10 @@ export default function OverviewPage() {
       setOrgs(initial)
       setLoadingOrgs(false)
 
-      if (!cancelled) fetchAllKpis(initial, range, cancelled)
+      if (!cancelled) {
+        fetchAllKpis(initial, range, cancelled)
+        refreshTimestamps(initial.map(o => o.id))
+      }
     }
 
     run()
@@ -257,29 +277,68 @@ export default function OverviewPage() {
     }))
   }
 
-  const handleSyncAll = async () => {
-    setSyncingAll(true)
-    setSyncResult(null)
+  const refreshTimestamps = async (orgIds?: string[]) => {
+    const ids = orgIds ?? orgs.map(o => o.id)
+    const latest: Record<string, string | null> = { shopify: null, meta: null }
+    await Promise.all(ids.map(async (id) => {
+      try {
+        const res = await fetch(`/api/sync/timestamps?org_id=${id}`)
+        if (!res.ok) return
+        const rows: { source: string; last_synced_at: string }[] = await res.json()
+        for (const row of rows) {
+          if (row.source in latest && (!latest[row.source] || row.last_synced_at > latest[row.source]!)) {
+            latest[row.source] = row.last_synced_at
+          }
+        }
+      } catch {}
+    }))
+    setSyncTimestamps(latest)
+  }
+
+  const handleSyncShopify = async () => {
+    setSyncingShopify(true)
+    setShopifySyncResult(null)
     try {
       const res = await fetch('/api/cron/sync-shopify')
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Sync failed')
-      setSyncResult({ ok: true, text: data.message })
-      // Update synced_at timestamps locally
+      setShopifySyncResult({ ok: true, text: data.message })
       const now = new Date().toISOString()
       setOrgs(prev => prev.map(o => ({ ...o, shopify_synced_at: now })))
     } catch (err: any) {
-      setSyncResult({ ok: false, text: err.message })
+      setShopifySyncResult({ ok: false, text: err.message })
     }
-    setSyncingAll(false)
+    await refreshTimestamps()
+    setSyncingShopify(false)
   }
 
-  // Most recent Shopify sync across all orgs
-  const lastSyncedAt = orgs.reduce((latest, o) => {
-    const ts = (o as any).shopify_synced_at
-    if (!ts) return latest
-    return !latest || ts > latest ? ts : latest
-  }, null as string | null)
+  const handleSyncMeta = async () => {
+    setSyncingMeta(true)
+    setMetaSyncResult(null)
+    let synced = 0, skipped = 0
+    try {
+      for (const org of orgs) {
+        try {
+          const res = await fetch('/api/sync/meta', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ org_id: org.id }),
+          })
+          const data = await res.json()
+          if (data.skipped) { skipped++; continue }
+          if (res.ok && data.inserted > 0) synced++
+        } catch {}
+      }
+      const parts: string[] = []
+      if (synced > 0) parts.push(`${synced} org${synced > 1 ? 's' : ''} synced`)
+      if (skipped > 0) parts.push(`${skipped} skipped`)
+      setMetaSyncResult({ ok: true, text: parts.join(', ') || 'No orgs to sync' })
+    } catch (err: any) {
+      setMetaSyncResult({ ok: false, text: err.message })
+    }
+    await refreshTimestamps()
+    setSyncingMeta(false)
+  }
 
   const openOrg = (org: OrgKpi) => {
     localStorage.setItem('activeOrgId', org.id)
@@ -325,28 +384,54 @@ export default function OverviewPage() {
               <span className="overview-sync" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <span style={{ color: C.border }}>·</span>
                 <button
-                  onClick={handleSyncAll}
-                  disabled={syncingAll}
+                  onClick={handleSyncShopify}
+                  disabled={syncingShopify || syncingMeta}
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 4,
                     padding: 0, background: 'none', border: 'none',
                     fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.75rem',
-                    color: syncingAll ? C.muted : '#007a48',
-                    cursor: syncingAll ? 'not-allowed' : 'pointer',
+                    color: syncingShopify ? C.muted : '#007a48',
+                    cursor: syncingShopify || syncingMeta ? 'not-allowed' : 'pointer',
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  <RefreshCw size={11} style={{ animation: syncingAll ? 'spin 1s linear infinite' : 'none' }} />
-                  {syncingAll ? 'Syncing…' : 'Sync Shopify'}
+                  <RefreshCw size={11} style={{ animation: syncingShopify ? 'spin 1s linear infinite' : 'none' }} />
+                  {syncingShopify ? 'Syncing…' : 'Sync Shopify'}
                 </button>
-                {syncResult && (
-                  <span style={{ fontSize: '0.7rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', color: syncResult.ok ? '#007a48' : '#b91c1c', whiteSpace: 'nowrap' }}>
-                    — {syncResult.text}
+                {shopifySyncResult && (
+                  <span style={{ fontSize: '0.7rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', color: shopifySyncResult.ok ? '#007a48' : '#b91c1c', whiteSpace: 'nowrap' }}>
+                    — {shopifySyncResult.text}
                   </span>
                 )}
-                {!syncResult && lastSyncedAt && !syncingAll && (
+                {!shopifySyncResult && syncTimestamps.shopify && !syncingShopify && (
                   <span style={{ fontSize: '0.7rem', color: '#aaa', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap' }}>
-                    last {new Date(lastSyncedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                    {fmtTs(syncTimestamps.shopify)} ({timeAgo(syncTimestamps.shopify)})
+                  </span>
+                )}
+                <span style={{ color: C.border }}>·</span>
+                <button
+                  onClick={handleSyncMeta}
+                  disabled={syncingMeta || syncingShopify}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    padding: 0, background: 'none', border: 'none',
+                    fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.75rem',
+                    color: syncingMeta ? C.muted : '#1877f2',
+                    cursor: syncingMeta || syncingShopify ? 'not-allowed' : 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <RefreshCw size={11} style={{ animation: syncingMeta ? 'spin 1s linear infinite' : 'none' }} />
+                  {syncingMeta ? 'Syncing…' : 'Sync Meta'}
+                </button>
+                {metaSyncResult && (
+                  <span style={{ fontSize: '0.7rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', color: metaSyncResult.ok ? '#007a48' : '#b91c1c', whiteSpace: 'nowrap' }}>
+                    — {metaSyncResult.text}
+                  </span>
+                )}
+                {!metaSyncResult && syncTimestamps.meta && !syncingMeta && (
+                  <span style={{ fontSize: '0.7rem', color: '#aaa', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap' }}>
+                    {fmtTs(syncTimestamps.meta)} ({timeAgo(syncTimestamps.meta)})
                   </span>
                 )}
               </span>

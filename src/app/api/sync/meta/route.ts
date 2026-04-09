@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     })
 
     if (!org?.meta_ad_account_id || !org?.meta_access_token) {
-      return NextResponse.json({ error: 'Meta Ads not configured for this org' }, { status: 400 })
+      return NextResponse.json({ skipped: true, reason: 'no_credentials', message: 'Meta Ads not configured' })
     }
 
     const { meta_ad_account_id: adAccountId, meta_access_token: accessToken } = org
