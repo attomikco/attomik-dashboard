@@ -152,11 +152,30 @@ export async function POST(request: Request) {
 
     console.log('[meta-sync] total inserted:', insertedCount)
 
+    // Verify what's in the DB for today
+    const today = new Date().toISOString().split('T')[0]
+    const { data: todayRows, error: todayErr } = await supabase.from('ad_spend').select('spend,campaign_name,date')
+      .eq('org_id', org_id).eq('platform', 'meta').eq('date', today)
+    const todayTotal = (todayRows ?? []).reduce((s: number, r: any) => s + Number(r.spend), 0)
+    console.log('[meta-sync] DB verification for today (' + today + '):', {
+      rows: todayRows?.length ?? 0,
+      total_spend: todayTotal,
+      error: todayErr,
+      sample: todayRows?.slice(0, 3),
+    })
+
+    // Also log per-day spend breakdown
+    const spendByDate: Record<string, number> = {}
+    records.forEach(r => { spendByDate[r.date] = (spendByDate[r.date] ?? 0) + r.spend })
+    console.log('[meta-sync] spend by date:', spendByDate)
+
     // Update sync timestamp
     await supabase.from('sync_timestamps').upsert(
       { org_id, source: 'meta', last_synced_at: new Date().toISOString() },
       { onConflict: 'org_id,source' }
     )
+
+    const totalSpend = records.reduce((s, r) => s + r.spend, 0)
 
     return NextResponse.json({
       inserted: insertedCount,
@@ -164,11 +183,13 @@ export async function POST(request: Request) {
       campaigns: Array.from(new Set(records.map(r => r.campaign_name))).length,
       adsets: Array.from(new Set(records.map(r => r.adset_name).filter(Boolean))).length,
       ads: Array.from(new Set(records.map(r => r.ad_name).filter(Boolean))).length,
-      total_spend: `$${records.reduce((s, r) => s + r.spend, 0).toFixed(2)}`,
+      total_spend: `$${totalSpend.toFixed(2)}`,
+      today_spend: `$${todayTotal.toFixed(2)}`,
+      today_rows: todayRows?.length ?? 0,
       date_preset: datePreset,
       message: datePreset === 'this_year'
-        ? `Initial sync — ${insertedCount} records imported (year to date)`
-        : `Synced last 30 days — ${insertedCount} records`,
+        ? `Initial sync — ${insertedCount} records across ${dates.length} days · $${totalSpend.toFixed(2)} total · $${todayTotal.toFixed(2)} today`
+        : `Synced ${dates.length} days — ${insertedCount} records · $${totalSpend.toFixed(2)} total · $${todayTotal.toFixed(2)} today`,
     })
 
   } catch (err: any) {

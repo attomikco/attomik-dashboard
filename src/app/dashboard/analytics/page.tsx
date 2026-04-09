@@ -466,6 +466,18 @@ export default function AnalyticsPage() {
     const allOrd = allOrdRaw ?? []
     const allSp = allSpRaw?.data ?? []
 
+    // Debug: log ad spend query results
+    const metaRows = cSpend.filter((o: any) => o.platform === 'meta')
+    const metaTotal = metaRows.reduce((s: number, o: any) => s + Number(o.spend), 0)
+    console.log('[analytics] ad_spend query:', {
+      dateRange: { start: resolvedRange.start, end: resolvedRange.end },
+      totalAdSpendRows: cSpend.length,
+      metaRows: metaRows.length,
+      metaTotalSpend: metaTotal,
+      metaDates: Array.from(new Set(metaRows.map((o: any) => o.date))),
+      allSpendTotal: cSpend.reduce((s: number, o: any) => s + Number(o.spend), 0),
+    })
+
     const shopAllC = cur.filter(o => o.source === 'shopify')
     const shopAllP = prev.filter(o => o.source === 'shopify')
     // Exclude fully refunded orders from revenue calculations (match Shopify's gross sales)
