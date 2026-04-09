@@ -38,6 +38,12 @@ export default function SettingsPage() {
   const [savingGa, setSavingGa]       = useState(false)
   const [gaMsg, setGaMsg]             = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  const [metaAdAccountId, setMetaAdAccountId] = useState('')
+  const [metaAccessToken, setMetaAccessToken] = useState('')
+  const [metaTokenSet, setMetaTokenSet]       = useState(false)
+  const [savingMeta, setSavingMeta]           = useState(false)
+  const [metaMsg, setMetaMsg]                 = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
   const [targetYear, setTargetYear]   = useState(new Date().getFullYear())
   const [targetMonth, setTargetMonth] = useState(new Date().getMonth() + 1)
   const [targets, setTargets]         = useState({ sales_target: '', aov_target: '', cac_target: '', roas_target: '', ad_spend_budget: '' })
@@ -71,6 +77,10 @@ export default function SettingsPage() {
       else setDomain('')
       if (activeOrg?.ga_property_id) setGaPropertyId(activeOrg.ga_property_id)
       else setGaPropertyId('')
+      if (activeOrg?.meta_ad_account_id) setMetaAdAccountId(activeOrg.meta_ad_account_id)
+      else setMetaAdAccountId('')
+      setMetaTokenSet(!!activeOrg?.meta_access_token)
+      setMetaAccessToken('')
       loadTargets(targetYear, targetMonth)
       loadAmzSpend(amzYear, amzMonth)
     }
@@ -463,6 +473,67 @@ export default function SettingsPage() {
           </button>
         </Section>
 
+        <Section title="Meta Ads">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 8, background: '#1877f2', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+              <span style={{ color: '#fff', fontWeight: 700, fontSize: '0.75rem' }}>META</span>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Meta Ads</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
+                {metaAdAccountId ? `Connected · Account ${metaAdAccountId}` : 'Not connected'}
+              </div>
+            </div>
+            <span className={`badge ${metaAdAccountId && metaTokenSet ? 'badge-paid' : 'badge-failed'}`}>
+              {metaAdAccountId && metaTokenSet ? '● Connected' : '○ Not connected'}
+            </span>
+          </div>
+
+          {metaMsg && (
+            <div className={`alert ${metaMsg.type === 'success' ? 'alert-success' : 'alert-error'}`} style={{ marginBottom: 16 }}>
+              {metaMsg.type === 'success' ? <CheckCircle size={16} /> : <XCircle size={16} />}
+              <span style={{ fontWeight: 600 }}>{metaMsg.text}</span>
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
+            <div>
+              <label className="form-label" style={{ display: 'block', marginBottom: 4 }}>Ad Account ID</label>
+              <input type="text" placeholder="123456789" value={metaAdAccountId} onChange={e => setMetaAdAccountId(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', outline: 'none' }} />
+              <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 6, lineHeight: 1.5 }}>
+                Just the number — no &quot;act_&quot; prefix. Find in: Meta Business Suite → Ad Account Settings → Ad Account ID.
+              </p>
+            </div>
+            <div>
+              <label className="form-label" style={{ display: 'block', marginBottom: 4 }}>
+                Access Token {metaTokenSet && <span style={{ color: '#007a48', fontWeight: 400 }}>(leave blank to keep existing)</span>}
+              </label>
+              <input type="password" placeholder={metaTokenSet ? '••••••••••••••••' : 'Long-lived access token'} value={metaAccessToken} onChange={e => setMetaAccessToken(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', outline: 'none' }} />
+              <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 6, lineHeight: 1.5 }}>
+                Generate a long-lived token from the Meta Graph API Explorer or a System User in Business Manager.
+              </p>
+            </div>
+          </div>
+
+          <button className="btn btn-dark" onClick={async () => {
+            setSavingMeta(true); setMetaMsg(null)
+            const id = orgId()
+            if (!id) { setMetaMsg({ type: 'error', text: 'No active org found' }); setSavingMeta(false); return }
+            const updates: any = { meta_ad_account_id: metaAdAccountId.replace(/^act_/i, '').trim() || null }
+            if (metaAccessToken) updates.meta_access_token = metaAccessToken
+            else if (!metaAdAccountId.trim()) updates.meta_access_token = null
+            const { error } = await supabase.from('organizations').update(updates).eq('id', id)
+            setSavingMeta(false)
+            if (error) setMetaMsg({ type: 'error', text: error.message })
+            else setMetaMsg({ type: 'success', text: metaAdAccountId ? 'Meta Ads credentials saved' : 'Meta Ads disconnected' })
+            loadData()
+          }} disabled={savingMeta}>
+            {savingMeta ? 'Saving…' : metaAdAccountId ? 'Save Meta Ads' : 'Disconnect Meta Ads'}
+          </button>
+        </Section>
+
         <Section title="Amazon Ad Spend">
           <p style={{ fontSize: '0.8rem', color: 'var(--muted)', marginBottom: 16, lineHeight: 1.5 }}>
             Enter your total Amazon ad spend for a month. The full amount will be included in all ad spend calculations (Total Ad Spend, ROAS, CAC).
@@ -555,7 +626,6 @@ export default function SettingsPage() {
 
         <Section title="Other integrations">
           {[
-            { name: 'Meta Ads', desc: 'Sync ad spend + ROAS', status: 'coming soon' },
             { name: 'Amazon', desc: 'Sync marketplace sales', status: 'coming soon' },
             { name: 'Google Ads', desc: 'Sync campaign performance', status: 'coming soon' },
           ].map(i => (

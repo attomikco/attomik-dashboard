@@ -1,0 +1,149 @@
+import { NextResponse } from 'next/server'
+import { createServiceClient } from '@/lib/supabase/server'
+
+export const maxDuration = 300
+
+const GRAPH_API = 'https://graph.facebook.com/v19.0'
+const FIELDS = 'spend,impressions,clicks,reach,actions,action_values,campaign_name,adset_name,ad_name,cpc,cpm,ctr'
+
+export async function POST(request: Request) {
+  try {
+    const { org_id } = await request.json()
+    if (!org_id) return NextResponse.json({ error: 'org_id required' }, { status: 400 })
+
+    const supabase = createServiceClient()
+
+    // Fetch org credentials
+    const { data: org } = await supabase
+      .from('organizations')
+      .select('meta_ad_account_id, meta_access_token')
+      .eq('id', org_id)
+      .single()
+
+    if (!org?.meta_ad_account_id || !org?.meta_access_token) {
+      return NextResponse.json({ error: 'Meta Ads not configured for this org' }, { status: 400 })
+    }
+
+    const { meta_ad_account_id: adAccountId, meta_access_token: accessToken } = org
+
+    // Determine date preset: this_year if no existing data, last_30d otherwise
+    const { count } = await supabase
+      .from('ad_spend')
+      .select('id', { count: 'exact', head: true })
+      .eq('org_id', org_id)
+      .eq('platform', 'meta')
+
+    const datePreset = (count ?? 0) === 0 ? 'this_year' : 'last_30d'
+
+    // Paginate through Meta Insights API
+    const allRows: any[] = []
+    let nextUrl: string | null = `${GRAPH_API}/act_${adAccountId}/insights?` + new URLSearchParams({
+      access_token: accessToken,
+      fields: FIELDS,
+      time_increment: '1',
+      level: 'ad',
+      date_preset: datePreset,
+      limit: '500',
+    }).toString()
+
+    while (nextUrl) {
+      const apiRes = await fetch(nextUrl)
+      if (!apiRes.ok) {
+        const body = await apiRes.text()
+        throw new Error(`Meta API error ${apiRes.status}: ${body}`)
+      }
+      const apiJson: any = await apiRes.json()
+      allRows.push(...(apiJson.data ?? []))
+      nextUrl = apiJson.paging?.next ?? null
+    }
+
+    if (allRows.length === 0) {
+      // Still update sync timestamp
+      await supabase.from('sync_timestamps').upsert(
+        { org_id, source: 'meta', last_synced_at: new Date().toISOString() },
+        { onConflict: 'org_id,source' }
+      )
+      return NextResponse.json({ inserted: 0, days: 0, campaigns: 0, message: 'No data returned from Meta' })
+    }
+
+    // Map API response to the same row shape the CSV import produces
+    const records = allRows.map(row => {
+      const spend = parseFloat(row.spend ?? '0')
+      const impressions = parseInt(row.impressions ?? '0') || 0
+      const clicks = parseInt(row.clicks ?? '0') || 0
+      const reach = parseInt(row.reach ?? '0') || 0
+      const cpc = parseFloat(row.cpc ?? '0') || 0
+      const cpm = parseFloat(row.cpm ?? '0') || 0
+      const ctr = parseFloat(row.ctr ?? '0') || 0
+
+      const purchaseAction = (row.actions ?? []).find((a: any) => a.action_type === 'purchase')
+      const conversions = parseInt(purchaseAction?.value ?? '0') || 0
+
+      const purchaseValue = (row.action_values ?? []).find((a: any) => a.action_type === 'purchase')
+      const conversionValue = parseFloat(purchaseValue?.value ?? '0') || 0
+
+      return {
+        org_id,
+        platform: 'meta' as const,
+        campaign_name: row.campaign_name ?? 'Unknown',
+        adset_name: row.adset_name ?? null,
+        ad_name: row.ad_name ?? null,
+        spend,
+        impressions,
+        reach,
+        clicks,
+        conversions,
+        conversion_value: conversionValue,
+        cpc: Math.round(cpc * 10000) / 10000,
+        cpm: Math.round(cpm * 10000) / 10000,
+        ctr: Math.round(ctr * 10000) / 10000,
+        date: row.date_start,
+      }
+    }).filter(r => r.spend > 0 || r.impressions > 0)
+
+    if (records.length === 0) {
+      await supabase.from('sync_timestamps').upsert(
+        { org_id, source: 'meta', last_synced_at: new Date().toISOString() },
+        { onConflict: 'org_id,source' }
+      )
+      return NextResponse.json({ inserted: 0, days: 0, campaigns: 0, message: 'No records with spend or impressions' })
+    }
+
+    // Upsert: delete existing rows for these dates, then insert (matches CSV import logic)
+    const dates = Array.from(new Set(records.map(r => r.date)))
+    if (dates.length > 0) {
+      await supabase.from('ad_spend').delete().eq('org_id', org_id).eq('platform', 'meta').in('date', dates)
+    }
+
+    // Insert in batches of 500
+    let insertedCount = 0
+    for (let i = 0; i < records.length; i += 500) {
+      const { data, error: dbError } = await supabase.from('ad_spend').insert(records.slice(i, i + 500)).select()
+      if (dbError) throw dbError
+      insertedCount += data?.length ?? 0
+    }
+
+    // Update sync timestamp
+    await supabase.from('sync_timestamps').upsert(
+      { org_id, source: 'meta', last_synced_at: new Date().toISOString() },
+      { onConflict: 'org_id,source' }
+    )
+
+    return NextResponse.json({
+      inserted: insertedCount,
+      days: dates.length,
+      campaigns: Array.from(new Set(records.map(r => r.campaign_name))).length,
+      adsets: Array.from(new Set(records.map(r => r.adset_name).filter(Boolean))).length,
+      ads: Array.from(new Set(records.map(r => r.ad_name).filter(Boolean))).length,
+      total_spend: `$${records.reduce((s, r) => s + r.spend, 0).toFixed(2)}`,
+      date_preset: datePreset,
+      message: datePreset === 'this_year'
+        ? `Initial sync — ${insertedCount} records imported (year to date)`
+        : `Synced last 30 days — ${insertedCount} records`,
+    })
+
+  } catch (err: any) {
+    console.error('Meta sync error:', err)
+    return NextResponse.json({ error: err.message ?? 'Sync failed' }, { status: 500 })
+  }
+}

@@ -17,6 +17,7 @@ import AIInsights from '@/components/AIInsights'
 import EmailInsights from '@/components/EmailInsights'
 import AskAttomik from '@/components/AskAttomik'
 import ChannelSalesChart from '@/components/ChannelSalesChart'
+import { RefreshCw } from 'lucide-react'
 
 function pct(current: number, prev: number) {
   if (prev === 0) return current > 0 ? 100 : 0
@@ -231,6 +232,8 @@ export default function AnalyticsPage() {
   const [activeOrgId, setActiveOrgId] = useState<string>('')
   const [isSuperadmin, setIsSuperadmin] = useState(false)
   const [syncTimestamps, setSyncTimestamps] = useState<Record<string, string | null>>({ shopify: null, amazon: null, meta: null })
+  const [syncingMeta, setSyncingMeta] = useState(false)
+  const [metaSyncResult, setMetaSyncResult] = useState<{ ok: boolean; text: string } | null>(null)
   const [monthlyTarget, setMonthlyTarget] = useState<any>(null)
   const supabase = createClient()
 
@@ -823,6 +826,27 @@ export default function AnalyticsPage() {
     setLoading(false)
   }
 
+  const handleMetaSync = async () => {
+    if (!activeOrgId) return
+    setSyncingMeta(true)
+    setMetaSyncResult(null)
+    try {
+      const res = await fetch('/api/sync/meta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ org_id: activeOrgId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Sync failed')
+      setMetaSyncResult({ ok: true, text: data.message })
+      setSyncTimestamps(prev => ({ ...prev, meta: new Date().toISOString() }))
+      fetchData()
+    } catch (err: any) {
+      setMetaSyncResult({ ok: false, text: err.message })
+    }
+    setSyncingMeta(false)
+  }
+
   const d = data
   const fmtDate = (s: string) => new Date(s + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   const { prevStart, prevEnd: prevEndLabel } = getPrevPeriod(range.start, range.end, range.compareMode, range.customCompareStart, range.customCompareEnd)
@@ -873,7 +897,7 @@ export default function AnalyticsPage() {
         {[
           { label: 'Shopify Sync', ts: syncTimestamps.shopify },
           { label: 'Amazon Import', ts: syncTimestamps.amazon },
-          { label: 'Meta Ads Import', ts: syncTimestamps.meta },
+          { label: 'Meta Ads', ts: syncTimestamps.meta },
         ].map(({ label, ts }) => (
           <span key={label} style={{ color: '#999', display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: ts ? '#00ff97' : '#444', display: 'inline-block' }} />
@@ -886,6 +910,31 @@ export default function AnalyticsPage() {
             </span>
           </span>
         ))}
+        {isSuperadmin && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
+            <button
+              onClick={handleMetaSync}
+              disabled={syncingMeta}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                padding: '4px 10px', background: 'none', border: '1px solid #333',
+                borderRadius: 4, fontFamily: 'var(--font-dm-mono), DM Mono, monospace',
+                fontWeight: 600, fontSize: '0.7rem',
+                color: syncingMeta ? '#666' : '#00ff97',
+                cursor: syncingMeta ? 'not-allowed' : 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <RefreshCw size={11} style={{ animation: syncingMeta ? 'spin 1s linear infinite' : 'none' }} />
+              {syncingMeta ? 'Syncing…' : 'Sync Meta Ads'}
+            </button>
+            {metaSyncResult && (
+              <span style={{ fontSize: '0.7rem', fontWeight: 600, fontFamily: 'var(--font-dm-mono), DM Mono, monospace', color: metaSyncResult.ok ? '#00ff97' : '#b91c1c', whiteSpace: 'nowrap' }}>
+                {metaSyncResult.text}
+              </span>
+            )}
+          </span>
+        )}
       </div>
 
       <div className="analytics-content page-content" style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 80px' }}>
