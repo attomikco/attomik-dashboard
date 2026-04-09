@@ -421,17 +421,20 @@ export default function AnalyticsPage() {
 
     // Fetch ad_spend via API route (uses service client to bypass RLS)
     const fetchAllAdSpend = async (cols: string, gteDate: string, lteDate: string) => {
+      console.log('[fetchAllAdSpend] v2 — calling /api/ad-spend/query', { orgId, cols, gteDate, lteDate })
       try {
         const res = await fetch('/api/ad-spend/query', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ org_id: orgId, cols, gte_date: gteDate, lte_date: lteDate }),
         })
+        const json = await res.json()
         if (!res.ok) {
-          console.error('[fetchAllAdSpend] API error:', res.status)
+          console.error('[fetchAllAdSpend] API error:', res.status, json)
           return { data: [] }
         }
-        return await res.json()
+        console.log('[fetchAllAdSpend] got', json.data?.length ?? 0, 'rows')
+        return json
       } catch (err) {
         console.error('[fetchAllAdSpend] fetch error:', err)
         return { data: [] }

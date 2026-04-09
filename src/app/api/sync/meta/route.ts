@@ -152,28 +152,36 @@ export async function POST(request: Request) {
 
     console.log('[meta-sync] total inserted:', insertedCount)
 
-    // Verify what's in the DB for today
-    const today = new Date().toISOString().split('T')[0]
-    const { data: todayRows, error: todayErr } = await supabase.from('ad_spend').select('spend,campaign_name,date')
-      .eq('org_id', org_id).eq('platform', 'meta').eq('date', today)
-    const todayTotal = (todayRows ?? []).reduce((s: number, r: any) => s + Number(r.spend), 0)
-    console.log('[meta-sync] DB verification for today (' + today + '):', {
-      rows: todayRows?.length ?? 0,
-      total_spend: todayTotal,
-      error: todayErr,
-      sample: todayRows?.slice(0, 3),
+    // Log per-day breakdown from records being inserted
+    const spendByDate: Record<string, { rows: number; spend: number }> = {}
+    records.forEach(r => {
+      if (!spendByDate[r.date]) spendByDate[r.date] = { rows: 0, spend: 0 }
+      spendByDate[r.date].rows++
+      spendByDate[r.date].spend += r.spend
     })
+    console.log('[meta-sync] records by date:', JSON.stringify(spendByDate))
 
-    // Also log per-day spend breakdown
-    const spendByDate: Record<string, number> = {}
-    records.forEach(r => { spendByDate[r.date] = (spendByDate[r.date] ?? 0) + r.spend })
-    console.log('[meta-sync] spend by date:', spendByDate)
+    // Verify what's in the DB — check last 3 dates
+    const sortedDates = Object.keys(spendByDate).sort()
+    const recentDates = sortedDates.slice(-3)
+    for (const d of recentDates) {
+      const { data: dbRows, count: dbCount } = await supabase.from('ad_spend')
+        .select('spend', { count: 'exact' })
+        .eq('org_id', org_id).eq('platform', 'meta').eq('date', d)
+      const dbTotal = (dbRows ?? []).reduce((s: number, r: any) => s + Number(r.spend), 0)
+      console.log(`[meta-sync] DB check date=${d}: ${dbCount} rows, $${dbTotal.toFixed(2)} (expected ${spendByDate[d].rows} rows, $${spendByDate[d].spend.toFixed(2)})`)
+    }
+
+    // Also log sample date_start values from raw API to check format
+    const sampleDateStarts = allRows.slice(0, 5).map((r: any) => ({ date_start: r.date_start, date_stop: r.date_stop }))
+    console.log('[meta-sync] sample raw API date fields:', sampleDateStarts)
 
     // Update sync timestamp
-    await supabase.from('sync_timestamps').upsert(
+    const { error: tsError } = await supabase.from('sync_timestamps').upsert(
       { org_id, source: 'meta', last_synced_at: new Date().toISOString() },
       { onConflict: 'org_id,source' }
     )
+    console.log('[meta-sync] sync_timestamps upsert:', { org_id, error: tsError })
 
     const totalSpend = records.reduce((s, r) => s + r.spend, 0)
 
