@@ -204,25 +204,23 @@ export default function MetaAdsPage() {
     // Calc prev period dates
     const { prevStart, prevEnd } = getComparisonPeriod(range.start, range.end, range.compareMode, range.customCompareStart, range.customCompareEnd)
 
-    // Paginated fetch to bypass Supabase row limit
-    const fetchAllAdSpend = async (cols: string, gteDate: string, lteDate: string) => {
-      const size = 1000
-      let from = 0, all: any[] = []
-      while (true) {
-        const { data: page } = await supabase.from('ad_spend').select(cols)
-          .eq('org_id', orgId).eq('platform', 'meta').gte('date', gteDate).lte('date', lteDate)
-          .order('date', { ascending: true }).range(from, from + size - 1)
-        if (!page || page.length === 0) break
-        all = all.concat(page)
-        if (page.length < size) break
-        from += size
-      }
-      return all
+    // Fetch ad_spend via API route (uses service client to bypass RLS)
+    const fetchAllAdSpend = async (cols: string, gteDate: string, lteDate: string, platform?: string) => {
+      try {
+        const res = await fetch('/api/ad-spend/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ org_id: orgId, cols, gte_date: gteDate, lte_date: lteDate, platform }),
+        })
+        if (!res.ok) return []
+        const json = await res.json()
+        return json.data ?? []
+      } catch { return [] }
     }
 
     const [data, prevData] = await Promise.all([
-      fetchAllAdSpend('campaign_name, adset_name, ad_name, spend, impressions, reach, clicks, conversions, conversion_value, cpc, cpm, ctr, date', range.start, range.end),
-      fetchAllAdSpend('spend, clicks, conversions, conversion_value, impressions, reach', prevStart, prevEnd),
+      fetchAllAdSpend('campaign_name, adset_name, ad_name, spend, impressions, reach, clicks, conversions, conversion_value, cpc, cpm, ctr, date', range.start, range.end, 'meta'),
+      fetchAllAdSpend('spend, clicks, conversions, conversion_value, impressions, reach', prevStart, prevEnd, 'meta'),
     ])
 
     const rows = (data ?? []) as AdRow[]

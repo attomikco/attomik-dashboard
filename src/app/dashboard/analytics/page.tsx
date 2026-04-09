@@ -419,21 +419,23 @@ export default function AnalyticsPage() {
     const fetchAmazon = (gte: string, lte: string, cols: string) =>
       fetchAllOrders(gte, lte, cols).then(orders => orders.filter(o => o.source === 'amazon'))
 
-    // Paginated fetch to bypass Supabase row limit for ad_spend
+    // Fetch ad_spend via API route (uses service client to bypass RLS)
     const fetchAllAdSpend = async (cols: string, gteDate: string, lteDate: string) => {
-      const size = 1000
-      let from = 0, all: any[] = []
-      while (true) {
-        const { data, error } = await supabase.from('ad_spend').select(cols)
-          .eq('org_id', orgId).gte('date', gteDate).lte('date', lteDate)
-          .order('date', { ascending: true }).range(from, from + size - 1)
-        if (error) { console.error('[fetchAllAdSpend] Supabase error:', error, { from, gteDate, lteDate }); break }
-        if (!data || data.length === 0) break
-        all = all.concat(data)
-        if (data.length < size) break
-        from += size
+      try {
+        const res = await fetch('/api/ad-spend/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ org_id: orgId, cols, gte_date: gteDate, lte_date: lteDate }),
+        })
+        if (!res.ok) {
+          console.error('[fetchAllAdSpend] API error:', res.status)
+          return { data: [] }
+        }
+        return await res.json()
+      } catch (err) {
+        console.error('[fetchAllAdSpend] fetch error:', err)
+        return { data: [] }
       }
-      return { data: all }
     }
 
     const [curNonAmazon, curAmazon, prevNonAmazon, prevAmazon, curS, prevS, allOrdRaw, allSpRaw] = await Promise.all([
@@ -444,20 +446,7 @@ export default function AnalyticsPage() {
       fetchAllAdSpend('spend,platform,impressions,clicks,conversions,date', resolvedRange.start, resolvedRange.end),
       fetchAllAdSpend('spend,platform,impressions,clicks,conversions', prevStart, prevEnd),
       fetchAllOrders(sixMonthsAgo, new Date().toISOString(), orderColsLight),
-      (async () => {
-        const all: any[] = []
-        let from = 0
-        while (true) {
-          const { data } = await supabase.from('ad_spend').select('spend,date')
-            .eq('org_id', orgId).gte('date', sixMonthsAgo.split('T')[0])
-            .order('date', { ascending: true }).range(from, from + 999)
-          if (!data || data.length === 0) break
-          all.push(...data)
-          if (data.length < 1000) break
-          from += 1000
-        }
-        return { data: all }
-      })(),
+      fetchAllAdSpend('spend,date', sixMonthsAgo.split('T')[0], resolvedRange.end),
     ])
 
     const cur  = [...curNonAmazon, ...curAmazon]
