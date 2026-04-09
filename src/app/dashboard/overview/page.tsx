@@ -19,9 +19,10 @@ function fmt$(n: number) {
 function fmtN(n: number) { return n >= 1_000 ? `${(n / 1_000).toFixed(1)}k` : String(n) }
 function pct(a: number, b: number) { return b === 0 ? (a > 0 ? 100 : 0) : ((a - b) / b) * 100 }
 function dateInTz(tz: string, offsetDays = 0): string {
-  const d = new Date()
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: tz })
+  const d = new Date(todayStr + 'T12:00:00')
   if (offsetDays) d.setDate(d.getDate() + offsetDays)
-  return d.toLocaleDateString('en-CA', { timeZone: tz })
+  return d.toLocaleDateString('en-CA')
 }
 const defaultRange: DateRange = {
   start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toLocaleDateString('en-CA'),

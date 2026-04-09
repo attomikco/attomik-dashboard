@@ -192,15 +192,15 @@ function ChartCard({ title, subtitle, children, dark }: { title: string; subtitl
 
 // Get YYYY-MM-DD date string in a specific timezone
 function dateInTz(tz: string, offsetDays = 0): string {
-  const d = new Date()
+  // Get today's date string in the org's timezone first, then apply offset
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: tz }) // YYYY-MM-DD in org tz
+  const d = new Date(todayStr + 'T12:00:00') // noon to avoid DST edge cases
   if (offsetDays) d.setDate(d.getDate() + offsetDays)
-  return d.toLocaleDateString('en-CA', { timeZone: tz })
+  return d.toLocaleDateString('en-CA') // format back to YYYY-MM-DD
 }
 function monthStartInTz(tz: string): string {
-  const d = new Date()
-  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d)
-  const p = Object.fromEntries(parts.filter(x => x.type !== 'literal').map(x => [x.type, x.value]))
-  return `${p.year}-${p.month}-01`
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: tz })
+  return todayStr.slice(0, 8) + '01'
 }
 
 // Default range uses UTC until we know the org timezone (updated after fetch)
