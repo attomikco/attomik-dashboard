@@ -237,6 +237,7 @@ export default function OverviewPage() {
         const prevAov     = prevOrdCnt > 0 ? prevNetRev / prevOrdCnt : 0
         const adSpend     = (fetched.curSpend ?? []).reduce((s: number, r: any) => s + Number(r.spend), 0)
         const prevAdSpend = (fetched.prevSpend ?? []).reduce((s: number, r: any) => s + Number(r.spend), 0)
+        console.log(`[overview] ${org.name}: adSpend=$${adSpend.toFixed(2)}, rows=${(fetched.curSpend ?? []).length}, range=${orgCurStart}→${orgCurEnd}`)
         const roas        = adSpend > 0 ? revenue / adSpend : 0
         const prevRoas    = prevAdSpend > 0 ? prevRevenue / prevAdSpend : 0
         const shopifyRev  = cur.filter(o => o.source === 'shopify').reduce((s, o) => s + Number(o.total_price || 0), 0)
@@ -295,10 +296,12 @@ export default function OverviewPage() {
     setSyncTimestamps(latest)
   }
 
-  const refreshKpis = () => {
+  const refreshKpis = async () => {
+    console.log('[overview] refreshKpis called, orgs:', orgs.length, 'range:', range.label, range.start, range.end)
     const current = orgs.map(o => ({ ...o, loading: true }))
     setOrgs(current)
-    fetchAllKpis(current, range, false)
+    await fetchAllKpis(current, range, false)
+    console.log('[overview] refreshKpis complete')
   }
 
   const handleSyncShopify = async () => {
@@ -313,7 +316,7 @@ export default function OverviewPage() {
       setShopifySyncResult({ ok: false, text: err.message })
     }
     await refreshTimestamps()
-    refreshKpis()
+    await refreshKpis()
     setSyncingShopify(false)
   }
 
@@ -342,7 +345,7 @@ export default function OverviewPage() {
       setMetaSyncResult({ ok: false, text: err.message })
     }
     await refreshTimestamps()
-    refreshKpis()
+    await refreshKpis()
     setSyncingMeta(false)
   }
 
