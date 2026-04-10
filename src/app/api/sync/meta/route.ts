@@ -41,11 +41,10 @@ export async function POST(request: Request) {
       .eq('platform', 'meta')
 
     const datePreset = (count ?? 0) === 0 ? 'this_year' : 'last_30d'
-    console.log('[meta-sync] existing row count:', count, '→ date_preset:', datePreset)
 
     // Paginate through Meta Insights API
     const allRows: any[] = []
-    let nextUrl: string | null = `${GRAPH_API}/act_${adAccountId}/insights?` + new URLSearchParams({
+    const requestUrl = `${GRAPH_API}/act_${adAccountId}/insights?` + new URLSearchParams({
       access_token: accessToken,
       fields: FIELDS,
       time_increment: '1',
@@ -53,40 +52,47 @@ export async function POST(request: Request) {
       date_preset: datePreset,
       limit: '500',
     }).toString()
+    const debugUrl = requestUrl.replace(/access_token=[^&]+/, 'access_token=REDACTED')
+    let nextUrl: string | null = requestUrl
+    let rawMetaResponse: string | null = null
+    let metaHttpStatus: number | null = null
 
     while (nextUrl) {
-      // Log the full request URL (redact token for safety)
-      const redactedUrl = nextUrl.replace(/access_token=[^&]+/, 'access_token=REDACTED')
-      console.log('[meta-sync] fetching URL:', redactedUrl)
-
       const apiRes = await fetch(nextUrl)
       const rawText = await apiRes.text()
-      console.log('[meta-sync] raw response status:', apiRes.status, 'body length:', rawText.length)
-      console.log('[meta-sync] raw response body (first 2000 chars):', rawText.slice(0, 2000))
+      if (!rawMetaResponse) {
+        rawMetaResponse = rawText.slice(0, 1000)
+        metaHttpStatus = apiRes.status
+      }
 
       if (!apiRes.ok) {
         throw new Error(`Meta API error ${apiRes.status}: ${rawText}`)
       }
       const apiJson: any = JSON.parse(rawText)
-      console.log('[meta-sync] API page response:', {
-        data_count: apiJson.data?.length ?? 0,
-        has_paging: !!apiJson.paging?.next,
-        sample_row: apiJson.data?.[0] ?? null,
-        error: apiJson.error ?? null,
-      })
+
+      // Check for error inside 200 response (Meta does this with expired tokens)
+      if (apiJson.error) {
+        return NextResponse.json({
+          error: apiJson.error.message ?? 'Unknown Meta error',
+          meta_error: apiJson.error,
+          debug: { url: debugUrl, ad_account_id: `act_${adAccountId}`, date_preset: datePreset, existing_rows: count, token_length: accessToken.length },
+        }, { status: 502 })
+      }
+
       allRows.push(...(apiJson.data ?? []))
       nextUrl = apiJson.paging?.next ?? null
     }
 
-    console.log('[meta-sync] total rows from API:', allRows.length)
-
     if (allRows.length === 0) {
-      // Still update sync timestamp
       await supabase.from('sync_timestamps').upsert(
         { org_id, source: 'meta', last_synced_at: new Date().toISOString() },
         { onConflict: 'org_id,source' }
       )
-      return NextResponse.json({ inserted: 0, days: 0, campaigns: 0, message: 'No data returned from Meta' })
+      return NextResponse.json({
+        inserted: 0, days: 0, campaigns: 0,
+        message: 'No data returned from Meta',
+        debug: { url: debugUrl, ad_account_id: `act_${adAccountId}`, date_preset: datePreset, existing_rows: count, token_length: accessToken.length, meta_http_status: metaHttpStatus, raw_response_preview: rawMetaResponse },
+      })
     }
 
     // Map API response to the same row shape the CSV import produces

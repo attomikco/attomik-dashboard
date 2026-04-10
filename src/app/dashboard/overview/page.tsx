@@ -334,9 +334,10 @@ export default function OverviewPage() {
             body: JSON.stringify({ org_id: org.id }),
           })
           const data = await res.json()
+          console.log(`[meta-sync] ${org.name}:`, { status: res.status, ...data })
           if (data.skipped) { skipped++; continue }
           if (res.ok && data.inserted > 0) synced++
-        } catch {}
+        } catch (err) { console.error(`[meta-sync] ${org.name} failed:`, err) }
       }
       const parts: string[] = []
       if (synced > 0) parts.push(`${synced} org${synced > 1 ? 's' : ''} synced`)
