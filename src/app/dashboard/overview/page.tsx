@@ -283,17 +283,18 @@ export default function OverviewPage() {
     const latest: Record<string, string | null> = { shopify: null, meta: null }
     await Promise.all(ids.map(async (id) => {
       try {
-        const res = await fetch(`/api/sync/timestamps?org_id=${id}`, { cache: 'no-store' })
-        if (!res.ok) return
+        const res = await fetch(`/api/sync/timestamps?org_id=${id}&_t=${Date.now()}`, { cache: 'no-store' })
+        if (!res.ok) { console.warn('[refreshTimestamps] failed for', id, res.status); return }
         const rows: { source: string; last_synced_at: string }[] = await res.json()
+        console.log('[refreshTimestamps] org', id, 'rows:', rows)
         for (const row of rows) {
           if (row.source in latest && (!latest[row.source] || row.last_synced_at > latest[row.source]!)) {
             latest[row.source] = row.last_synced_at
           }
         }
-      } catch {}
+      } catch (err) { console.error('[refreshTimestamps] error for', id, err) }
     }))
-    console.log('[overview] refreshTimestamps:', latest)
+    console.log('[overview] refreshTimestamps result:', latest)
     setSyncTimestamps(latest)
   }
 
