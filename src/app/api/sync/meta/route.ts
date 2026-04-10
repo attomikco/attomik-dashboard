@@ -33,14 +33,28 @@ export async function POST(request: Request) {
 
     const { meta_ad_account_id: adAccountId, meta_access_token: accessToken } = org
 
-    // Determine date preset: this_year if no existing data, last_30d otherwise
+    // Determine date range: this_year if no existing data, last 30 days INCLUDING today otherwise
     const { count } = await supabase
       .from('ad_spend')
       .select('id', { count: 'exact', head: true })
       .eq('org_id', org_id)
       .eq('platform', 'meta')
 
-    const datePreset = (count ?? 0) === 0 ? 'this_year' : 'last_30d'
+    const today = new Date().toISOString().split('T')[0]
+    const isInitial = (count ?? 0) === 0
+
+    // Build explicit date range so we always include today
+    const timeRange: Record<string, string> = {}
+    if (isInitial) {
+      timeRange.date_preset = 'this_year'
+    } else {
+      const since = new Date()
+      since.setDate(since.getDate() - 30)
+      timeRange.time_range = JSON.stringify({
+        since: since.toISOString().split('T')[0],
+        until: today,
+      })
+    }
 
     // Paginate through Meta Insights API
     const allRows: any[] = []
@@ -49,7 +63,7 @@ export async function POST(request: Request) {
       fields: FIELDS,
       time_increment: '1',
       level: 'ad',
-      date_preset: datePreset,
+      ...timeRange,
       limit: '500',
     }).toString()
     const debugUrl = requestUrl.replace(/access_token=[^&]+/, 'access_token=REDACTED')

@@ -317,7 +317,8 @@ export default function OverviewPage() {
     } catch (err: any) {
       setShopifySyncResult({ ok: false, text: err.message })
     }
-    await refreshTimestamps()
+    const now = new Date().toISOString()
+    setSyncTimestamps(prev => ({ ...prev, shopify: now }))
     await refreshKpis()
     setSyncingShopify(false)
   }
@@ -347,7 +348,8 @@ export default function OverviewPage() {
     } catch (err: any) {
       setMetaSyncResult({ ok: false, text: err.message })
     }
-    await refreshTimestamps()
+    const now = new Date().toISOString()
+    setSyncTimestamps(prev => ({ ...prev, meta: now }))
     await refreshKpis()
     setSyncingMeta(false)
   }
