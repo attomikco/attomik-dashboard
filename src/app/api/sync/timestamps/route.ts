@@ -17,5 +17,11 @@ export async function GET(request: Request) {
   console.log('[sync-timestamps API] org_id:', orgId, 'data:', data, 'error:', error)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data ?? [])
+  return NextResponse.json(data ?? [], {
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'CDN-Cache-Control': 'no-store',
+      'Vercel-CDN-Cache-Control': 'no-store',
+    },
+  })
 }
