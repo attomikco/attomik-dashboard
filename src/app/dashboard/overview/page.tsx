@@ -312,6 +312,7 @@ export default function OverviewPage() {
     try {
       const res = await fetch('/api/cron/sync-shopify')
       const data = await res.json()
+      console.log('[shopify-sync] response:', data)
       if (!res.ok) throw new Error(data.error || 'Sync failed')
       setShopifySyncResult({ ok: true, text: data.message })
     } catch (err: any) {

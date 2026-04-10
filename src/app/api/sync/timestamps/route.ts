@@ -17,11 +17,18 @@ export async function GET(request: Request) {
   console.log('[sync-timestamps API] org_id:', orgId, 'data:', data, 'error:', error)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Temporary: log what the DB returns so we can debug in the browser
+  const debugRows = (data ?? []).map((r: any) => ({ ...r, _fetched_at: new Date().toISOString() }))
+  console.log('[sync-timestamps API] returning', debugRows.length, 'rows, fetched_at:', new Date().toISOString())
+
   return NextResponse.json(data ?? [], {
     headers: {
-      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
       'CDN-Cache-Control': 'no-store',
       'Vercel-CDN-Cache-Control': 'no-store',
+      'Pragma': 'no-cache',
+      'Expires': '0',
     },
   })
 }
