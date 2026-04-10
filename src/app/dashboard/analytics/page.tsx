@@ -282,19 +282,22 @@ export default function AnalyticsPage() {
     if (orgData?.name) { setOrgName(orgData.name); document.title = `${orgData.name} Analytics | Attomik` }
     if (orgData?.shopify_synced_at) setLastSynced(orgData.shopify_synced_at)
 
-    // Fetch sync timestamps for all sources (via API to bypass RLS)
+    // Fetch sync timestamps — merge localStorage (immune to replica lag) with API
+    const stored = localStorage.getItem('syncTimestamps')
+    const localTs: Record<string, string | null> = stored ? JSON.parse(stored) : {}
     fetch(`/api/sync/timestamps?org_id=${orgId}&_t=${Date.now()}`, { cache: 'no-store' as RequestCache })
-      .then(r => {
-        console.log('[sync-timestamps] response status:', r.status)
-        return r.ok ? r.json() : r.json().then(e => { console.error('[sync-timestamps] API error:', e); return [] })
-      })
+      .then(r => r.ok ? r.json() : [])
       .then((rows: { source: string; last_synced_at: string }[]) => {
-        console.log('[sync-timestamps] rows:', rows)
         const ts: Record<string, string | null> = { shopify: null, amazon: null, meta: null }
         for (const row of rows) ts[row.source] = row.last_synced_at
+        // Use whichever is newer: API or localStorage
+        for (const key of Object.keys(ts)) {
+          if (localTs[key] && (!ts[key] || localTs[key]! > ts[key]!)) ts[key] = localTs[key]
+        }
+        localStorage.setItem('syncTimestamps', JSON.stringify(ts))
         setSyncTimestamps(ts)
       })
-      .catch((e) => console.error('[sync-timestamps] fetch error:', e))
+      .catch(() => { if (stored) setSyncTimestamps({ shopify: null, amazon: null, meta: null, ...localTs }) })
 
     // Fetch monthly targets for the selected period (via API to bypass RLS)
     // Parse YYYY-MM-DD directly to avoid UTC-vs-local timezone shift
