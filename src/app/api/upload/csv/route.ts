@@ -192,10 +192,8 @@ export async function POST(request: Request) {
       // Detect platform for sync timestamp (meta or google)
       const platform = records[0]?.platform
       if (platform === 'meta') {
-        await serviceClient.from('sync_timestamps').upsert(
-          { org_id: orgId, source: 'meta', last_synced_at: new Date().toISOString() },
-          { onConflict: 'org_id,source' }
-        )
+        await serviceClient.from('sync_timestamps').delete().eq('org_id', orgId).eq('source', 'meta')
+        await serviceClient.from('sync_timestamps').insert({ org_id: orgId, source: 'meta', last_synced_at: new Date().toISOString() })
       }
 
     } else if (fileType === 'amazon_sales') {
@@ -209,10 +207,8 @@ export async function POST(request: Request) {
       skipped = records.length - inserted
 
       // Track Amazon sync timestamp
-      await serviceClient.from('sync_timestamps').upsert(
-        { org_id: orgId, source: 'amazon', last_synced_at: new Date().toISOString() },
-        { onConflict: 'org_id,source' }
-      )
+      await serviceClient.from('sync_timestamps').delete().eq('org_id', orgId).eq('source', 'amazon')
+      await serviceClient.from('sync_timestamps').insert({ org_id: orgId, source: 'amazon', last_synced_at: new Date().toISOString() })
 
     } else {
       return NextResponse.json({ error: 'Could not detect file type. Make sure your CSV has order or ad spend columns.' }, { status: 400 })

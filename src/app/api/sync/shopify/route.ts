@@ -107,10 +107,8 @@ export async function POST(request: Request) {
       await supabase.from('organizations')
         .update({ shopify_synced_at: new Date().toISOString() })
         .eq('id', org_id)
-      await supabase.from('sync_timestamps').upsert(
-        { org_id, source: 'shopify', last_synced_at: new Date().toISOString() },
-        { onConflict: 'org_id,source' }
-      )
+      await supabase.from('sync_timestamps').delete().eq('org_id', org_id).eq('source', 'shopify')
+      await supabase.from('sync_timestamps').insert({ org_id, source: 'shopify', last_synced_at: new Date().toISOString() })
       return NextResponse.json({ synced: 0, inserted: 0, message: 'Already up to date' })
     }
 
@@ -194,10 +192,8 @@ export async function POST(request: Request) {
       .eq('id', org_id)
 
     // Track sync timestamp
-    await supabase.from('sync_timestamps').upsert(
-      { org_id, source: 'shopify', last_synced_at: new Date().toISOString() },
-      { onConflict: 'org_id,source' }
-    )
+    await supabase.from('sync_timestamps').delete().eq('org_id', org_id).eq('source', 'shopify')
+    await supabase.from('sync_timestamps').insert({ org_id, source: 'shopify', last_synced_at: new Date().toISOString() })
 
     const subCount = rows.filter(r => r.is_subscription).length
     console.log(`[sync] ${org_id}: ${rows.length} orders, ${subCount} subscriptions`)

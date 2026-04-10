@@ -98,10 +98,8 @@ export async function POST(request: Request) {
     }
 
     if (allRows.length === 0) {
-      await supabase.from('sync_timestamps').upsert(
-        { org_id, source: 'meta', last_synced_at: new Date().toISOString() },
-        { onConflict: 'org_id,source' }
-      )
+      await supabase.from('sync_timestamps').delete().eq('org_id', org_id).eq('source', 'meta')
+      await supabase.from('sync_timestamps').insert({ org_id, source: 'meta', last_synced_at: new Date().toISOString() })
       return NextResponse.json({
         inserted: 0, days: 0, campaigns: 0,
         message: 'No data returned from Meta',
@@ -147,10 +145,8 @@ export async function POST(request: Request) {
     console.log('[meta-sync] mapped records:', records.length, 'sample:', records[0] ?? null)
 
     if (records.length === 0) {
-      await supabase.from('sync_timestamps').upsert(
-        { org_id, source: 'meta', last_synced_at: new Date().toISOString() },
-        { onConflict: 'org_id,source' }
-      )
+      await supabase.from('sync_timestamps').delete().eq('org_id', org_id).eq('source', 'meta')
+      await supabase.from('sync_timestamps').insert({ org_id, source: 'meta', last_synced_at: new Date().toISOString() })
       return NextResponse.json({ inserted: 0, days: 0, campaigns: 0, message: 'No records with spend or impressions' })
     }
 
@@ -204,11 +200,8 @@ export async function POST(request: Request) {
     console.log('[meta-sync] sample raw API date fields:', sampleDateStarts)
 
     // Update sync timestamp
-    const { error: tsError } = await supabase.from('sync_timestamps').upsert(
-      { org_id, source: 'meta', last_synced_at: new Date().toISOString() },
-      { onConflict: 'org_id,source' }
-    )
-    console.log('[meta-sync] sync_timestamps upsert:', { org_id, error: tsError })
+    await supabase.from('sync_timestamps').delete().eq('org_id', org_id).eq('source', 'meta')
+    await supabase.from('sync_timestamps').insert({ org_id, source: 'meta', last_synced_at: new Date().toISOString() })
 
     const totalSpend = records.reduce((s, r) => s + r.spend, 0)
     const latestDate = sortedDates[sortedDates.length - 1] ?? ''

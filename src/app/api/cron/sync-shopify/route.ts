@@ -48,10 +48,8 @@ async function syncOrg(orgId: string, org: any, supabase: any): Promise<{ orgId:
 
     if (allOrders.length === 0) {
       await supabase.from('organizations').update({ shopify_synced_at: new Date().toISOString() }).eq('id', orgId)
-      await supabase.from('sync_timestamps').upsert(
-        { org_id: orgId, source: 'shopify', last_synced_at: new Date().toISOString() },
-        { onConflict: 'org_id,source' }
-      )
+      await supabase.from('sync_timestamps').delete().eq('org_id', orgId).eq('source', 'shopify')
+      await supabase.from('sync_timestamps').insert({ org_id: orgId, source: 'shopify', last_synced_at: new Date().toISOString() })
       return { orgId, name: org.name, synced: 0 }
     }
 
@@ -121,13 +119,10 @@ async function syncOrg(orgId: string, org: any, supabase: any): Promise<{ orgId:
     }
 
     await supabase.from('organizations').update({ shopify_synced_at: new Date().toISOString() }).eq('id', orgId)
-    const { error: tsError } = await supabase.from('sync_timestamps').upsert(
-      { org_id: orgId, source: 'shopify', last_synced_at: new Date().toISOString() },
-      { onConflict: 'org_id,source' }
-    )
-    if (tsError) console.error(`[cron] sync_timestamps upsert failed for ${org.name}:`, tsError)
+    await supabase.from('sync_timestamps').delete().eq('org_id', orgId).eq('source', 'shopify')
+    await supabase.from('sync_timestamps').insert({ org_id: orgId, source: 'shopify', last_synced_at: new Date().toISOString() })
 
-    return { orgId, name: org.name, synced: rows.length, tsError: tsError?.message ?? null }
+    return { orgId, name: org.name, synced: rows.length }
   } catch (err: any) {
     console.error(`[cron] Sync failed for ${org.name}:`, err.message)
     return { orgId, name: org.name, synced: 0, error: err.message }

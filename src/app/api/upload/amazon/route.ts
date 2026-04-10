@@ -65,10 +65,8 @@ export async function POST(request: Request) {
     if (dbError) throw dbError
 
     // Track Amazon sync timestamp
-    await serviceClient.from('sync_timestamps').upsert(
-      { org_id: orgId, source: 'amazon', last_synced_at: new Date().toISOString() },
-      { onConflict: 'org_id,source' }
-    )
+    await serviceClient.from('sync_timestamps').delete().eq('org_id', orgId).eq('source', 'amazon')
+    await serviceClient.from('sync_timestamps').insert({ org_id: orgId, source: 'amazon', last_synced_at: new Date().toISOString() })
 
     const totalRevenue = records.reduce((s, r) => s + r.revenue, 0)
     const totalUnits   = records.reduce((s, r) => s + r.units, 0)

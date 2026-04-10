@@ -21,18 +21,17 @@ export async function GET(request: Request) {
   let debugInfo: any = undefined
   if (debug) {
     const testTime = new Date().toISOString()
-    const { data: upsertResult, error: upsertErr } = await supabase
+    const { error: delErr } = await supabase
+      .from('sync_timestamps').delete().eq('org_id', orgId).eq('source', 'shopify')
+    const { data: insertResult, error: insertErr } = await supabase
       .from('sync_timestamps')
-      .upsert(
-        { org_id: orgId, source: 'shopify', last_synced_at: testTime },
-        { onConflict: 'org_id,source' }
-      )
+      .insert({ org_id: orgId, source: 'shopify', last_synced_at: testTime })
       .select()
     const { data: readBack, error: readErr } = await supabase
       .from('sync_timestamps')
       .select('*')
       .eq('org_id', orgId)
-    debugInfo = { testTime, upsertResult, upsertErr, readBack, readErr }
+    debugInfo = { testTime, delErr, insertResult, insertErr, readBack, readErr }
   }
 
   const { data, error } = await supabase
