@@ -283,7 +283,7 @@ export default function AnalyticsPage() {
     if (orgData?.shopify_synced_at) setLastSynced(orgData.shopify_synced_at)
 
     // Fetch sync timestamps for all sources (via API to bypass RLS)
-    fetch(`/api/sync/timestamps?org_id=${orgId}`)
+    fetch(`/api/sync/timestamps?org_id=${orgId}&_t=${Date.now()}`, { cache: 'no-store' as RequestCache })
       .then(r => {
         console.log('[sync-timestamps] response status:', r.status)
         return r.ok ? r.json() : r.json().then(e => { console.error('[sync-timestamps] API error:', e); return [] })
