@@ -45,6 +45,7 @@ export async function POST(request: Request) {
 
     // Build explicit date range so we always include today
     const timeRange: Record<string, string> = {}
+    const datePreset = isInitial ? 'this_year' : 'last_30d'
     if (isInitial) {
       timeRange.date_preset = 'this_year'
     } else {

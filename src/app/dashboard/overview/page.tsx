@@ -350,7 +350,8 @@ export default function OverviewPage() {
   const runMetaSync = async () => {
     setSyncingMeta(true)
     setMetaSyncResult(null)
-    let synced = 0, skipped = 0
+    let synced = 0, skipped = 0, failed = 0, emptyOk = 0
+    const failures: string[] = []
     try {
       for (const org of orgs) {
         try {
@@ -361,14 +362,33 @@ export default function OverviewPage() {
           })
           const data = await res.json()
           console.log(`[meta-sync] ${org.name}:`, { status: res.status, ...data })
+          if (!res.ok || data.error) {
+            failed++
+            const msg = (data.error ?? `HTTP ${res.status}`).toString()
+            // Shorten noisy Meta API errors: keep just the human message
+            const short = msg.match(/"message":"([^"]+)"/)?.[1] ?? msg.slice(0, 120)
+            failures.push(`${org.name}: ${short}`)
+            continue
+          }
           if (data.skipped) { skipped++; continue }
-          if (res.ok && data.inserted > 0) synced++
-        } catch (err) { console.error(`[meta-sync] ${org.name} failed:`, err) }
+          if (data.inserted > 0) { synced++; continue }
+          emptyOk++
+        } catch (err: any) {
+          failed++
+          failures.push(`${org.name}: ${err?.message ?? 'network error'}`)
+          console.error(`[meta-sync] ${org.name} failed:`, err)
+        }
       }
       const parts: string[] = []
-      if (synced > 0) parts.push(`${synced} org${synced > 1 ? 's' : ''} synced`)
-      if (skipped > 0) parts.push(`${skipped} skipped`)
-      setMetaSyncResult({ ok: true, text: parts.join(', ') || 'No orgs to sync' })
+      if (synced > 0) parts.push(`${synced} synced`)
+      if (emptyOk > 0) parts.push(`${emptyOk} up-to-date`)
+      if (skipped > 0) parts.push(`${skipped} not configured`)
+      if (failed > 0) parts.push(`${failed} failed`)
+      const ok = failed === 0
+      const text = parts.length
+        ? parts.join(' · ') + (failures.length ? ` — ${failures[0]}${failures.length > 1 ? ` (+${failures.length - 1} more)` : ''}` : '')
+        : 'No orgs to sync'
+      setMetaSyncResult({ ok, text })
     } catch (err: any) {
       setMetaSyncResult({ ok: false, text: err.message })
     }
