@@ -283,10 +283,11 @@ export default function OverviewPage() {
     const latest: Record<string, string | null> = { shopify: null, meta: null }
     await Promise.all(ids.map(async (id) => {
       try {
-        const res = await fetch(`/api/sync/timestamps?org_id=${id}&_t=${Date.now()}`, { cache: 'no-store' })
+        const res = await fetch(`/api/sync/timestamps?org_id=${id}&_t=${Date.now()}&debug=1`, { cache: 'no-store' })
         if (!res.ok) { console.warn('[refreshTimestamps] failed for', id, res.status); return }
-        const rows: { source: string; last_synced_at: string }[] = await res.json()
-        console.log('[refreshTimestamps] org', id, 'rows:', rows)
+        const json = await res.json()
+        console.log('[refreshTimestamps] org', id, 'full response:', JSON.stringify(json))
+        const rows: { source: string; last_synced_at: string }[] = json.rows ?? json
         for (const row of rows) {
           if (row.source in latest && (!latest[row.source] || row.last_synced_at > latest[row.source]!)) {
             latest[row.source] = row.last_synced_at
