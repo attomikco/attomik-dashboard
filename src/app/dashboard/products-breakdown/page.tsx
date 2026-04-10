@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import DateRangePicker, { DateRange } from '@/components/DateRangePicker'
+import { Skeleton, SkeletonKpiCard } from '@/components/Skeleton'
 import { Package, ArrowUpDown } from 'lucide-react'
 
 const C = { ink: '#000', paper: '#fff', cream: '#f2f2f2', accent: '#00ff97', muted: '#666', border: '#e0e0e0' }
@@ -22,6 +23,8 @@ export default function ProductsBreakdownPage() {
   const [range, setRange] = useState<DateRange>(defaultRange)
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [isRefetching, setIsRefetching] = useState(false)
+  const hasLoadedOnce = useRef(false)
   const [error, setError] = useState<string | null>(null)
   const [orgName, setOrgName] = useState('')
   const [totalRevenue, setTotalRevenue] = useState(0)
@@ -34,10 +37,11 @@ export default function ProductsBreakdownPage() {
   useEffect(() => { fetchData() }, [range])
 
   const fetchData = async () => {
-    setLoading(true)
+    if (hasLoadedOnce.current) setIsRefetching(true)
+    else setLoading(true)
     setError(null)
     const orgId = localStorage.getItem('activeOrgId')
-    if (!orgId) { setLoading(false); return }
+    if (!orgId) { setLoading(false); setIsRefetching(false); return }
 
     try {
       const { data: orgData } = await supabase
@@ -62,6 +66,8 @@ export default function ProductsBreakdownPage() {
       setError(err?.message || 'Something went wrong loading products.')
     } finally {
       setLoading(false)
+      setIsRefetching(false)
+      hasLoadedOnce.current = true
     }
   }
 
@@ -115,7 +121,8 @@ export default function ProductsBreakdownPage() {
         </div>
       </div>
 
-      <div className="page-content">
+      {isRefetching && <div className="page-loading-bar" />}
+      <div className={`page-content${isRefetching ? ' is-refetching' : ''}`}>
         {error ? (
           <div className="alert alert-error" style={{ flexDirection: 'column', marginBottom: 24 }}>
             <p style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: 4 }}>Error loading products</p>
@@ -129,7 +136,25 @@ export default function ProductsBreakdownPage() {
             </button>
           </div>
         ) : loading ? (
-          <div style={{ color: C.muted, textAlign: 'center', padding: '80px 0', fontFamily: 'Barlow, sans-serif' }}>Loading products…</div>
+          <>
+            <div className="products-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
+              {[0, 1, 2].map(i => <SkeletonKpiCard key={i} />)}
+            </div>
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}` }}>
+                <Skeleton width={180} height={16} />
+              </div>
+              {[0, 1, 2, 3, 4, 5, 6, 7].map(i => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '2.5fr 1fr 1fr 1fr 1fr', gap: 16, padding: '14px 20px', borderTop: i > 0 ? '1px solid #f0f0f0' : 'none' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <Skeleton width={40} height={40} radius={6} />
+                    <Skeleton width="70%" height={12} />
+                  </div>
+                  {[0, 1, 2, 3].map(j => <Skeleton key={j} height={14} width="55%" />)}
+                </div>
+              ))}
+            </div>
+          </>
         ) : products.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '80px 24px', border: `2px dashed ${C.border}`, borderRadius: 10 }}>
             <Package size={32} style={{ color: '#ccc', margin: '0 auto 12px', display: 'block' }} />

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import DateRangePicker, { DateRange, getComparisonPeriod } from '@/components/DateRangePicker'
+import { Skeleton, SkeletonKpiCard } from '@/components/Skeleton'
 import RevenueRoasChart from '@/components/RevenueRoasChart'
 import SpendVsSalesChart from '@/components/SpendVsSalesChart'
 import RoasChart from '@/components/RoasChart'
@@ -213,6 +214,8 @@ const defaultRange: DateRange = {
 export default function AnalyticsPage() {
   const [range, setRange] = useState<DateRange>(defaultRange)
   const [loading, setLoading] = useState(true)
+  const [isRefetching, setIsRefetching] = useState(false)
+  const hasLoadedOnce = useRef(false)
   const [data, setData] = useState<any>(null)
   const [revenueRoasData, setRevenueRoasData] = useState<any[]>([])
   const [spendSalesData, setSpendSalesData] = useState<any[]>([])
@@ -246,7 +249,8 @@ export default function AnalyticsPage() {
   }, [])
 
   const fetchData = async () => {
-    setLoading(true)
+    if (hasLoadedOnce.current) setIsRefetching(true)
+    else setLoading(true)
     let orgId = localStorage.getItem('activeOrgId')
     // After fresh login, Sidebar may not have set activeOrgId yet — resolve it
     if (!orgId) {
@@ -260,7 +264,7 @@ export default function AnalyticsPage() {
         }
       }
     }
-    if (!orgId) { setLoading(false); return }
+    if (!orgId) { setLoading(false); setIsRefetching(false); return }
     setActiveOrgId(orgId)
 
     // Fetch user name for personalized greeting (use view-as name if active)
@@ -828,6 +832,8 @@ export default function AnalyticsPage() {
       subAovC, subAovP, subRevPerCustC, subRevPerCustP, subLtvC, subLtvP, monthlySubscribers,
     })
     setLoading(false)
+    setIsRefetching(false)
+    hasLoadedOnce.current = true
   }
 
   const d = data
@@ -895,9 +901,29 @@ export default function AnalyticsPage() {
         ))}
       </div>
 
-      <div className="analytics-content page-content" style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 80px' }}>
+      {isRefetching && <div className="page-loading-bar" />}
+      <div className={`analytics-content page-content${isRefetching ? ' is-refetching' : ''}`} style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 80px' }}>
         {loading ? (
-          <div style={{ color: C.muted, textAlign: 'center', padding: '80px 0', fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontSize: '1rem' }}>Loading analytics…</div>
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+              {[0, 1, 2, 3].map(i => <SkeletonKpiCard key={i} />)}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
+              {[0, 1, 2, 3].map(i => <SkeletonKpiCard key={i} />)}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+              {[0, 1].map(i => (
+                <div key={i} className="card" style={{ padding: 20 }}>
+                  <Skeleton width={160} height={16} style={{ marginBottom: 16 }} />
+                  <Skeleton width="100%" height={240} radius={8} />
+                </div>
+              ))}
+            </div>
+            <div className="card" style={{ padding: 20 }}>
+              <Skeleton width={200} height={16} style={{ marginBottom: 16 }} />
+              <Skeleton width="100%" height={280} radius={8} />
+            </div>
+          </>
         ) : !d ? (
           <div style={{ color: C.muted, textAlign: 'center', padding: '80px 0', fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontSize: '1rem' }}>No data yet. Upload a CSV to get started.</div>
         ) : (<>

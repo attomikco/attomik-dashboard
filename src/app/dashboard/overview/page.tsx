@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, ChevronRight, Building2, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react'
 import DateRangePicker, { DateRange, getComparisonPeriod } from '@/components/DateRangePicker'
+import { Skeleton, SkeletonKpiCard } from '@/components/Skeleton'
 
 // ── helpers ──────────────────────────────────────────────────────────
 const C = {
@@ -91,6 +92,8 @@ export default function OverviewPage() {
   const [orgs, setOrgs] = useState<OrgKpi[]>([])
   const [range, setRange] = useState<DateRange>(defaultRange)
   const [loadingOrgs, setLoadingOrgs] = useState(true)
+  const [isRefetching, setIsRefetching] = useState(false)
+  const hasLoadedOnce = useRef(false)
   const [sortBy, setSortBy] = useState<'revenue' | 'orders' | 'roas' | 'adSpend'>('revenue')
   const [isSuperadmin, setIsSuperadmin] = useState(false)
   const [syncingShopify, setSyncingShopify] = useState(false)
@@ -115,33 +118,48 @@ export default function OverviewPage() {
     let cancelled = false
 
     const run = async () => {
-      setLoadingOrgs(true)
+      const isFirstLoad = !hasLoadedOnce.current
+      if (isFirstLoad) setLoadingOrgs(true)
+      else setIsRefetching(true)
+
       const { data: { user } } = await supabase.auth.getUser()
       if (!user || cancelled) return
 
       const { data: prof } = await supabase.from('profiles').select('is_superadmin').eq('id', user.id).single()
       if (!cancelled) setIsSuperadmin(prof?.is_superadmin ?? false)
 
-      const viewAsUserId = localStorage.getItem('viewAsUserId')
-      const orgRes = await fetch(`/api/overview${viewAsUserId ? `?viewAs=${viewAsUserId}` : ''}`)
-      const orgData = await orgRes.json()
-      if (!orgRes.ok) { setLoadingOrgs(false); return }
-      const orgList: any[] = orgData.orgs ?? []
+      let orgList: any[]
+      if (isFirstLoad) {
+        const viewAsUserId = localStorage.getItem('viewAsUserId')
+        const orgRes = await fetch(`/api/overview${viewAsUserId ? `?viewAs=${viewAsUserId}` : ''}`)
+        const orgData = await orgRes.json()
+        if (!orgRes.ok) { setLoadingOrgs(false); return }
+        orgList = orgData.orgs ?? []
+      } else {
+        orgList = orgs
+      }
 
       if (cancelled) return
 
-      const initial: OrgKpi[] = orgList.map(o => ({
-        ...o, revenue: 0, prevRevenue: 0, orders: 0, prevOrders: 0,
-        aov: 0, prevAov: 0, adSpend: 0, prevAdSpend: 0, roas: 0, prevRoas: 0,
-        shopifyRev: 0, amazonRev: 0, shopifyOrders: 0, prevShopifyOrders: 0,
-        convRate: 0, prevConvRate: 0, loading: true,
-      }))
-      setOrgs(initial)
-      setLoadingOrgs(false)
+      const initial: OrgKpi[] = isFirstLoad
+        ? orgList.map(o => ({
+            ...o, revenue: 0, prevRevenue: 0, orders: 0, prevOrders: 0,
+            aov: 0, prevAov: 0, adSpend: 0, prevAdSpend: 0, roas: 0, prevRoas: 0,
+            shopifyRev: 0, amazonRev: 0, shopifyOrders: 0, prevShopifyOrders: 0,
+            convRate: 0, prevConvRate: 0, loading: true,
+          }))
+        : orgList  // keep existing data visible during refetch
+
+      if (isFirstLoad) {
+        setOrgs(initial)
+        setLoadingOrgs(false)
+      }
 
       if (!cancelled) {
-        fetchAllKpis(initial, range, cancelled)
+        await fetchAllKpis(initial, range, cancelled)
         refreshTimestamps(initial.map(o => o.id))
+        hasLoadedOnce.current = true
+        if (!cancelled) setIsRefetching(false)
       }
     }
 
@@ -308,7 +326,7 @@ export default function OverviewPage() {
     console.log('[overview] refreshKpis complete')
   }
 
-  const handleSyncShopify = async () => {
+  const runShopifySync = async () => {
     setSyncingShopify(true)
     setShopifySyncResult(null)
     try {
@@ -326,11 +344,10 @@ export default function OverviewPage() {
       localStorage.setItem('syncTimestamps', JSON.stringify(next))
       return next
     })
-    await refreshKpis()
     setSyncingShopify(false)
   }
 
-  const handleSyncMeta = async () => {
+  const runMetaSync = async () => {
     setSyncingMeta(true)
     setMetaSyncResult(null)
     let synced = 0, skipped = 0
@@ -361,8 +378,22 @@ export default function OverviewPage() {
       localStorage.setItem('syncTimestamps', JSON.stringify(next))
       return next
     })
-    await refreshKpis()
     setSyncingMeta(false)
+  }
+
+  const handleSyncShopify = async () => {
+    await runShopifySync()
+    await refreshKpis()
+  }
+
+  const handleSyncMeta = async () => {
+    await runMetaSync()
+    await refreshKpis()
+  }
+
+  const handleSyncAll = async () => {
+    await Promise.all([runShopifySync(), runMetaSync()])
+    await refreshKpis()
   }
 
   const openOrg = (org: OrgKpi) => {
@@ -396,6 +427,7 @@ export default function OverviewPage() {
 
   return (
     <div style={{ background: C.paper, minHeight: '100vh' }}>
+      {isRefetching && <div className="page-loading-bar" />}
 
       {/* Topbar */}
       <div className="overview-topbar topbar">
@@ -405,62 +437,6 @@ export default function OverviewPage() {
             <p className="caption" style={{ whiteSpace: 'nowrap', margin: 0 }}>
               {loadingOrgs ? '…' : `${orgs.length} project${orgs.length !== 1 ? 's' : ''}`} · vs {fmtDate(prevStartLabel)} – {fmtDate(prevEndLabel)}
             </p>
-            {isSuperadmin && (
-              <span className="overview-sync" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                <span style={{ color: C.border }}>·</span>
-                <button
-                  onClick={handleSyncShopify}
-                  disabled={syncingShopify || syncingMeta}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 4,
-                    padding: 0, background: 'none', border: 'none',
-                    fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.75rem',
-                    color: syncingShopify ? C.muted : '#007a48',
-                    cursor: syncingShopify || syncingMeta ? 'not-allowed' : 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <RefreshCw size={11} style={{ animation: syncingShopify ? 'spin 1s linear infinite' : 'none' }} />
-                  {syncingShopify ? 'Syncing…' : 'Sync Shopify'}
-                </button>
-                {shopifySyncResult && (
-                  <span style={{ fontSize: '0.7rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', color: shopifySyncResult.ok ? '#007a48' : '#b91c1c', whiteSpace: 'nowrap' }}>
-                    — {shopifySyncResult.text}
-                  </span>
-                )}
-                {syncTimestamps.shopify && !syncingShopify && (
-                  <span style={{ fontSize: '0.7rem', color: '#aaa', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap' }}>
-                    {fmtTs(syncTimestamps.shopify)} ({timeAgo(syncTimestamps.shopify)})
-                  </span>
-                )}
-                <span style={{ color: C.border }}>·</span>
-                <button
-                  onClick={handleSyncMeta}
-                  disabled={syncingMeta || syncingShopify}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 4,
-                    padding: 0, background: 'none', border: 'none',
-                    fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.75rem',
-                    color: syncingMeta ? C.muted : '#1877f2',
-                    cursor: syncingMeta || syncingShopify ? 'not-allowed' : 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <RefreshCw size={11} style={{ animation: syncingMeta ? 'spin 1s linear infinite' : 'none' }} />
-                  {syncingMeta ? 'Syncing…' : 'Sync Meta'}
-                </button>
-                {metaSyncResult && (
-                  <span style={{ fontSize: '0.7rem', fontWeight: 600, fontFamily: 'Barlow, sans-serif', color: metaSyncResult.ok ? '#007a48' : '#b91c1c', whiteSpace: 'nowrap' }}>
-                    — {metaSyncResult.text}
-                  </span>
-                )}
-                {syncTimestamps.meta && !syncingMeta && (
-                  <span style={{ fontSize: '0.7rem', color: '#aaa', fontFamily: 'Barlow, sans-serif', whiteSpace: 'nowrap' }}>
-                    {fmtTs(syncTimestamps.meta)} ({timeAgo(syncTimestamps.meta)})
-                  </span>
-                )}
-              </span>
-            )}
           </div>
         </div>
         <div className="topbar-actions" style={{ flexShrink: 0 }}>
@@ -468,12 +444,12 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      <div className="overview-content page-content" style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 80px' }}>
+      <div className={`overview-content page-content${isRefetching ? ' is-refetching' : ''}`} style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 80px' }}>
 
         {/* Summary strip — only meaningful with 2+ orgs */}
         {!loadingOrgs && orgs.length > 1 && (
-          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginBottom: 28, paddingBottom: 2 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, minWidth: 480 }}
+          <div style={{ marginBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}
                className="summary-grid">
             {[
               { label: 'Total Sales',  value: fmt$(totalRevenue), delta: pct(totalRevenue, totalPrevRev) },
@@ -491,6 +467,90 @@ export default function OverviewPage() {
           </div>
         )}
 
+        {/* Sync row — below KPIs, never overlapping */}
+        {isSuperadmin && !loadingOrgs && (
+          <div className="overview-sync-row" style={{
+            display: 'flex', alignItems: 'flex-start', gap: 16,
+            marginBottom: 24, flexWrap: 'wrap',
+          }}>
+            <div className="sync-item" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <button
+                onClick={handleSyncAll}
+                disabled={syncingShopify || syncingMeta}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  padding: '8px 16px', background: C.ink, border: `1px solid ${C.ink}`, borderRadius: 8,
+                  fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.8rem',
+                  color: (syncingShopify || syncingMeta) ? '#888' : C.accent,
+                  cursor: (syncingShopify || syncingMeta) ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <RefreshCw size={12} style={{ animation: (syncingShopify && syncingMeta) ? 'spin 1s linear infinite' : 'none' }} />
+                {(syncingShopify && syncingMeta) ? 'Syncing all…' : 'Sync All'}
+              </button>
+              <div style={{ fontSize: '0.7rem', color: '#aaa', fontFamily: 'Barlow, sans-serif', lineHeight: 1.3 }}>
+                Shopify + Meta
+              </div>
+            </div>
+            <div className="sync-item" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <button
+                onClick={handleSyncShopify}
+                disabled={syncingShopify || syncingMeta}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  padding: '8px 14px', background: '#fff', border: `1px solid ${C.border}`, borderRadius: 8,
+                  fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.8rem',
+                  color: syncingShopify ? C.muted : '#007a48',
+                  cursor: syncingShopify || syncingMeta ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <RefreshCw size={12} style={{ animation: syncingShopify ? 'spin 1s linear infinite' : 'none' }} />
+                {syncingShopify ? 'Syncing…' : 'Sync Shopify'}
+              </button>
+              <div style={{ fontSize: '0.7rem', color: '#aaa', fontFamily: 'Barlow, sans-serif', lineHeight: 1.3 }}>
+                {shopifySyncResult && (
+                  <span style={{ fontWeight: 600, color: shopifySyncResult.ok ? '#007a48' : '#b91c1c' }}>
+                    {shopifySyncResult.text}
+                  </span>
+                )}
+                {!shopifySyncResult && syncTimestamps.shopify && !syncingShopify && (
+                  <>{fmtTs(syncTimestamps.shopify)} ({timeAgo(syncTimestamps.shopify)})</>
+                )}
+              </div>
+            </div>
+
+            <div className="sync-item" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <button
+                onClick={handleSyncMeta}
+                disabled={syncingMeta || syncingShopify}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  padding: '8px 14px', background: '#fff', border: `1px solid ${C.border}`, borderRadius: 8,
+                  fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.8rem',
+                  color: syncingMeta ? C.muted : '#1877f2',
+                  cursor: syncingMeta || syncingShopify ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <RefreshCw size={12} style={{ animation: syncingMeta ? 'spin 1s linear infinite' : 'none' }} />
+                {syncingMeta ? 'Syncing…' : 'Sync Meta'}
+              </button>
+              <div style={{ fontSize: '0.7rem', color: '#aaa', fontFamily: 'Barlow, sans-serif', lineHeight: 1.3 }}>
+                {metaSyncResult && (
+                  <span style={{ fontWeight: 600, color: metaSyncResult.ok ? '#007a48' : '#b91c1c' }}>
+                    {metaSyncResult.text}
+                  </span>
+                )}
+                {!metaSyncResult && syncTimestamps.meta && !syncingMeta && (
+                  <>{fmtTs(syncTimestamps.meta)} ({timeAgo(syncTimestamps.meta)})</>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Sort controls */}
         {!loadingOrgs && orgs.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 2 }}>
@@ -505,7 +565,25 @@ export default function OverviewPage() {
         )}
 
         {loadingOrgs ? (
-          <div className="text-muted" style={{ textAlign: 'center', padding: '80px 0', fontFamily: 'Barlow, sans-serif' }}>Loading projects…</div>
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }} className="summary-grid">
+              {[0, 1, 2, 3].map(i => <SkeletonKpiCard key={i} />)}
+            </div>
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              {[0, 1, 2, 3, 4].map(i => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr 1fr', gap: 12, padding: '16px 20px', borderTop: i > 0 ? `1px solid ${C.border}` : 'none' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <Skeleton width={34} height={34} radius={8} />
+                    <div style={{ flex: 1 }}>
+                      <Skeleton width="70%" height={12} style={{ marginBottom: 4 }} />
+                      <Skeleton width="40%" height={9} />
+                    </div>
+                  </div>
+                  {[0, 1, 2, 3, 4, 5].map(j => <Skeleton key={j} height={14} width="60%" />)}
+                </div>
+              ))}
+            </div>
+          </>
         ) : orgs.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '80px 24px', border: `2px dashed ${C.border}`, borderRadius: 10 }}>
             <Building2 size={32} style={{ color: '#ccc', margin: '0 auto 12px', display: 'block' }} />
@@ -551,7 +629,7 @@ export default function OverviewPage() {
                       {/* Total Sales */}
                       <td style={{ padding: '16px 20px', minWidth: 130 }}>
                         {org.loading
-                          ? <div style={{ height: 14, width: 80, background: '#f0f0f0', borderRadius: 3 }} className="animate-pulse" />
+                          ? <Skeleton height={14} width={80} />
                           : <>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
                                 <span style={{ fontWeight: 800, fontSize: '0.95rem', fontFamily: 'Barlow, sans-serif' }}>{fmt$(org.revenue)}</span>
@@ -578,7 +656,7 @@ export default function OverviewPage() {
                       {/* Orders */}
                       <td style={{ padding: '16px 20px', minWidth: 110 }}>
                         {org.loading
-                          ? <div style={{ height: 14, width: 60, background: '#f0f0f0', borderRadius: 3 }} className="animate-pulse" />
+                          ? <Skeleton height={14} width={60} />
                           : <>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
                                 <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>{fmtN(org.orders)}</span>
@@ -591,7 +669,7 @@ export default function OverviewPage() {
                       {/* AOV */}
                       <td style={{ padding: '16px 20px', minWidth: 100 }}>
                         {org.loading
-                          ? <div style={{ height: 14, width: 60, background: '#f0f0f0', borderRadius: 3 }} className="animate-pulse" />
+                          ? <Skeleton height={14} width={60} />
                           : <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                               <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>{org.aov > 0 ? fmt$(org.aov) : '—'}</span>
                               {org.aov > 0 && <DeltaBadge value={pct(org.aov, org.prevAov)} />}
@@ -602,7 +680,7 @@ export default function OverviewPage() {
                       {/* Ad Spend */}
                       <td style={{ padding: '16px 20px', minWidth: 110 }}>
                         {org.loading
-                          ? <div style={{ height: 14, width: 60, background: '#f0f0f0', borderRadius: 3 }} className="animate-pulse" />
+                          ? <Skeleton height={14} width={60} />
                           : org.adSpend > 0
                             ? <>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
@@ -617,7 +695,7 @@ export default function OverviewPage() {
                       {/* ROAS */}
                       <td style={{ padding: '16px 20px', minWidth: 90 }}>
                         {org.loading
-                          ? <div style={{ height: 14, width: 50, background: '#f0f0f0', borderRadius: 3 }} className="animate-pulse" />
+                          ? <Skeleton height={14} width={50} />
                           : org.roas > 0
                             ? <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>{org.roas.toFixed(2)}x</span>
@@ -630,7 +708,7 @@ export default function OverviewPage() {
                       {/* Conv. Rate */}
                       <td style={{ padding: '16px 20px', minWidth: 110 }}>
                         {org.loading
-                          ? <div style={{ height: 14, width: 50, background: '#f0f0f0', borderRadius: 3 }} className="animate-pulse" />
+                          ? <Skeleton height={14} width={50} />
                           : org.convRate > 0
                             ? <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{org.convRate.toFixed(2)}%</span>
@@ -674,7 +752,7 @@ export default function OverviewPage() {
 
                   {org.loading ? (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                      {[1,2,3,4].map(i => <div key={i} style={{ height: 52, background: '#f0f0f0', borderRadius: 6 }} className="animate-pulse" />)}
+                      {[1,2,3,4].map(i => <Skeleton key={i} height={52} radius={6} />)}
                     </div>
                   ) : (
                     <>
@@ -718,11 +796,14 @@ export default function OverviewPage() {
 
       <style>{`
         @media (max-width: 680px) {
-          .summary-grid     { min-width: 0 !important; }
+          .summary-grid     { grid-template-columns: 1fr 1fr !important; min-width: 0 !important; gap: 8px !important; }
+          .summary-grid .kpi-card { padding: 14px 14px !important; }
           .overview-topbar  { flex-wrap: wrap !important; padding: 14px 16px 14px 60px !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 100 !important; }
-          .overview-content { padding-top: 100px !important; }
+          .overview-content { padding-top: 84px !important; }
           .overview-subtitle { flex-direction: column !important; align-items: flex-start !important; gap: 4px !important; }
-          .overview-sync    { margin-left: 0 !important; }
+          .overview-sync-row { flex-direction: column !important; gap: 10px !important; align-items: stretch !important; }
+          .overview-sync-row .sync-item { width: 100% !important; }
+          .overview-sync-row .sync-item button { width: 100% !important; }
           .overview-table { display: none !important; }
           .overview-cards { display: flex !important; }
         }
