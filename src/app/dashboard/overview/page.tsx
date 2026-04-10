@@ -283,7 +283,7 @@ export default function OverviewPage() {
     const latest: Record<string, string | null> = { shopify: null, meta: null }
     await Promise.all(ids.map(async (id) => {
       try {
-        const res = await fetch(`/api/sync/timestamps?org_id=${id}`)
+        const res = await fetch(`/api/sync/timestamps?org_id=${id}`, { cache: 'no-store' })
         if (!res.ok) return
         const rows: { source: string; last_synced_at: string }[] = await res.json()
         for (const row of rows) {

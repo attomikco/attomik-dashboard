@@ -55,12 +55,19 @@ export async function POST(request: Request) {
     }).toString()
 
     while (nextUrl) {
+      // Log the full request URL (redact token for safety)
+      const redactedUrl = nextUrl.replace(/access_token=[^&]+/, 'access_token=REDACTED')
+      console.log('[meta-sync] fetching URL:', redactedUrl)
+
       const apiRes = await fetch(nextUrl)
+      const rawText = await apiRes.text()
+      console.log('[meta-sync] raw response status:', apiRes.status, 'body length:', rawText.length)
+      console.log('[meta-sync] raw response body (first 2000 chars):', rawText.slice(0, 2000))
+
       if (!apiRes.ok) {
-        const body = await apiRes.text()
-        throw new Error(`Meta API error ${apiRes.status}: ${body}`)
+        throw new Error(`Meta API error ${apiRes.status}: ${rawText}`)
       }
-      const apiJson: any = await apiRes.json()
+      const apiJson: any = JSON.parse(rawText)
       console.log('[meta-sync] API page response:', {
         data_count: apiJson.data?.length ?? 0,
         has_paging: !!apiJson.paging?.next,
