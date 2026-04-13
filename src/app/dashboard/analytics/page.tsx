@@ -635,29 +635,115 @@ export default function AnalyticsPage() {
     const utcToOrgDate = (iso: string) =>
       new Date(iso).toLocaleDateString('en-CA', { timeZone: orgTimezone })
 
-    const days: Record<string, any> = {}
-    // Build day keys in org timezone so chart matches KPI dates exactly
-    for (let d = new Date(resolvedRange.start + 'T12:00:00'); ; d.setDate(d.getDate() + 1)) {
-      const k = d.toLocaleDateString('en-CA', { timeZone: orgTimezone })
-      const label = d.toLocaleDateString('en-US', { timeZone: orgTimezone, month: 'short', day: 'numeric' })
-      days[k] = { date: label, revenue: 0, shopify: 0, amazon: 0, spend: 0, roas: 0 }
-      if (k >= resolvedRange.end) break
-    }
-    enabledOrders.filter(o => o.status !== 'refunded').forEach(o => {
-      const k = utcToOrgDate(o.created_at)
-      if (!days[k]) return
-      days[k].revenue += Number(o.total_price)
-      if (o.source === 'shopify') days[k].shopify += Number(o.total_price)
-      if (o.source === 'amazon')  days[k].amazon  += Number(o.total_price)
-    })
-    cSpend.forEach(s => { if (days[s.date]) days[s.date].spend += Number(s.spend) })
-    Object.values(days).forEach((d: any) => { d.roas = d.spend > 0 ? d.revenue / d.spend : 0 })
-    const dayArr = Object.values(days) as any[]
+    // Auto-granularity: day for short ranges, week for medium, month for long
+    const rangeDays = Math.round(
+      (new Date(resolvedRange.end).getTime() - new Date(resolvedRange.start).getTime()) / 864e5
+    ) + 1
+    const granularity: 'day' | 'week' | 'month' =
+      rangeDays <= 60 ? 'day' : rangeDays <= 180 ? 'week' : 'month'
 
-    setRevenueRoasData(dayArr.map(d => ({ date: d.date, revenue: d.revenue, roas: d.roas })))
-    setSpendSalesData(dayArr.map(d => ({ date: d.date, revenue: d.revenue, spend: d.spend })))
-    setRoasData(dayArr.filter(d => d.roas > 0).map(d => ({ date: d.date, roas: d.roas })))
-    setChannelData(dayArr.map(d => ({ date: d.date, shopify: showShopify ? d.shopify : 0, amazon: showAmazon ? d.amazon : 0 })))
+    // Monday-starting ISO week key (returns YYYY-MM-DD of the Monday in UTC)
+    const weekKeyFrom = (ymd: string) => {
+      const d = new Date(ymd + 'T12:00:00Z')
+      d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7))
+      return d.toISOString().slice(0, 10)
+    }
+    const toBucket = (ymd: string) =>
+      granularity === 'day' ? ymd
+      : granularity === 'week' ? weekKeyFrom(ymd)
+      : ymd.slice(0, 7)
+    const bucketLabel = (key: string) => {
+      if (granularity === 'month') {
+        const [y, m] = key.split('-').map(Number)
+        return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+      }
+      return new Date(key + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    }
+
+    const buildBuckets = (start: string, end: string) => {
+      const out: Record<string, any> = {}
+      const init = (key: string, label: string) => {
+        out[key] = { date: label, revenue: 0, shopify: 0, amazon: 0, spend: 0, roas: 0 }
+      }
+      if (granularity === 'month') {
+        const [sy, sm] = start.split('-').map(Number)
+        const [ey, em] = end.split('-').map(Number)
+        let y = sy, m = sm
+        while (y < ey || (y === ey && m <= em)) {
+          const key = `${y}-${String(m).padStart(2, '0')}`
+          init(key, bucketLabel(key))
+          if (++m > 12) { m = 1; y++ }
+        }
+      } else if (granularity === 'week') {
+        let cur = weekKeyFrom(start)
+        const endW = weekKeyFrom(end)
+        while (cur <= endW) {
+          init(cur, bucketLabel(cur))
+          const d = new Date(cur + 'T12:00:00Z')
+          d.setUTCDate(d.getUTCDate() + 7)
+          cur = d.toISOString().slice(0, 10)
+        }
+      } else {
+        // Day mode: iterate in org timezone so bucket keys match KPI dates exactly
+        for (let d = new Date(start + 'T12:00:00'); ; d.setDate(d.getDate() + 1)) {
+          const k = d.toLocaleDateString('en-CA', { timeZone: orgTimezone })
+          const label = d.toLocaleDateString('en-US', { timeZone: orgTimezone, month: 'short', day: 'numeric' })
+          init(k, label)
+          if (k >= end) break
+        }
+      }
+      return out
+    }
+
+    const fillBuckets = (buckets: Record<string, any>, orders: any[], spend: any[]) => {
+      orders.filter(o => o.status !== 'refunded').forEach(o => {
+        const k = toBucket(utcToOrgDate(o.created_at))
+        if (!buckets[k]) return
+        buckets[k].revenue += Number(o.total_price)
+        if (o.source === 'shopify') buckets[k].shopify += Number(o.total_price)
+        if (o.source === 'amazon')  buckets[k].amazon  += Number(o.total_price)
+      })
+      spend.forEach((s: any) => {
+        const k = toBucket(s.date)
+        if (buckets[k]) buckets[k].spend += Number(s.spend)
+      })
+      // ROAS recomputed from bucket sums — not an average of daily ratios
+      Object.values(buckets).forEach((b: any) => { b.roas = b.spend > 0 ? b.revenue / b.spend : 0 })
+    }
+
+    const curBuckets = buildBuckets(resolvedRange.start, resolvedRange.end)
+    fillBuckets(curBuckets, enabledOrders, cSpend)
+    const dayArr = Object.values(curBuckets) as any[]
+
+    // Compare period bucketed at the same granularity, aligned to current by bucket index
+    const prevBuckets = buildBuckets(prevStart, prevEnd)
+    fillBuckets(prevBuckets, enabledOrdersP, pSpend)
+    const prevArr = Object.values(prevBuckets) as any[]
+    const prevAt = (i: number) => prevArr[i]
+
+    setRevenueRoasData(dayArr.map((d, i) => {
+      const p = prevAt(i)
+      return { date: d.date, revenue: d.revenue, roas: d.roas, prevRevenue: p?.revenue ?? null, prevRoas: p?.roas ?? null }
+    }))
+    setSpendSalesData(dayArr.map((d, i) => {
+      const p = prevAt(i)
+      return { date: d.date, revenue: d.revenue, spend: d.spend, prevRevenue: p?.revenue ?? null, prevSpend: p?.spend ?? null }
+    }))
+    setRoasData(
+      dayArr
+        .map((d, i) => ({ date: d.date, roas: d.roas, prevRoas: prevAt(i)?.roas ?? null }))
+        .filter(d => d.roas > 0)
+    )
+    setChannelData(dayArr.map((d, i) => {
+      const p = prevAt(i)
+      const prevTotal = p ? (Number(p.shopify) + Number(p.amazon)) : null
+      return {
+        date: d.date,
+        shopify: showShopify ? d.shopify : 0,
+        amazon: showAmazon ? d.amazon : 0,
+        prevTotal,
+      }
+    }))
 
     // Pacing: cumulative revenue by day index within the period
     // Day 1 = first day of current period, Day 1 of prev = first day of prev period
