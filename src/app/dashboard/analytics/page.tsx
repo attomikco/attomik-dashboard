@@ -180,6 +180,40 @@ function FinanceBreakdown({ rows }: { rows: { label: string; value: number; prev
   )
 }
 
+function PeriodBreakdownTable({ rows }: { rows: { date: string; revenue: number; spend: number; roas: number }[] }) {
+  if (!rows.length) {
+    return (
+      <div style={{ color: C.muted, fontSize: '0.85rem', fontFamily: 'var(--font-barlow), Barlow, sans-serif', padding: '24px 0', textAlign: 'center' }}>
+        No data for this period.
+      </div>
+    )
+  }
+  return (
+    <div className="table-wrapper table-sticky"><div className="table-scroll">
+      <table style={{ minWidth: 480 }}>
+        <thead>
+          <tr>
+            <th style={{ textAlign: 'left' }}>Date</th>
+            <th style={{ textAlign: 'right' }}>Revenue</th>
+            <th style={{ textAlign: 'right' }}>Ad Spend</th>
+            <th style={{ textAlign: 'right' }}>ROAS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i}>
+              <td style={{ whiteSpace: 'nowrap' }}>{r.date}</td>
+              <td className="td-mono td-right td-strong" style={{ whiteSpace: 'nowrap' }}>{fmt$(r.revenue)}</td>
+              <td className="td-mono td-right td-muted" style={{ whiteSpace: 'nowrap' }}>{r.spend > 0 ? fmt$(r.spend) : '—'}</td>
+              <td className="td-mono td-right" style={{ whiteSpace: 'nowrap' }}>{r.roas > 0 ? fmtX(r.roas) : '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div></div>
+  )
+}
+
 function ChartCard({ title, subtitle, children, dark }: { title: string; subtitle?: string; children: React.ReactNode; dark?: boolean }) {
   return (
     <div style={{ background: dark ? C.ink : C.paper, border: `1px solid ${dark ? C.ink : C.border}`, borderRadius: 10, padding: '24px 24px 20px' }}>
@@ -221,6 +255,7 @@ export default function AnalyticsPage() {
   const [spendSalesData, setSpendSalesData] = useState<any[]>([])
   const [roasData, setRoasData] = useState<any[]>([])
   const [channelData, setChannelData] = useState<any[]>([])
+  const [chartGranularity, setChartGranularity] = useState<'day' | 'week' | 'month'>('day')
   const [pacingData, setPacingData] = useState<any[]>([])
   const [dowData, setDowData] = useState<any[]>([])
   const [cacData, setCacData] = useState<any[]>([])
@@ -641,6 +676,7 @@ export default function AnalyticsPage() {
     ) + 1
     const granularity: 'day' | 'week' | 'month' =
       rangeDays <= 60 ? 'day' : rangeDays <= 180 ? 'week' : 'month'
+    setChartGranularity(granularity)
 
     // Monday-starting ISO week key (returns YYYY-MM-DD of the Monday in UTC)
     const weekKeyFrom = (ymd: string) => {
@@ -1224,6 +1260,23 @@ export default function AnalyticsPage() {
                 <ChannelSalesChart data={channelData.map(c => ({ date: c.date, sales: c.amazon }))} color="#00cc78" />
               </ChartCard>
             )}
+          </div>
+
+          {/* ── PERIOD BREAKDOWN TABLE ── */}
+          <div style={{ marginBottom: 16 }}>
+            <ChartCard
+              title="Period Breakdown"
+              subtitle={`Grouped by ${chartGranularity} · most recent first`}
+            >
+              <PeriodBreakdownTable
+                rows={[...spendSalesData].reverse().map(r => ({
+                  date: r.date,
+                  revenue: r.revenue,
+                  spend: r.spend,
+                  roas: r.spend > 0 ? r.revenue / r.spend : 0,
+                }))}
+              />
+            </ChartCard>
           </div>
 
           {/* ── DAY OF WEEK ── */}
