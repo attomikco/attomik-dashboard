@@ -697,6 +697,7 @@ export default function AnalyticsPage() {
 
     const fillBuckets = (buckets: Record<string, any>, orders: any[], spend: any[]) => {
       orders.filter(o => o.status !== 'refunded').forEach(o => {
+        if (!o.created_at) return
         const k = toBucket(utcToOrgDate(o.created_at))
         if (!buckets[k]) return
         buckets[k].revenue += Number(o.total_price)
@@ -704,6 +705,7 @@ export default function AnalyticsPage() {
         if (o.source === 'amazon')  buckets[k].amazon  += Number(o.total_price)
       })
       spend.forEach((s: any) => {
+        if (!s?.date) return
         const k = toBucket(s.date)
         if (buckets[k]) buckets[k].spend += Number(s.spend)
       })
