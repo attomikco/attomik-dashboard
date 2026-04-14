@@ -63,6 +63,8 @@ interface OrgKpi {
   prevAdSpend: number
   roas: number
   prevRoas: number
+  cac: number
+  prevCac: number
   shopifyRev: number
   amazonRev: number
   shopifyOrders: number
@@ -144,7 +146,7 @@ export default function OverviewPage() {
       const initial: OrgKpi[] = isFirstLoad
         ? orgList.map(o => ({
             ...o, revenue: 0, prevRevenue: 0, orders: 0, prevOrders: 0,
-            aov: 0, prevAov: 0, adSpend: 0, prevAdSpend: 0, roas: 0, prevRoas: 0,
+            aov: 0, prevAov: 0, adSpend: 0, prevAdSpend: 0, roas: 0, prevRoas: 0, cac: 0, prevCac: 0,
             shopifyRev: 0, amazonRev: 0, shopifyOrders: 0, prevShopifyOrders: 0,
             convRate: 0, prevConvRate: 0, loading: true,
           }))
@@ -258,6 +260,8 @@ export default function OverviewPage() {
         console.log(`[overview] ${org.name}: adSpend=$${adSpend.toFixed(2)}, rows=${(fetched.curSpend ?? []).length}, range=${orgCurStart}→${orgCurEnd}`)
         const roas        = adSpend > 0 ? revenue / adSpend : 0
         const prevRoas    = prevAdSpend > 0 ? prevRevenue / prevAdSpend : 0
+        const cac         = adSpend > 0 && orders > 0 ? adSpend / orders : 0
+        const prevCac     = prevAdSpend > 0 && prevOrdCnt > 0 ? prevAdSpend / prevOrdCnt : 0
         const shopifyRev  = cur.filter(o => o.source === 'shopify').reduce((s, o) => s + Number(o.total_price || 0), 0)
         const amazonRev   = cur.filter(o => o.source === 'amazon').reduce((s, o) => s + Number(o.total_price || 0), 0)
         const shopifyOrders = cur.filter(o => o.source === 'shopify' && o.status !== 'refunded').length
@@ -287,7 +291,7 @@ export default function OverviewPage() {
         }
 
         if (!cancelled) setOrgs(prev => prev.map(o => o.id === org.id
-          ? { ...o, revenue, prevRevenue, orders, prevOrders: prevOrdCnt, aov, prevAov, adSpend, prevAdSpend, roas, prevRoas, shopifyRev, amazonRev, shopifyOrders, prevShopifyOrders, convRate, prevConvRate, loading: false }
+          ? { ...o, revenue, prevRevenue, orders, prevOrders: prevOrdCnt, aov, prevAov, adSpend, prevAdSpend, roas, prevRoas, cac, prevCac, shopifyRev, amazonRev, shopifyOrders, prevShopifyOrders, convRate, prevConvRate, loading: false }
           : o
         ))
       } catch {
@@ -431,6 +435,8 @@ export default function OverviewPage() {
   const totalPrevSp   = loaded.reduce((s, o) => s + o.prevAdSpend, 0)
   const blendedRoas   = totalSpend > 0 ? totalRevenue / totalSpend : 0
   const prevRoas      = totalPrevSp > 0 ? totalPrevRev / totalPrevSp : 0
+  const blendedCac    = totalSpend > 0 && totalOrders > 0 ? totalSpend / totalOrders : 0
+  const prevBlendedCac = totalPrevSp > 0 && totalPrevOrd > 0 ? totalPrevSp / totalPrevOrd : 0
 
   const { prevStart: prevStartLabel, prevEnd: prevEndLabel } = getComparisonPeriod(range.start, range.end, range.compareMode, range.customCompareStart, range.customCompareEnd)
   const fmtDate = (s: string) => new Date(s + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -469,13 +475,14 @@ export default function OverviewPage() {
         {/* Summary strip — only meaningful with 2+ orgs */}
         {!loadingOrgs && orgs.length > 1 && (
           <div style={{ marginBottom: 20 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}
                className="summary-grid">
             {[
               { label: 'Total Sales',  value: fmt$(totalRevenue), delta: pct(totalRevenue, totalPrevRev) },
               { label: 'Total Orders',   value: fmtN(totalOrders),  delta: pct(totalOrders, totalPrevOrd) },
               { label: 'Total Ad Spend', value: fmt$(totalSpend),   delta: pct(totalSpend, totalPrevSp), invert: true },
               { label: 'Blended ROAS',   value: blendedRoas > 0 ? `${blendedRoas.toFixed(2)}x` : '—', delta: pct(blendedRoas, prevRoas) },
+              { label: 'Blended CAC',    value: blendedCac > 0 ? fmt$(blendedCac) : '—', delta: prevBlendedCac > 0 ? pct(blendedCac, prevBlendedCac) : 0, invert: true },
             ].map(k => (
               <div key={k.label} className="kpi-card" style={{ padding: '18px 20px' }}>
                 <div className="kpi-label">{k.label}</div>
@@ -586,12 +593,12 @@ export default function OverviewPage() {
 
         {loadingOrgs ? (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }} className="summary-grid">
-              {[0, 1, 2, 3].map(i => <SkeletonKpiCard key={i} />)}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 20 }} className="summary-grid">
+              {[0, 1, 2, 3, 4].map(i => <SkeletonKpiCard key={i} />)}
             </div>
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
               {[0, 1, 2, 3, 4].map(i => (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr 1fr', gap: 12, padding: '16px 20px', borderTop: i > 0 ? `1px solid ${C.border}` : 'none' }}>
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr', gap: 12, padding: '16px 20px', borderTop: i > 0 ? `1px solid ${C.border}` : 'none' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <Skeleton width={34} height={34} radius={8} />
                     <div style={{ flex: 1 }}>
@@ -599,7 +606,7 @@ export default function OverviewPage() {
                       <Skeleton width="40%" height={9} />
                     </div>
                   </div>
-                  {[0, 1, 2, 3, 4, 5].map(j => <Skeleton key={j} height={14} width="60%" />)}
+                  {[0, 1, 2, 3, 4, 5, 6].map(j => <Skeleton key={j} height={14} width="60%" />)}
                 </div>
               ))}
             </div>
@@ -614,10 +621,10 @@ export default function OverviewPage() {
           <>
             {/* ── Desktop table ── */}
             <div className="overview-table table-wrapper"><div className="table-scroll">
-              <table style={{ minWidth: 880 }}>
+              <table style={{ minWidth: 980 }}>
                 <thead>
                   <tr>
-                    {['Project', 'Total Sales', 'Orders', 'AOV', 'Ad Spend', 'ROAS', 'Conv. Rate', ''].map((h, i) => (
+                    {['Project', 'Total Sales', 'Orders', 'AOV', 'Ad Spend', 'ROAS', 'CAC', 'Conv. Rate', ''].map((h, i) => (
                       <th key={i} style={{
                         textAlign: h === '' ? 'right' : 'left',
                       }}>{h}</th>
@@ -725,6 +732,19 @@ export default function OverviewPage() {
                         }
                       </td>
 
+                      {/* CAC */}
+                      <td style={{ padding: '16px 20px', minWidth: 100 }}>
+                        {org.loading
+                          ? <Skeleton height={14} width={50} />
+                          : org.cac > 0
+                            ? <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>{fmt$(org.cac)}</span>
+                                {org.prevCac > 0 && <DeltaBadge value={pct(org.cac, org.prevCac)} invert />}
+                              </div>
+                            : <span style={{ fontSize: '0.8rem', color: '#ccc', fontFamily: 'Barlow, sans-serif' }}>—</span>
+                        }
+                      </td>
+
                       {/* Conv. Rate */}
                       <td style={{ padding: '16px 20px', minWidth: 110 }}>
                         {org.loading
@@ -772,22 +792,23 @@ export default function OverviewPage() {
 
                   {org.loading ? (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                      {[1,2,3,4].map(i => <Skeleton key={i} height={52} radius={6} />)}
+                      {[1,2,3,4,5,6].map(i => <Skeleton key={i} height={52} radius={6} />)}
                     </div>
                   ) : (
                     <>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       {[
-                        { label: 'Total Sales', value: fmt$(org.revenue),  delta: pct(org.revenue, org.prevRevenue) },
-                        { label: 'Orders',  value: fmtN(org.orders),   delta: pct(org.orders, org.prevOrders) },
-                        { label: 'AOV',     value: org.aov > 0 ? fmt$(org.aov) : '—', delta: org.aov > 0 ? pct(org.aov, org.prevAov) : null },
-                        { label: 'ROAS',    value: org.roas > 0 ? `${org.roas.toFixed(2)}x` : '—', delta: org.roas > 0 ? pct(org.roas, org.prevRoas) : null },
-                        { label: 'Conv. Rate', value: org.convRate > 0 ? `${org.convRate.toFixed(2)}%` : '—', delta: org.convRate > 0 && org.prevConvRate > 0 ? pct(org.convRate, org.prevConvRate) : null },
+                        { label: 'Total Sales', value: fmt$(org.revenue),  delta: pct(org.revenue, org.prevRevenue), invert: false },
+                        { label: 'Orders',  value: fmtN(org.orders),   delta: pct(org.orders, org.prevOrders), invert: false },
+                        { label: 'AOV',     value: org.aov > 0 ? fmt$(org.aov) : '—', delta: org.aov > 0 ? pct(org.aov, org.prevAov) : null, invert: false },
+                        { label: 'ROAS',    value: org.roas > 0 ? `${org.roas.toFixed(2)}x` : '—', delta: org.roas > 0 ? pct(org.roas, org.prevRoas) : null, invert: false },
+                        { label: 'CAC',     value: org.cac > 0 ? fmt$(org.cac) : '—', delta: org.cac > 0 && org.prevCac > 0 ? pct(org.cac, org.prevCac) : null, invert: true },
+                        { label: 'Conv. Rate', value: org.convRate > 0 ? `${org.convRate.toFixed(2)}%` : '—', delta: org.convRate > 0 && org.prevConvRate > 0 ? pct(org.convRate, org.prevConvRate) : null, invert: false },
                       ].map(k => (
                         <div key={k.label} style={{ background: C.cream, borderRadius: 8, padding: '10px 12px' }}>
                           <div className="kpi-label" style={{ marginBottom: 4 }}>{k.label}</div>
-                          <div className="kpi-value" style={{ fontSize: '1rem', marginBottom: 4 }}>{k.value}</div>
-                          {k.delta !== null && <DeltaBadge value={k.delta} />}
+                          <div style={{ fontSize: '1rem', fontWeight: 800, fontFamily: 'Barlow, sans-serif', letterSpacing: '-0.02em', lineHeight: 1.1, color: C.ink, marginBottom: 4 }}>{k.value}</div>
+                          {k.delta !== null && <DeltaBadge value={k.delta} invert={k.invert} />}
                         </div>
                       ))}
                     </div>
