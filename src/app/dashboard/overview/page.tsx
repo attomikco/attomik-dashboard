@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, ChevronRight, Building2, TrendingUp, TrendingDown, RefreshCw, Sparkles } from 'lucide-react'
+import { ArrowRight, ChevronRight, ChevronDown, Building2, TrendingUp, TrendingDown, RefreshCw, Sparkles } from 'lucide-react'
 import DateRangePicker, { DateRange, getComparisonPeriod } from '@/components/DateRangePicker'
 import { Skeleton, SkeletonKpiCard } from '@/components/Skeleton'
 
@@ -109,6 +109,7 @@ export default function OverviewPage() {
   }> | null>(null)
   const [summaryLoading, setSummaryLoading] = useState(false)
   const [summaryError, setSummaryError] = useState<string | null>(null)
+  const [expandedSummaries, setExpandedSummaries] = useState<Set<string>>(new Set())
   const supabase = createClient()
   const router = useRouter()
 
@@ -584,52 +585,95 @@ export default function OverviewPage() {
                 {orgs.map((org, i) => {
                   const s = yesterdaySummaries[org.id]
                   if (!s) return null
+                  const isOpen = expandedSummaries.has(org.id)
+                  const toggle = () => setExpandedSummaries(prev => {
+                    const next = new Set(prev)
+                    next.has(org.id) ? next.delete(org.id) : next.add(org.id)
+                    return next
+                  })
                   return (
                     <div key={org.id} style={{
-                      padding: '16px 20px',
                       borderTop: i > 0 ? `1px solid ${C.border}` : 'none',
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                        <div style={{ width: 24, height: 24, borderRadius: 6, background: C.ink, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                          <Building2 size={11} color={C.accent} />
-                        </div>
-                        <span style={{ fontWeight: 700, fontSize: '0.85rem', fontFamily: 'Barlow, sans-serif' }}>{org.name}</span>
-                      </div>
-
-                      {/* Metric pills */}
-                      <div className="yesterday-metrics" style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-                        {[
-                          { label: 'Revenue', value: `$${s.revenue >= 1000 ? (s.revenue/1000).toFixed(1) + 'k' : s.revenue.toFixed(0)}`, delta: s.revenueDelta },
-                          { label: 'Orders', value: String(s.orders), delta: s.ordersDelta },
-                          { label: 'Spend', value: `$${s.adSpend >= 1000 ? (s.adSpend/1000).toFixed(1) + 'k' : s.adSpend.toFixed(0)}`, delta: s.adSpendDelta, invert: true },
-                          { label: 'ROAS', value: s.roas > 0 ? `${s.roas.toFixed(2)}x` : '—', delta: s.roasDelta },
-                        ].map(m => (
-                          <div key={m.label} style={{
-                            display: 'flex', alignItems: 'center', gap: 6,
-                            background: C.cream, borderRadius: 6, padding: '6px 10px',
-                          }}>
-                            <span style={{ fontSize: '0.68rem', color: C.muted, fontFamily: 'Barlow, sans-serif' }}>{m.label}</span>
-                            <span className="mono" style={{ fontSize: '0.78rem', fontWeight: 700 }}>{m.value}</span>
-                            {Math.abs(m.delta) >= 0.05 && (
-                              <span style={{
-                                fontSize: '0.65rem', fontWeight: 600,
-                                color: (m.invert ? m.delta <= 0 : m.delta >= 0) ? '#007a48' : '#b91c1c',
-                                fontFamily: 'Barlow, sans-serif',
-                              }}>
-                                {m.delta >= 0 ? '+' : ''}{m.delta.toFixed(1)}%
-                              </span>
-                            )}
+                      {/* Accordion header */}
+                      <div
+                        onClick={toggle}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '14px 20px', cursor: 'pointer', userSelect: 'none',
+                          transition: 'background 0.1s',
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#fafafa')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ width: 24, height: 24, borderRadius: 6, background: C.ink, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                            <Building2 size={11} color={C.accent} />
                           </div>
-                        ))}
+                          <span style={{ fontWeight: 700, fontSize: '0.85rem', fontFamily: 'Barlow, sans-serif' }}>{org.name}</span>
+                          {/* Inline quick stats when collapsed */}
+                          {!isOpen && (
+                            <div style={{ display: 'flex', gap: 12, marginLeft: 8 }}>
+                              <span className="mono" style={{ fontSize: '0.72rem', color: C.muted }}>
+                                {`$${s.revenue >= 1000 ? (s.revenue/1000).toFixed(1) + 'k' : s.revenue.toFixed(0)}`}
+                              </span>
+                              <span className="mono" style={{ fontSize: '0.72rem', color: C.muted }}>
+                                {s.orders} orders
+                              </span>
+                              {s.roas > 0 && (
+                                <span className="mono" style={{ fontSize: '0.72rem', color: C.muted }}>
+                                  {s.roas.toFixed(2)}x
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <ChevronDown size={14} color={C.muted} style={{
+                          transition: 'transform 0.2s',
+                          transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                          flexShrink: 0,
+                        }} />
                       </div>
 
-                      {/* AI Summary */}
-                      <p style={{
-                        fontSize: '0.82rem', lineHeight: 1.55, color: '#333',
-                        fontFamily: 'Barlow, sans-serif', margin: 0,
-                      }}>
-                        {s.summary}
-                      </p>
+                      {/* Accordion body */}
+                      {isOpen && (
+                        <div style={{ padding: '0 20px 16px' }}>
+                          {/* Metric pills */}
+                          <div className="yesterday-metrics" style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+                            {[
+                              { label: 'Revenue', value: `$${s.revenue >= 1000 ? (s.revenue/1000).toFixed(1) + 'k' : s.revenue.toFixed(0)}`, delta: s.revenueDelta },
+                              { label: 'Orders', value: String(s.orders), delta: s.ordersDelta },
+                              { label: 'Spend', value: `$${s.adSpend >= 1000 ? (s.adSpend/1000).toFixed(1) + 'k' : s.adSpend.toFixed(0)}`, delta: s.adSpendDelta, invert: true },
+                              { label: 'ROAS', value: s.roas > 0 ? `${s.roas.toFixed(2)}x` : '—', delta: s.roasDelta },
+                            ].map(m => (
+                              <div key={m.label} style={{
+                                display: 'flex', alignItems: 'center', gap: 6,
+                                background: C.cream, borderRadius: 6, padding: '6px 10px',
+                              }}>
+                                <span style={{ fontSize: '0.68rem', color: C.muted, fontFamily: 'Barlow, sans-serif' }}>{m.label}</span>
+                                <span className="mono" style={{ fontSize: '0.78rem', fontWeight: 700 }}>{m.value}</span>
+                                {Math.abs(m.delta) >= 0.05 && (
+                                  <span style={{
+                                    fontSize: '0.65rem', fontWeight: 600,
+                                    color: (m.invert ? m.delta <= 0 : m.delta >= 0) ? '#007a48' : '#b91c1c',
+                                    fontFamily: 'Barlow, sans-serif',
+                                  }}>
+                                    {m.delta >= 0 ? '+' : ''}{m.delta.toFixed(1)}%
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* AI Summary */}
+                          <p style={{
+                            fontSize: '0.82rem', lineHeight: 1.55, color: '#333',
+                            fontFamily: 'Barlow, sans-serif', margin: 0,
+                          }}>
+                            {s.summary}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )
                 })}
