@@ -110,6 +110,7 @@ export default function OverviewPage() {
   const [summaryLoading, setSummaryLoading] = useState(false)
   const [summaryError, setSummaryError] = useState<string | null>(null)
   const [expandedSummaries, setExpandedSummaries] = useState<Set<string>>(new Set())
+  const [summarySectionOpen, setSummarySectionOpen] = useState(true)
   const supabase = createClient()
   const router = useRouter()
 
@@ -520,67 +521,73 @@ export default function OverviewPage() {
         {/* Yesterday's Summary */}
         {!loadingOrgs && orgs.length > 0 && (
           <div className="card" style={{ marginBottom: 24, padding: 0, overflow: 'hidden' }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '16px 20px', borderBottom: yesterdaySummaries ? `1px solid ${C.border}` : 'none',
-            }}>
+            <div
+              onClick={() => setSummarySectionOpen(p => !p)}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '16px 20px', cursor: 'pointer', userSelect: 'none',
+                transition: 'background 0.1s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#fafafa')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            >
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Sparkles size={14} color={C.ink} />
                   <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>Yesterday</span>
+                  <span className="mono" style={{ fontSize: '0.72rem', color: '#aaa' }}>{yesterdayLabel}</span>
                 </div>
-                <div className="mono" style={{ fontSize: '0.72rem', color: '#aaa', marginTop: 2 }}>{yesterdayLabel}</div>
               </div>
-              {!yesterdaySummaries && (
-                <button
-                  onClick={generateSummary}
-                  disabled={summaryLoading}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    padding: '8px 16px', background: C.ink, border: 'none', borderRadius: 8,
-                    fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.78rem',
-                    color: summaryLoading ? '#888' : C.accent,
-                    cursor: summaryLoading ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {summaryLoading ? (
-                    <>
-                      <RefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} />
-                      Generating…
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles size={12} />
-                      Generate Summary
-                    </>
-                  )}
-                </button>
-              )}
-              {yesterdaySummaries && (
-                <button
-                  onClick={generateSummary}
-                  disabled={summaryLoading}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 4,
-                    padding: '6px 10px', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 6,
-                    fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.72rem',
-                    color: summaryLoading ? '#aaa' : C.muted,
-                    cursor: summaryLoading ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  <RefreshCw size={10} style={{ animation: summaryLoading ? 'spin 1s linear infinite' : 'none' }} />
-                  Refresh
-                </button>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {!yesterdaySummaries && !summaryLoading && (
+                  <button
+                    onClick={e => { e.stopPropagation(); generateSummary() }}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      padding: '8px 16px', background: C.ink, border: 'none', borderRadius: 8,
+                      fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.78rem',
+                      color: C.accent, cursor: 'pointer',
+                    }}
+                  >
+                    <Sparkles size={12} />
+                    Generate Summary
+                  </button>
+                )}
+                {summaryLoading && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', fontFamily: 'Barlow, sans-serif', color: '#888' }}>
+                    <RefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                    Generating…
+                  </span>
+                )}
+                {yesterdaySummaries && !summaryLoading && (
+                  <button
+                    onClick={e => { e.stopPropagation(); generateSummary() }}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      padding: '6px 10px', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 6,
+                      fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.72rem',
+                      color: C.muted, cursor: 'pointer',
+                    }}
+                  >
+                    <RefreshCw size={10} />
+                    Refresh
+                  </button>
+                )}
+                <ChevronDown size={14} color={C.muted} style={{
+                  transition: 'transform 0.2s',
+                  transform: summarySectionOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  flexShrink: 0,
+                }} />
+              </div>
             </div>
 
-            {summaryError && (
-              <div style={{ padding: '12px 20px', fontSize: '0.8rem', color: '#b91c1c', fontFamily: 'Barlow, sans-serif' }}>
+            {summarySectionOpen && summaryError && (
+              <div style={{ padding: '12px 20px', fontSize: '0.8rem', color: '#b91c1c', fontFamily: 'Barlow, sans-serif', borderTop: `1px solid ${C.border}` }}>
                 {summaryError}
               </div>
             )}
 
-            {yesterdaySummaries && (
+            {summarySectionOpen && yesterdaySummaries && (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {orgs.map((org, i) => {
                   const s = yesterdaySummaries[org.id]
