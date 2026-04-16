@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, ChevronRight, Building2, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react'
+import { ArrowRight, ChevronRight, Building2, TrendingUp, TrendingDown, RefreshCw, Sparkles } from 'lucide-react'
 import DateRangePicker, { DateRange, getComparisonPeriod } from '@/components/DateRangePicker'
 import { Skeleton, SkeletonKpiCard } from '@/components/Skeleton'
 
@@ -103,6 +103,12 @@ export default function OverviewPage() {
   const [syncingMeta, setSyncingMeta] = useState(false)
   const [metaSyncResult, setMetaSyncResult] = useState<{ ok: boolean; text: string } | null>(null)
   const [syncTimestamps, setSyncTimestamps] = useState<Record<string, string | null>>({ shopify: null, meta: null })
+  const [yesterdaySummaries, setYesterdaySummaries] = useState<Record<string, {
+    summary: string; revenue: number; orders: number; adSpend: number; roas: number
+    revenueDelta: number; ordersDelta: number; adSpendDelta: number; roasDelta: number
+  }> | null>(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [summaryError, setSummaryError] = useState<string | null>(null)
   const supabase = createClient()
   const router = useRouter()
 
@@ -425,6 +431,44 @@ export default function OverviewPage() {
     window.location.href = '/dashboard/analytics'
   }
 
+  // Yesterday summary helpers
+  const yesterdayDate = (() => {
+    const d = new Date()
+    d.setDate(d.getDate() - 1)
+    return d
+  })()
+  const yesterdayStr = yesterdayDate.toLocaleDateString('en-CA')
+  const yesterdayLabel = yesterdayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+  const summaryCacheKey = `yesterday-summary-${yesterdayStr}`
+
+  // Load cached summary on mount
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem(summaryCacheKey)
+      if (cached) setYesterdaySummaries(JSON.parse(cached))
+    } catch {}
+  }, [])
+
+  const generateSummary = async () => {
+    if (orgs.length === 0) return
+    setSummaryLoading(true)
+    setSummaryError(null)
+    try {
+      const res = await fetch('/api/ai/yesterday-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ org_ids: orgs.map(o => o.id) }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to generate summary')
+      setYesterdaySummaries(data.summaries)
+      localStorage.setItem(summaryCacheKey, JSON.stringify(data.summaries))
+    } catch (err: any) {
+      setSummaryError(err.message)
+    }
+    setSummaryLoading(false)
+  }
+
   const sorted = [...orgs].sort((a, b) => b[sortBy] - a[sortBy])
   const loaded = orgs.filter(o => !o.loading)
   const totalRevenue  = loaded.reduce((s, o) => s + o.revenue, 0)
@@ -471,6 +515,128 @@ export default function OverviewPage() {
       </div>
 
       <div className={`overview-content page-content${isRefetching ? ' is-refetching' : ''}`} style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 80px' }}>
+
+        {/* Yesterday's Summary */}
+        {!loadingOrgs && orgs.length > 0 && (
+          <div className="card" style={{ marginBottom: 24, padding: 0, overflow: 'hidden' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '16px 20px', borderBottom: yesterdaySummaries ? `1px solid ${C.border}` : 'none',
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Sparkles size={14} color={C.ink} />
+                  <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>Yesterday</span>
+                </div>
+                <div className="mono" style={{ fontSize: '0.72rem', color: '#aaa', marginTop: 2 }}>{yesterdayLabel}</div>
+              </div>
+              {!yesterdaySummaries && (
+                <button
+                  onClick={generateSummary}
+                  disabled={summaryLoading}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '8px 16px', background: C.ink, border: 'none', borderRadius: 8,
+                    fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.78rem',
+                    color: summaryLoading ? '#888' : C.accent,
+                    cursor: summaryLoading ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {summaryLoading ? (
+                    <>
+                      <RefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                      Generating…
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={12} />
+                      Generate Summary
+                    </>
+                  )}
+                </button>
+              )}
+              {yesterdaySummaries && (
+                <button
+                  onClick={generateSummary}
+                  disabled={summaryLoading}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    padding: '6px 10px', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 6,
+                    fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.72rem',
+                    color: summaryLoading ? '#aaa' : C.muted,
+                    cursor: summaryLoading ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  <RefreshCw size={10} style={{ animation: summaryLoading ? 'spin 1s linear infinite' : 'none' }} />
+                  Refresh
+                </button>
+              )}
+            </div>
+
+            {summaryError && (
+              <div style={{ padding: '12px 20px', fontSize: '0.8rem', color: '#b91c1c', fontFamily: 'Barlow, sans-serif' }}>
+                {summaryError}
+              </div>
+            )}
+
+            {yesterdaySummaries && (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {orgs.map((org, i) => {
+                  const s = yesterdaySummaries[org.id]
+                  if (!s) return null
+                  return (
+                    <div key={org.id} style={{
+                      padding: '16px 20px',
+                      borderTop: i > 0 ? `1px solid ${C.border}` : 'none',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                        <div style={{ width: 24, height: 24, borderRadius: 6, background: C.ink, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                          <Building2 size={11} color={C.accent} />
+                        </div>
+                        <span style={{ fontWeight: 700, fontSize: '0.85rem', fontFamily: 'Barlow, sans-serif' }}>{org.name}</span>
+                      </div>
+
+                      {/* Metric pills */}
+                      <div className="yesterday-metrics" style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+                        {[
+                          { label: 'Revenue', value: `$${s.revenue >= 1000 ? (s.revenue/1000).toFixed(1) + 'k' : s.revenue.toFixed(0)}`, delta: s.revenueDelta },
+                          { label: 'Orders', value: String(s.orders), delta: s.ordersDelta },
+                          { label: 'Spend', value: `$${s.adSpend >= 1000 ? (s.adSpend/1000).toFixed(1) + 'k' : s.adSpend.toFixed(0)}`, delta: s.adSpendDelta, invert: true },
+                          { label: 'ROAS', value: s.roas > 0 ? `${s.roas.toFixed(2)}x` : '—', delta: s.roasDelta },
+                        ].map(m => (
+                          <div key={m.label} style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            background: C.cream, borderRadius: 6, padding: '6px 10px',
+                          }}>
+                            <span style={{ fontSize: '0.68rem', color: C.muted, fontFamily: 'Barlow, sans-serif' }}>{m.label}</span>
+                            <span className="mono" style={{ fontSize: '0.78rem', fontWeight: 700 }}>{m.value}</span>
+                            {Math.abs(m.delta) >= 0.05 && (
+                              <span style={{
+                                fontSize: '0.65rem', fontWeight: 600,
+                                color: (m.invert ? m.delta <= 0 : m.delta >= 0) ? '#007a48' : '#b91c1c',
+                                fontFamily: 'Barlow, sans-serif',
+                              }}>
+                                {m.delta >= 0 ? '+' : ''}{m.delta.toFixed(1)}%
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* AI Summary */}
+                      <p style={{
+                        fontSize: '0.82rem', lineHeight: 1.55, color: '#333',
+                        fontFamily: 'Barlow, sans-serif', margin: 0,
+                      }}>
+                        {s.summary}
+                      </p>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Summary strip — only meaningful with 2+ orgs */}
         {!loadingOrgs && orgs.length > 1 && (
@@ -847,6 +1013,8 @@ export default function OverviewPage() {
           .overview-sync-row .sync-item button { width: 100% !important; }
           .overview-table { display: none !important; }
           .overview-cards { display: flex !important; }
+          .yesterday-metrics { gap: 6px !important; }
+          .yesterday-metrics > div { flex: 1 1 calc(50% - 3px); min-width: 0; }
         }
       `}</style>
     </div>
