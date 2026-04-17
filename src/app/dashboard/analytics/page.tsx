@@ -18,6 +18,7 @@ import AIInsights from '@/components/AIInsights'
 import EmailInsights from '@/components/EmailInsights'
 import AskAttomik from '@/components/AskAttomik'
 import ChannelSalesChart from '@/components/ChannelSalesChart'
+import { Sparkles } from 'lucide-react'
 
 function pct(current: number, prev: number) {
   if (prev === 0) return current > 0 ? 100 : 0
@@ -101,6 +102,111 @@ function KpiCard({ label, value, change, invertColors, subtitle, children, targe
         </div>
       )}
       {children}
+    </div>
+  )
+}
+
+function YesterdayInsightCard({ insight, onGenerate }: { insight: any | null; onGenerate?: () => void }) {
+  const fmtDateLong = (d: string) => {
+    const dt = new Date(d + 'T12:00:00')
+    return dt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+  }
+  const fmtMoney = (n: number) => {
+    if (n >= 1_000_000) return `$${(n/1_000_000).toFixed(2)}M`
+    if (n >= 1_000) return `$${(n/1_000).toFixed(1)}k`
+    return `$${n.toFixed(0)}`
+  }
+
+  if (!insight) {
+    const ydate = new Date(); ydate.setDate(ydate.getDate() - 1)
+    return (
+      <div className="yesterday-card" style={{
+        background: '#0a0a0a', border: '1px solid rgba(0,255,151,0.15)', borderRadius: 12,
+        padding: '18px 20px', marginBottom: 24, color: '#eee',
+      }}>
+        <div className="yesterday-empty" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Sparkles size={14} color={C.accent} />
+            <span style={{ fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 700, fontSize: '0.85rem', color: '#fff' }}>Yesterday</span>
+            <span style={{ fontSize: '0.78rem', color: '#888', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>· {fmtDateLong(ydate.toLocaleDateString('en-CA'))}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.78rem', color: '#999', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>No insights yet for yesterday</span>
+            <button onClick={onGenerate} style={{
+              padding: '8px 14px', background: C.accent, color: '#000', border: 'none', borderRadius: 8,
+              fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+            }}>
+              <Sparkles size={12} />
+              Generate
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const m = insight.metrics ?? {}
+  const pills: { label: string; value: string; wow: number | null; invert?: boolean }[] = [
+    { label: 'Revenue',  value: fmtMoney(Number(m.revenue ?? 0)),  wow: typeof m.revenue_wow  === 'number' ? m.revenue_wow  : null },
+    { label: 'Orders',   value: Number(m.orders ?? 0).toLocaleString('en-US'), wow: typeof m.orders_wow === 'number' ? m.orders_wow : null },
+    { label: 'Ad Spend', value: fmtMoney(Number(m.ad_spend ?? 0)), wow: typeof m.ad_spend_wow === 'number' ? m.ad_spend_wow : null, invert: true },
+    { label: 'ROAS',     value: `${Number(m.roas ?? 0).toFixed(2)}x`, wow: typeof m.roas_wow === 'number' ? m.roas_wow : null },
+  ]
+
+  return (
+    <div className="yesterday-card" style={{
+      background: '#0a0a0a', border: '1px solid rgba(0,255,151,0.2)', borderRadius: 12,
+      padding: 22, marginBottom: 24, color: '#eee',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+        <Sparkles size={14} color={C.accent} />
+        <span style={{ fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 700, fontSize: '0.85rem', color: '#fff' }}>Yesterday</span>
+        <span style={{ fontSize: '0.78rem', color: '#999', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>· {fmtDateLong(insight.date)}</span>
+      </div>
+      {insight.summary && (
+        <p style={{
+          fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontSize: '0.95rem', lineHeight: 1.6,
+          color: '#d8d8d8', margin: 0, marginBottom: 18,
+        }}>
+          {insight.summary}
+        </p>
+      )}
+      <div className="yesterday-pills" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+        {pills.map(p => {
+          const wow = p.wow
+          const isUp = wow !== null ? wow >= 0 : null
+          const isGood = wow === null ? null : (p.invert ? !isUp : isUp)
+          return (
+            <div key={p.label} style={{
+              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 10, padding: '12px 14px', minWidth: 0,
+            }}>
+              <div style={{ fontSize: '0.68rem', color: '#888', fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>{p.label}</div>
+              <div style={{ fontFamily: 'var(--font-dm-mono), DM Mono, monospace', fontSize: '1.2rem', fontWeight: 700, color: '#fff', marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.value}</div>
+              {wow !== null ? (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 3,
+                  padding: '2px 8px', borderRadius: 999,
+                  background: isGood ? 'rgba(0,255,151,0.15)' : 'rgba(255,107,107,0.15)',
+                  color: isGood ? C.accent : '#ff6b6b',
+                  fontSize: '0.68rem', fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 700,
+                }}>
+                  {isUp ? '↑' : '↓'} {Math.abs(wow).toFixed(1)}% WoW
+                </span>
+              ) : (
+                <span style={{ fontSize: '0.68rem', color: '#555', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>—</span>
+              )}
+            </div>
+          )
+        })}
+      </div>
+      <style>{`
+        @media (max-width: 640px) {
+          .yesterday-pills { grid-template-columns: repeat(2, 1fr) !important; }
+          .yesterday-empty { flex-direction: column !important; align-items: flex-start !important; }
+        }
+      `}</style>
     </div>
   )
 }
@@ -270,6 +376,8 @@ export default function AnalyticsPage() {
   const [isSuperadmin, setIsSuperadmin] = useState(false)
   const [syncTimestamps, setSyncTimestamps] = useState<Record<string, string | null>>({ shopify: null, amazon: null, meta: null })
   const [monthlyTarget, setMonthlyTarget] = useState<any>(null)
+  const [yesterdayInsight, setYesterdayInsight] = useState<any | null>(null)
+  const [insightFetched, setInsightFetched] = useState(false)
   const supabase = createClient()
 
   useEffect(() => { fetchData() }, [range])
@@ -337,6 +445,13 @@ export default function AnalyticsPage() {
         setSyncTimestamps(ts)
       })
       .catch(() => { if (stored) setSyncTimestamps({ shopify: null, amazon: null, meta: null, ...localTs }) })
+
+    // Fetch most recent daily insight for this org (AI narrative + WoW metrics)
+    fetch(`/api/insights/yesterday?org_id=${orgId}&_t=${Date.now()}`, { cache: 'no-store' as RequestCache })
+      .then(r => r.ok ? r.json() : { data: null })
+      .then(({ data }) => setYesterdayInsight(data ?? null))
+      .catch(() => setYesterdayInsight(null))
+      .finally(() => setInsightFetched(true))
 
     // Fetch monthly targets for the selected period (via API to bypass RLS)
     // Parse YYYY-MM-DD directly to avoid UTC-vs-local timezone shift
@@ -1030,6 +1145,9 @@ export default function AnalyticsPage() {
         ) : !d ? (
           <div style={{ color: C.muted, textAlign: 'center', padding: '80px 0', fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontSize: '1rem' }}>No data yet. Upload a CSV to get started.</div>
         ) : (<>
+
+          {/* ── YESTERDAY INSIGHT ── */}
+          {insightFetched && <YesterdayInsightCard insight={yesterdayInsight} />}
 
           {/* ── ASK ATTOMIK ── */}
           <AskAttomik
