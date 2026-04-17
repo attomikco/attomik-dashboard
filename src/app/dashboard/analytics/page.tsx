@@ -18,7 +18,7 @@ import AIInsights from '@/components/AIInsights'
 import EmailInsights from '@/components/EmailInsights'
 import AskAttomik from '@/components/AskAttomik'
 import ChannelSalesChart from '@/components/ChannelSalesChart'
-import { Sparkles, RefreshCw } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 
 function pct(current: number, prev: number) {
   if (prev === 0) return current > 0 ? 100 : 0
@@ -142,7 +142,7 @@ function YesterdayPill({ label, value, wow, invert, skeleton }: { label: string;
   )
 }
 
-function YesterdayInsightCard({ insight, generating, onGenerate, connectedBelow }: { insight: any | null; generating?: boolean; onGenerate?: () => void; connectedBelow?: boolean }) {
+function YesterdayInsightCard({ insight, connectedBelow }: { insight: any | null; connectedBelow?: boolean }) {
   const fmtDateLong = (d: string) => {
     const dt = new Date(d + 'T12:00:00')
     return dt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
@@ -151,10 +151,6 @@ function YesterdayInsightCard({ insight, generating, onGenerate, connectedBelow 
     if (n >= 1_000_000) return `$${(n/1_000_000).toFixed(2)}M`
     if (n >= 1_000) return `$${(n/1_000).toFixed(1)}k`
     return `$${n.toFixed(0)}`
-  }
-  const fmtTime = (iso: string) => {
-    try { return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) }
-    catch { return '' }
   }
 
   const cardStyle: React.CSSProperties = {
@@ -168,64 +164,9 @@ function YesterdayInsightCard({ insight, generating, onGenerate, connectedBelow 
     overflow: 'hidden',
   }
 
-  // ── EMPTY STATE ──
-  if (!insight) {
-    const ydate = new Date(); ydate.setDate(ydate.getDate() - 1)
-    return (
-      <div className="yesterday-card" style={cardStyle}>
-        <div style={{ padding: '20px 22px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Sparkles size={14} color={C.accent} />
-          <span style={{ fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 700, fontSize: '0.9rem', color: '#fff' }}>Yesterday</span>
-          <span style={{ fontSize: '0.8rem', color: '#999', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>· {fmtDateLong(ydate.toLocaleDateString('en-CA'))}</span>
-        </div>
-        <div style={{ padding: '0 22px 18px' }}>
-          <div className="yesterday-pills" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-            <YesterdayPill label="Revenue"  skeleton />
-            <YesterdayPill label="Orders"   skeleton />
-            <YesterdayPill label="Ad Spend" skeleton />
-            <YesterdayPill label="ROAS"     skeleton />
-          </div>
-        </div>
-        <div style={{ padding: '6px 22px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-          <p style={{ fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontSize: '0.85rem', color: '#999', margin: 0, textAlign: 'center' }}>
-            No insights yet for yesterday. Generate an AI briefing from your data.
-          </p>
-          <button onClick={onGenerate} disabled={generating} style={{
-            padding: '11px 22px',
-            background: generating ? 'rgba(0,255,151,0.25)' : C.accent,
-            color: '#000', border: 'none', borderRadius: 10,
-            fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 800, fontSize: '0.88rem',
-            cursor: generating ? 'not-allowed' : 'pointer',
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            boxShadow: generating ? 'none' : '0 0 0 2px rgba(0,255,151,0.2)',
-            transition: '0.15s',
-          }}>
-            {generating ? (
-              <>
-                <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} />
-                Generating…
-              </>
-            ) : (
-              <>
-                <Sparkles size={14} />
-                Generate Insights
-              </>
-            )}
-          </button>
-        </div>
-        <style>{`
-          @media (max-width: 640px) {
-            .yesterday-pills { grid-template-columns: repeat(2, 1fr) !important; }
-            .yesterday-split { grid-template-columns: 1fr !important; }
-          }
-          @keyframes spin { to { transform: rotate(360deg) } }
-        `}</style>
-      </div>
-    )
-  }
-
-  // ── FULL STATE ──
-  const m = insight.metrics ?? {}
+  const ydate = new Date(); ydate.setDate(ydate.getDate() - 1)
+  const dateStr = insight?.date ?? ydate.toLocaleDateString('en-CA')
+  const m = insight?.metrics ?? {}
   const pills = [
     { label: 'Revenue',  value: fmtMoney(Number(m.revenue ?? 0)),  wow: typeof m.revenue_wow  === 'number' ? m.revenue_wow  : null },
     { label: 'Orders',   value: Number(m.orders ?? 0).toLocaleString('en-US'), wow: typeof m.orders_wow === 'number' ? m.orders_wow : null },
@@ -235,59 +176,20 @@ function YesterdayInsightCard({ insight, generating, onGenerate, connectedBelow 
 
   return (
     <div className="yesterday-card" style={cardStyle}>
-      <div style={{ padding: '20px 22px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Sparkles size={14} color={C.accent} />
-          <span style={{ fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 700, fontSize: '0.9rem', color: '#fff' }}>Yesterday</span>
-          <span style={{ fontSize: '0.8rem', color: '#999', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>· {fmtDateLong(insight.date)}</span>
-        </div>
-        <button onClick={onGenerate} disabled={generating} style={{
-          padding: '5px 10px', background: 'transparent', color: '#999',
-          border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6,
-          fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 600, fontSize: '0.7rem',
-          cursor: generating ? 'not-allowed' : 'pointer',
-          display: 'inline-flex', alignItems: 'center', gap: 5, transition: '0.15s',
-        }}>
-          <RefreshCw size={10} style={generating ? { animation: 'spin 1s linear infinite' } : undefined} />
-          {generating ? 'Regenerating…' : 'Regenerate'}
-        </button>
+      <div style={{ padding: '18px 22px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Sparkles size={14} color={C.accent} />
+        <span style={{ fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 700, fontSize: '0.9rem', color: '#fff' }}>Yesterday</span>
+        <span style={{ fontSize: '0.8rem', color: '#999', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>· {fmtDateLong(dateStr)}</span>
       </div>
-
-      <div className="yesterday-split" style={{ padding: '6px 22px 0', display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 16, alignItems: 'start' }}>
-        {/* LEFT: narrative */}
-        <div style={{
-          background: 'rgba(0,255,151,0.04)', border: '1px solid rgba(0,255,151,0.1)',
-          borderRadius: 10, padding: '16px 18px', minHeight: '100%',
-        }}>
-          <p style={{
-            fontFamily: 'var(--font-barlow), Barlow, sans-serif',
-            fontSize: '0.95rem', lineHeight: 1.65,
-            color: '#e6e6e6', margin: 0,
-          }}>
-            {insight.summary || 'No narrative available.'}
-          </p>
-        </div>
-
-        {/* RIGHT: 2x2 pill grid */}
-        <div className="yesterday-pills" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div style={{ padding: '0 22px 20px' }}>
+        <div className="yesterday-pills" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
           {pills.map(p => <YesterdayPill key={p.label} {...p} />)}
         </div>
       </div>
-
-      <div style={{ padding: '14px 22px 16px', display: 'flex', justifyContent: 'flex-end' }}>
-        <span style={{ fontSize: '0.68rem', color: '#666', fontFamily: 'var(--font-dm-mono), DM Mono, monospace' }}>
-          Generated at {fmtTime(insight.created_at)}
-        </span>
-      </div>
-
       <style>{`
-        @media (max-width: 760px) {
-          .yesterday-split { grid-template-columns: 1fr !important; }
-        }
         @media (max-width: 640px) {
           .yesterday-pills { grid-template-columns: repeat(2, 1fr) !important; }
         }
-        @keyframes spin { to { transform: rotate(360deg) } }
       `}</style>
     </div>
   )
@@ -460,7 +362,6 @@ export default function AnalyticsPage() {
   const [monthlyTarget, setMonthlyTarget] = useState<any>(null)
   const [yesterdayInsight, setYesterdayInsight] = useState<any | null>(null)
   const [insightFetched, setInsightFetched] = useState(false)
-  const [insightGenerating, setInsightGenerating] = useState(false)
   const supabase = createClient()
 
   useEffect(() => { fetchData() }, [range])
@@ -473,24 +374,6 @@ export default function AnalyticsPage() {
     window.addEventListener('scroll', handler, { passive: true })
     return () => window.removeEventListener('scroll', handler)
   }, [])
-
-  const generateInsight = async () => {
-    if (!activeOrgId || insightGenerating) return
-    setInsightGenerating(true)
-    try {
-      const res = await fetch('/api/insights/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ org_id: activeOrgId }),
-      })
-      const payload = await res.json()
-      if (!res.ok) throw new Error(payload.error ?? 'Generation failed')
-      setYesterdayInsight(payload.data ?? null)
-    } catch (err) {
-      console.error('[insights/generate] failed:', err)
-    }
-    setInsightGenerating(false)
-  }
 
   const fetchData = async () => {
     if (hasLoadedOnce.current) setIsRefetching(true)
@@ -1266,8 +1149,6 @@ export default function AnalyticsPage() {
               <div style={{ marginBottom: 24 }}>
                 <YesterdayInsightCard
                   insight={yesterdayInsight}
-                  generating={insightGenerating}
-                  onGenerate={generateInsight}
                   connectedBelow
                 />
                 <AskAttomik
