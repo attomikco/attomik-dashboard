@@ -111,6 +111,10 @@ export default function OverviewPage() {
   const [summaryError, setSummaryError] = useState<string | null>(null)
   const [expandedSummaries, setExpandedSummaries] = useState<Set<string>>(new Set())
   const [summarySectionOpen, setSummarySectionOpen] = useState(true)
+  const [yesterdayTable, setYesterdayTable] = useState<{
+    data: { org_id: string; org_name: string; revenue: number; orders: number; ad_spend: number; roas: number; revenue_dod: number | null; orders_dod: number | null }[]
+    date: string | null
+  } | null>(null)
   const supabase = createClient()
   const router = useRouter()
 
@@ -449,6 +453,16 @@ export default function OverviewPage() {
       const cached = localStorage.getItem(summaryCacheKey)
       if (cached) setYesterdaySummaries(JSON.parse(cached))
     } catch {}
+  }, [])
+
+  // Fetch compact yesterday table for all orgs on mount
+  useEffect(() => {
+    const viewAsUserId = localStorage.getItem('viewAsUserId')
+    const url = `/api/insights/yesterday-all${viewAsUserId ? `?viewAs=${viewAsUserId}` : ''}`
+    fetch(url, { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(payload => { if (payload) setYesterdayTable(payload) })
+      .catch(() => {})
   }, [])
 
   const generateSummary = async () => {
@@ -836,6 +850,108 @@ export default function OverviewPage() {
           </div>
         ) : (
           <>
+            {/* ── Compact Yesterday table — one row per brand, totals at the bottom ── */}
+            {yesterdayTable && yesterdayTable.data.length > 0 && (() => {
+              const rows = yesterdayTable.data
+              const totalRev = rows.reduce((s, r) => s + r.revenue, 0)
+              const totalOrd = rows.reduce((s, r) => s + r.orders, 0)
+              const totalSp  = rows.reduce((s, r) => s + r.ad_spend, 0)
+              const blendRoas = totalSp > 0 ? totalRev / totalSp : 0
+              const headerLabel = yesterdayTable.date
+                ? new Date(yesterdayTable.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+                : ''
+
+              const dodBadge = (v: number | null, invert = false) => {
+                if (v === null || v === undefined) {
+                  return <span className="badge badge-gray" style={{ fontSize: '0.62rem' }}>—</span>
+                }
+                const up = v >= 0
+                const good = invert ? !up : up
+                return (
+                  <span className={`badge ${good ? 'pill-up' : 'pill-down'}`} style={{ fontSize: '0.62rem', padding: '1px 6px' }}>
+                    {up ? '↑' : '↓'} {Math.abs(v).toFixed(1)}%
+                  </span>
+                )
+              }
+
+              const cellBase: React.CSSProperties = {
+                padding: '6px 10px',
+                fontFamily: 'var(--font-dm-mono), DM Mono, monospace',
+                fontSize: '0.78rem',
+                whiteSpace: 'nowrap',
+                borderBottom: `1px solid ${C.border}`,
+              }
+              const numRight: React.CSSProperties = { ...cellBase, textAlign: 'right' }
+
+              return (
+                <div className="card" style={{ padding: 0, marginBottom: 20, overflow: 'hidden' }}>
+                  <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: `1px solid ${C.border}` }}>
+                    <Sparkles size={13} color={C.ink} />
+                    <span style={{ fontWeight: 700, fontSize: '0.85rem', fontFamily: 'Barlow, sans-serif' }}>Yesterday</span>
+                    <span className="mono" style={{ fontSize: '0.7rem', color: C.muted }}>· {headerLabel}</span>
+                  </div>
+                  <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          {['Brand', 'Revenue', 'Orders', 'Ad Spend', 'ROAS'].map((h, i) => (
+                            <th key={i} style={{
+                              textAlign: i === 0 ? 'left' : 'right',
+                              padding: '8px 10px',
+                              fontSize: '0.65rem',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.08em',
+                              color: C.muted,
+                              fontWeight: 700,
+                              fontFamily: 'Barlow, sans-serif',
+                              borderBottom: `1px solid ${C.border}`,
+                              position: 'sticky',
+                              top: 0,
+                              background: C.paper,
+                              zIndex: 1,
+                            }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map(r => (
+                          <tr key={r.org_id}>
+                            <td style={{ ...cellBase, textAlign: 'left', fontFamily: 'Barlow, sans-serif', fontWeight: 600 }}>
+                              {r.org_name}
+                            </td>
+                            <td style={numRight}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+                                {fmt$(r.revenue)}
+                                {dodBadge(r.revenue_dod)}
+                              </span>
+                            </td>
+                            <td style={numRight}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+                                {fmtN(r.orders)}
+                                {dodBadge(r.orders_dod)}
+                              </span>
+                            </td>
+                            <td style={numRight}>{fmt$(r.ad_spend)}</td>
+                            <td style={numRight}>{r.roas > 0 ? `${r.roas.toFixed(2)}x` : '—'}</td>
+                          </tr>
+                        ))}
+                        {/* Total row */}
+                        <tr style={{ background: C.cream }}>
+                          <td style={{ ...cellBase, textAlign: 'left', fontFamily: 'Barlow, sans-serif', fontWeight: 800, borderBottom: 'none' }}>
+                            Total
+                          </td>
+                          <td style={{ ...numRight, fontWeight: 800, borderBottom: 'none' }}>{fmt$(totalRev)}</td>
+                          <td style={{ ...numRight, fontWeight: 800, borderBottom: 'none' }}>{fmtN(totalOrd)}</td>
+                          <td style={{ ...numRight, fontWeight: 800, borderBottom: 'none' }}>{fmt$(totalSp)}</td>
+                          <td style={{ ...numRight, fontWeight: 800, borderBottom: 'none' }}>{blendRoas > 0 ? `${blendRoas.toFixed(2)}x` : '—'}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )
+            })()}
+
             {/* ── Desktop table ── */}
             <div className="overview-table table-wrapper"><div className="table-scroll">
               <table style={{ minWidth: 980 }}>
