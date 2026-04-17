@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { BarChart2, Users, Upload, Settings, LogOut, Building2, ChevronDown, FolderOpen, TrendingUp, Menu, X, LayoutGrid, Eye, Package } from 'lucide-react'
+import { BarChart2, Users, Upload, Settings, LogOut, Building2, ChevronDown, FolderOpen, TrendingUp, Menu, X, LayoutGrid, Eye, Package, UserPlus } from 'lucide-react'
 
 const navItems = [
   { label: 'Overview',   href: '/dashboard/overview',  icon: LayoutGrid,  minRole: 'viewer' },
@@ -119,7 +119,12 @@ export default function Sidebar() {
     setActiveOrg(org)
     localStorage.setItem('activeOrgId', org.id)
     setDropdownOpen(false)
-    window.location.reload()
+    // Switching brands from Overview (multi-brand view) should land on that brand's analytics
+    if (pathname === '/dashboard/overview') {
+      window.location.href = '/dashboard/analytics'
+    } else {
+      window.location.reload()
+    }
   }
 
   const handleSignOut = async () => {
@@ -231,7 +236,10 @@ export default function Sidebar() {
       {profile?.is_superadmin && (
         <div style={{ padding: '8px 0', borderTop: '1px solid var(--sidebar-border)', flexShrink: 0 }}>
           <div className="label" style={{ padding: '8px 24px 4px', color: 'rgba(255,255,255,0.25)', fontSize: '0.65rem', letterSpacing: '0.1em' }}>Admin</div>
-          {[{ label: 'Projects', href: '/dashboard/projects', icon: FolderOpen }].map(({ label, href, icon: Icon }) => {
+          {[
+            { label: 'Projects', href: '/dashboard/projects', icon: FolderOpen },
+            { label: 'Onboarding', href: '/admin', icon: UserPlus },
+          ].map(({ label, href, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(href + '/')
             return (
               <button key={href} onClick={() => router.push(href)}
