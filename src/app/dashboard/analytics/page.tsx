@@ -18,7 +18,7 @@ import AIInsights from '@/components/AIInsights'
 import EmailInsights from '@/components/EmailInsights'
 import AskAttomik from '@/components/AskAttomik'
 import ChannelSalesChart from '@/components/ChannelSalesChart'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, RefreshCw } from 'lucide-react'
 
 function pct(current: number, prev: number) {
   if (prev === 0) return current > 0 ? 100 : 0
@@ -106,7 +106,43 @@ function KpiCard({ label, value, change, invertColors, subtitle, children, targe
   )
 }
 
-function YesterdayInsightCard({ insight, onGenerate }: { insight: any | null; onGenerate?: () => void }) {
+function YesterdayPill({ label, value, wow, invert, skeleton }: { label: string; value?: string; wow?: number | null; invert?: boolean; skeleton?: boolean }) {
+  const isUp = typeof wow === 'number' ? wow >= 0 : null
+  const isGood = typeof wow !== 'number' ? null : (invert ? !isUp : isUp)
+  return (
+    <div style={{
+      background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: 10, padding: '14px 16px', minWidth: 0,
+    }}>
+      <div style={{ fontSize: '0.68rem', color: '#888', fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>{label}</div>
+      <div style={{ fontFamily: 'var(--font-dm-mono), DM Mono, monospace', fontSize: '1.3rem', fontWeight: 700, color: skeleton ? '#333' : '#fff', marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        {skeleton ? '—' : value}
+      </div>
+      {skeleton ? (
+        <span style={{ fontSize: '0.68rem', color: '#555', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>pending</span>
+      ) : typeof wow === 'number' ? (
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: 3,
+          padding: '2px 8px', borderRadius: 999,
+          background: isGood ? 'rgba(0,255,151,0.15)' : 'rgba(255,107,107,0.15)',
+          color: isGood ? '#00ff97' : '#ff6b6b',
+          fontSize: '0.68rem', fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 700,
+        }}>
+          {isUp ? '↑' : '↓'} {Math.abs(wow).toFixed(1)}% WoW
+        </span>
+      ) : (
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: 3,
+          padding: '2px 8px', borderRadius: 999,
+          background: 'rgba(255,255,255,0.06)', color: '#777',
+          fontSize: '0.68rem', fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 600,
+        }}>no comparison</span>
+      )}
+    </div>
+  )
+}
+
+function YesterdayInsightCard({ insight, generating, onGenerate, connectedBelow }: { insight: any | null; generating?: boolean; onGenerate?: () => void; connectedBelow?: boolean }) {
   const fmtDateLong = (d: string) => {
     const dt = new Date(d + 'T12:00:00')
     return dt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
@@ -116,38 +152,81 @@ function YesterdayInsightCard({ insight, onGenerate }: { insight: any | null; on
     if (n >= 1_000) return `$${(n/1_000).toFixed(1)}k`
     return `$${n.toFixed(0)}`
   }
+  const fmtTime = (iso: string) => {
+    try { return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) }
+    catch { return '' }
+  }
 
+  const cardStyle: React.CSSProperties = {
+    background: '#0a0a0a',
+    border: '1px solid rgba(0,255,151,0.2)',
+    borderRadius: connectedBelow ? '12px 12px 0 0' : 12,
+    borderBottom: connectedBelow ? 'none' : '1px solid rgba(0,255,151,0.2)',
+    padding: 0,
+    marginBottom: connectedBelow ? 0 : 24,
+    color: '#eee',
+    overflow: 'hidden',
+  }
+
+  // ── EMPTY STATE ──
   if (!insight) {
     const ydate = new Date(); ydate.setDate(ydate.getDate() - 1)
     return (
-      <div className="yesterday-card" style={{
-        background: '#0a0a0a', border: '1px solid rgba(0,255,151,0.15)', borderRadius: 12,
-        padding: '18px 20px', marginBottom: 24, color: '#eee',
-      }}>
-        <div className="yesterday-empty" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Sparkles size={14} color={C.accent} />
-            <span style={{ fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 700, fontSize: '0.85rem', color: '#fff' }}>Yesterday</span>
-            <span style={{ fontSize: '0.78rem', color: '#888', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>· {fmtDateLong(ydate.toLocaleDateString('en-CA'))}</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.78rem', color: '#999', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>No insights yet for yesterday</span>
-            <button onClick={onGenerate} style={{
-              padding: '8px 14px', background: C.accent, color: '#000', border: 'none', borderRadius: 8,
-              fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer',
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-            }}>
-              <Sparkles size={12} />
-              Generate
-            </button>
+      <div className="yesterday-card" style={cardStyle}>
+        <div style={{ padding: '20px 22px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Sparkles size={14} color={C.accent} />
+          <span style={{ fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 700, fontSize: '0.9rem', color: '#fff' }}>Yesterday</span>
+          <span style={{ fontSize: '0.8rem', color: '#999', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>· {fmtDateLong(ydate.toLocaleDateString('en-CA'))}</span>
+        </div>
+        <div style={{ padding: '0 22px 18px' }}>
+          <div className="yesterday-pills" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+            <YesterdayPill label="Revenue"  skeleton />
+            <YesterdayPill label="Orders"   skeleton />
+            <YesterdayPill label="Ad Spend" skeleton />
+            <YesterdayPill label="ROAS"     skeleton />
           </div>
         </div>
+        <div style={{ padding: '6px 22px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          <p style={{ fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontSize: '0.85rem', color: '#999', margin: 0, textAlign: 'center' }}>
+            No insights yet for yesterday. Generate an AI briefing from your data.
+          </p>
+          <button onClick={onGenerate} disabled={generating} style={{
+            padding: '11px 22px',
+            background: generating ? 'rgba(0,255,151,0.25)' : C.accent,
+            color: '#000', border: 'none', borderRadius: 10,
+            fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 800, fontSize: '0.88rem',
+            cursor: generating ? 'not-allowed' : 'pointer',
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            boxShadow: generating ? 'none' : '0 0 0 2px rgba(0,255,151,0.2)',
+            transition: '0.15s',
+          }}>
+            {generating ? (
+              <>
+                <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                Generating…
+              </>
+            ) : (
+              <>
+                <Sparkles size={14} />
+                Generate Insights
+              </>
+            )}
+          </button>
+        </div>
+        <style>{`
+          @media (max-width: 640px) {
+            .yesterday-pills { grid-template-columns: repeat(2, 1fr) !important; }
+            .yesterday-split { grid-template-columns: 1fr !important; }
+          }
+          @keyframes spin { to { transform: rotate(360deg) } }
+        `}</style>
       </div>
     )
   }
 
+  // ── FULL STATE ──
   const m = insight.metrics ?? {}
-  const pills: { label: string; value: string; wow: number | null; invert?: boolean }[] = [
+  const pills = [
     { label: 'Revenue',  value: fmtMoney(Number(m.revenue ?? 0)),  wow: typeof m.revenue_wow  === 'number' ? m.revenue_wow  : null },
     { label: 'Orders',   value: Number(m.orders ?? 0).toLocaleString('en-US'), wow: typeof m.orders_wow === 'number' ? m.orders_wow : null },
     { label: 'Ad Spend', value: fmtMoney(Number(m.ad_spend ?? 0)), wow: typeof m.ad_spend_wow === 'number' ? m.ad_spend_wow : null, invert: true },
@@ -155,57 +234,60 @@ function YesterdayInsightCard({ insight, onGenerate }: { insight: any | null; on
   ]
 
   return (
-    <div className="yesterday-card" style={{
-      background: '#0a0a0a', border: '1px solid rgba(0,255,151,0.2)', borderRadius: 12,
-      padding: 22, marginBottom: 24, color: '#eee',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-        <Sparkles size={14} color={C.accent} />
-        <span style={{ fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 700, fontSize: '0.85rem', color: '#fff' }}>Yesterday</span>
-        <span style={{ fontSize: '0.78rem', color: '#999', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>· {fmtDateLong(insight.date)}</span>
-      </div>
-      {insight.summary && (
-        <p style={{
-          fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontSize: '0.95rem', lineHeight: 1.6,
-          color: '#d8d8d8', margin: 0, marginBottom: 18,
+    <div className="yesterday-card" style={cardStyle}>
+      <div style={{ padding: '20px 22px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Sparkles size={14} color={C.accent} />
+          <span style={{ fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 700, fontSize: '0.9rem', color: '#fff' }}>Yesterday</span>
+          <span style={{ fontSize: '0.8rem', color: '#999', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>· {fmtDateLong(insight.date)}</span>
+        </div>
+        <button onClick={onGenerate} disabled={generating} style={{
+          padding: '5px 10px', background: 'transparent', color: '#999',
+          border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6,
+          fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 600, fontSize: '0.7rem',
+          cursor: generating ? 'not-allowed' : 'pointer',
+          display: 'inline-flex', alignItems: 'center', gap: 5, transition: '0.15s',
         }}>
-          {insight.summary}
-        </p>
-      )}
-      <div className="yesterday-pills" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-        {pills.map(p => {
-          const wow = p.wow
-          const isUp = wow !== null ? wow >= 0 : null
-          const isGood = wow === null ? null : (p.invert ? !isUp : isUp)
-          return (
-            <div key={p.label} style={{
-              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: 10, padding: '12px 14px', minWidth: 0,
-            }}>
-              <div style={{ fontSize: '0.68rem', color: '#888', fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>{p.label}</div>
-              <div style={{ fontFamily: 'var(--font-dm-mono), DM Mono, monospace', fontSize: '1.2rem', fontWeight: 700, color: '#fff', marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.value}</div>
-              {wow !== null ? (
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 3,
-                  padding: '2px 8px', borderRadius: 999,
-                  background: isGood ? 'rgba(0,255,151,0.15)' : 'rgba(255,107,107,0.15)',
-                  color: isGood ? C.accent : '#ff6b6b',
-                  fontSize: '0.68rem', fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 700,
-                }}>
-                  {isUp ? '↑' : '↓'} {Math.abs(wow).toFixed(1)}% WoW
-                </span>
-              ) : (
-                <span style={{ fontSize: '0.68rem', color: '#555', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>—</span>
-              )}
-            </div>
-          )
-        })}
+          <RefreshCw size={10} style={generating ? { animation: 'spin 1s linear infinite' } : undefined} />
+          {generating ? 'Regenerating…' : 'Regenerate'}
+        </button>
       </div>
+
+      <div className="yesterday-split" style={{ padding: '6px 22px 0', display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 16, alignItems: 'start' }}>
+        {/* LEFT: narrative */}
+        <div style={{
+          background: 'rgba(0,255,151,0.04)', border: '1px solid rgba(0,255,151,0.1)',
+          borderRadius: 10, padding: '16px 18px', minHeight: '100%',
+        }}>
+          <p style={{
+            fontFamily: 'var(--font-barlow), Barlow, sans-serif',
+            fontSize: '0.95rem', lineHeight: 1.65,
+            color: '#e6e6e6', margin: 0,
+          }}>
+            {insight.summary || 'No narrative available.'}
+          </p>
+        </div>
+
+        {/* RIGHT: 2x2 pill grid */}
+        <div className="yesterday-pills" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          {pills.map(p => <YesterdayPill key={p.label} {...p} />)}
+        </div>
+      </div>
+
+      <div style={{ padding: '14px 22px 16px', display: 'flex', justifyContent: 'flex-end' }}>
+        <span style={{ fontSize: '0.68rem', color: '#666', fontFamily: 'var(--font-dm-mono), DM Mono, monospace' }}>
+          Generated at {fmtTime(insight.created_at)}
+        </span>
+      </div>
+
       <style>{`
+        @media (max-width: 760px) {
+          .yesterday-split { grid-template-columns: 1fr !important; }
+        }
         @media (max-width: 640px) {
           .yesterday-pills { grid-template-columns: repeat(2, 1fr) !important; }
-          .yesterday-empty { flex-direction: column !important; align-items: flex-start !important; }
         }
+        @keyframes spin { to { transform: rotate(360deg) } }
       `}</style>
     </div>
   )
@@ -378,6 +460,7 @@ export default function AnalyticsPage() {
   const [monthlyTarget, setMonthlyTarget] = useState<any>(null)
   const [yesterdayInsight, setYesterdayInsight] = useState<any | null>(null)
   const [insightFetched, setInsightFetched] = useState(false)
+  const [insightGenerating, setInsightGenerating] = useState(false)
   const supabase = createClient()
 
   useEffect(() => { fetchData() }, [range])
@@ -390,6 +473,24 @@ export default function AnalyticsPage() {
     window.addEventListener('scroll', handler, { passive: true })
     return () => window.removeEventListener('scroll', handler)
   }, [])
+
+  const generateInsight = async () => {
+    if (!activeOrgId || insightGenerating) return
+    setInsightGenerating(true)
+    try {
+      const res = await fetch('/api/insights/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ org_id: activeOrgId }),
+      })
+      const payload = await res.json()
+      if (!res.ok) throw new Error(payload.error ?? 'Generation failed')
+      setYesterdayInsight(payload.data ?? null)
+    } catch (err) {
+      console.error('[insights/generate] failed:', err)
+    }
+    setInsightGenerating(false)
+  }
 
   const fetchData = async () => {
     if (hasLoadedOnce.current) setIsRefetching(true)
@@ -1146,54 +1247,78 @@ export default function AnalyticsPage() {
           <div style={{ color: C.muted, textAlign: 'center', padding: '80px 0', fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontSize: '1rem' }}>No data yet. Upload a CSV to get started.</div>
         ) : (<>
 
-          {/* ── YESTERDAY INSIGHT ── */}
-          {insightFetched && <YesterdayInsightCard insight={yesterdayInsight} />}
-
-          {/* ── ASK ATTOMIK ── */}
-          <AskAttomik
-            userName={userName}
-            orgName={orgName}
-            timezone={timezone}
-            period={`${fmtDate(range.start)} – ${fmtDate(range.end)}`}
-            metrics={{
-              totalRev: fmt$(d.totalRevC), totalRevChg: pct(d.totalRevC, d.totalRevP).toFixed(1),
-              totalSp: fmt$(d.totalSpC), totalSpChg: pct(d.totalSpC, d.totalSpP).toFixed(1),
-              roas: d.roasC.toFixed(2), roasP: d.roasP.toFixed(2),
-              orders: d.ordC, ordersChg: pct(d.ordC, d.ordP).toFixed(1),
-              aov: fmt$(d.aovC), aovChg: pct(d.aovC, d.aovP).toFixed(1),
-              cac: fmt$(d.cacC), cacChg: pct(d.cacC, d.cacP).toFixed(1),
-              newCust: d.newCustC, retCust: d.retCustC, retRate: d.shRcrC.toFixed(1),
-              shopifyRev: d.showShopify ? fmt$(d.shTotalC) : null,
-              shopifyPctOfTotal: d.totalRevC > 0 ? (d.shTotalC / d.totalRevC * 100).toFixed(1) : null,
-              shopifyRevChg: d.shTotalP > 0 ? pct(d.shTotalC, d.shTotalP).toFixed(1) : null,
-              shopifyOrders: d.shOrdC, shopifyCust: d.shCustC, shopifyAov: fmt$(d.shAovC),
-              discountRate: d.shDiscRateC.toFixed(1), refundRate: d.shRefRateC.toFixed(1),
-              amazonRev: d.amzRevC > 0 ? fmt$(d.amzRevC) : null,
-              amazonPctOfTotal: d.totalRevC > 0 && d.amzRevC > 0 ? (d.amzRevC / d.totalRevC * 100).toFixed(1) : null,
-              amazonRevChg: d.amzRevP > 0 ? pct(d.amzRevC, d.amzRevP).toFixed(1) : null,
-              cltv: d.cltvC > 0 ? fmt$(d.cltvC) : null,
-              cltvChg: d.cltvP > 0 ? pct(d.cltvC, d.cltvP).toFixed(1) : null,
-              cltvCacRatio: d.cltvC > 0 && d.cacC > 0 ? (d.cltvC / d.cacC).toFixed(2) : null,
-              metaSp: d.showMeta ? fmt$(d.metaSpC) : null,
-              metaRoas: d.metaRoasC > 0 ? d.metaRoasC.toFixed(2) : null,
-              metaImpr: d.metaImprC, metaClicks: d.metaClkC, metaConv: d.metaConvC,
-              trafficSessions: trafficData?.sessions ?? null,
-              trafficSessionsP: trafficData?.sessionsP ?? null,
-              trafficUsers: trafficData?.users ?? null,
-              trafficUsersP: trafficData?.usersP ?? null,
-              trafficNewUsers: trafficData?.newUsers ?? null,
-              trafficNewUsersP: trafficData?.newUsersP ?? null,
-              convRateSessions: trafficData && trafficData.sessions > 0 ? (d.shopOrdC / trafficData.sessions * 100).toFixed(2) : null,
-              convRateUsers: trafficData && trafficData.users > 0 ? (d.shopOrdC / trafficData.users * 100).toFixed(2) : null,
-              convRateNewUsers: trafficData && trafficData.newUsers > 0 ? (d.shopOrdC / trafficData.newUsers * 100).toFixed(2) : null,
-              // Subscriptions
-              subRev: d.subRevC > 0 ? fmt$(d.subRevC) : null,
-              subRevChg: d.subRevP > 0 ? pct(d.subRevC, d.subRevP).toFixed(1) : null,
-              subOrders: d.subCountC,
-              subCusts: d.subCustsC,
-              subPctRev: d.subPctRevC > 0 ? d.subPctRevC.toFixed(1) : null,
-            }}
-          />
+          {/* ── YESTERDAY INSIGHT + ASK ATTOMIK (connected dark section) ── */}
+          {insightFetched && (() => {
+            const m = yesterdayInsight?.metrics
+            const contextualSuggestions: string[] = []
+            if (m) {
+              if (typeof m.roas_wow === 'number' && m.roas_wow <= -5) contextualSuggestions.push('Why did ROAS drop yesterday?')
+              else if (typeof m.roas_wow === 'number' && m.roas_wow >= 10) contextualSuggestions.push('What drove ROAS up yesterday?')
+              if (typeof m.revenue_wow === 'number' && m.revenue_wow <= -5) contextualSuggestions.push('Where did we lose revenue yesterday?')
+              else if (typeof m.revenue_wow === 'number' && m.revenue_wow >= 10) contextualSuggestions.push('What fueled yesterday\u2019s revenue bump?')
+              if (typeof m.ad_spend_wow === 'number' && m.ad_spend_wow >= 15) contextualSuggestions.push('Why did ad spend spike vs last week?')
+              if (typeof m.orders_wow === 'number' && m.orders_wow <= -5) contextualSuggestions.push('Why are orders down vs last week?')
+            }
+            const suggestions = contextualSuggestions.length > 0
+              ? [...contextualSuggestions, 'How are we trending this month?']
+              : undefined
+            return (
+              <div style={{ marginBottom: 24 }}>
+                <YesterdayInsightCard
+                  insight={yesterdayInsight}
+                  generating={insightGenerating}
+                  onGenerate={generateInsight}
+                  connectedBelow
+                />
+                <AskAttomik
+                  userName={userName}
+                  orgName={orgName}
+                  timezone={timezone}
+                  period={`${fmtDate(range.start)} – ${fmtDate(range.end)}`}
+                  dark
+                  connectedAbove
+                  suggestions={suggestions}
+                  metrics={{
+                    totalRev: fmt$(d.totalRevC), totalRevChg: pct(d.totalRevC, d.totalRevP).toFixed(1),
+                    totalSp: fmt$(d.totalSpC), totalSpChg: pct(d.totalSpC, d.totalSpP).toFixed(1),
+                    roas: d.roasC.toFixed(2), roasP: d.roasP.toFixed(2),
+                    orders: d.ordC, ordersChg: pct(d.ordC, d.ordP).toFixed(1),
+                    aov: fmt$(d.aovC), aovChg: pct(d.aovC, d.aovP).toFixed(1),
+                    cac: fmt$(d.cacC), cacChg: pct(d.cacC, d.cacP).toFixed(1),
+                    newCust: d.newCustC, retCust: d.retCustC, retRate: d.shRcrC.toFixed(1),
+                    shopifyRev: d.showShopify ? fmt$(d.shTotalC) : null,
+                    shopifyPctOfTotal: d.totalRevC > 0 ? (d.shTotalC / d.totalRevC * 100).toFixed(1) : null,
+                    shopifyRevChg: d.shTotalP > 0 ? pct(d.shTotalC, d.shTotalP).toFixed(1) : null,
+                    shopifyOrders: d.shOrdC, shopifyCust: d.shCustC, shopifyAov: fmt$(d.shAovC),
+                    discountRate: d.shDiscRateC.toFixed(1), refundRate: d.shRefRateC.toFixed(1),
+                    amazonRev: d.amzRevC > 0 ? fmt$(d.amzRevC) : null,
+                    amazonPctOfTotal: d.totalRevC > 0 && d.amzRevC > 0 ? (d.amzRevC / d.totalRevC * 100).toFixed(1) : null,
+                    amazonRevChg: d.amzRevP > 0 ? pct(d.amzRevC, d.amzRevP).toFixed(1) : null,
+                    cltv: d.cltvC > 0 ? fmt$(d.cltvC) : null,
+                    cltvChg: d.cltvP > 0 ? pct(d.cltvC, d.cltvP).toFixed(1) : null,
+                    cltvCacRatio: d.cltvC > 0 && d.cacC > 0 ? (d.cltvC / d.cacC).toFixed(2) : null,
+                    metaSp: d.showMeta ? fmt$(d.metaSpC) : null,
+                    metaRoas: d.metaRoasC > 0 ? d.metaRoasC.toFixed(2) : null,
+                    metaImpr: d.metaImprC, metaClicks: d.metaClkC, metaConv: d.metaConvC,
+                    trafficSessions: trafficData?.sessions ?? null,
+                    trafficSessionsP: trafficData?.sessionsP ?? null,
+                    trafficUsers: trafficData?.users ?? null,
+                    trafficUsersP: trafficData?.usersP ?? null,
+                    trafficNewUsers: trafficData?.newUsers ?? null,
+                    trafficNewUsersP: trafficData?.newUsersP ?? null,
+                    convRateSessions: trafficData && trafficData.sessions > 0 ? (d.shopOrdC / trafficData.sessions * 100).toFixed(2) : null,
+                    convRateUsers: trafficData && trafficData.users > 0 ? (d.shopOrdC / trafficData.users * 100).toFixed(2) : null,
+                    convRateNewUsers: trafficData && trafficData.newUsers > 0 ? (d.shopOrdC / trafficData.newUsers * 100).toFixed(2) : null,
+                    subRev: d.subRevC > 0 ? fmt$(d.subRevC) : null,
+                    subRevChg: d.subRevP > 0 ? pct(d.subRevC, d.subRevP).toFixed(1) : null,
+                    subOrders: d.subCountC,
+                    subCusts: d.subCustsC,
+                    subPctRev: d.subPctRevC > 0 ? d.subPctRevC.toFixed(1) : null,
+                  }}
+                />
+              </div>
+            )
+          })()}
 
           {/* ── AI INSIGHTS ── */}
           <AIInsights
