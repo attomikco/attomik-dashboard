@@ -48,21 +48,22 @@ export async function GET(request: Request) {
   const tz = org?.timezone ?? 'America/New_York'
   const nowInTz = new Date().toLocaleDateString('en-CA', { timeZone: tz })
   const todayDate = new Date(nowInTz + 'T12:00:00')
+  // Yesterday = today-1, Day-before-yesterday = today-2 (for day-over-day comparison)
   const yesterday = new Date(todayDate); yesterday.setDate(yesterday.getDate() - 1)
-  const prevWeekDay = new Date(todayDate); prevWeekDay.setDate(prevWeekDay.getDate() - 8)
+  const prevDay = new Date(todayDate); prevDay.setDate(prevDay.getDate() - 2)
   const yStr = yesterday.toLocaleDateString('en-CA')
-  const pwStr = prevWeekDay.toLocaleDateString('en-CA')
+  const pdStr = prevDay.toLocaleDateString('en-CA')
 
   const yRange = toUTCRange(yStr, tz)
-  const pwRange = toUTCRange(pwStr, tz)
+  const pdRange = toUTCRange(pdStr, tz)
 
-  const [yOrders, pwOrders, ySpend, pwSpend] = await Promise.all([
+  const [yOrders, pdOrders, ySpend, pdSpend] = await Promise.all([
     supabase.from('orders').select('total_price, source, status, units')
       .eq('org_id', orgId).gte('created_at', yRange.start).lte('created_at', yRange.end).neq('status', 'refunded'),
     supabase.from('orders').select('total_price, source, status, units')
-      .eq('org_id', orgId).gte('created_at', pwRange.start).lte('created_at', pwRange.end).neq('status', 'refunded'),
+      .eq('org_id', orgId).gte('created_at', pdRange.start).lte('created_at', pdRange.end).neq('status', 'refunded'),
     supabase.from('ad_spend').select('spend').eq('org_id', orgId).eq('date', yStr),
-    supabase.from('ad_spend').select('spend').eq('org_id', orgId).eq('date', pwStr),
+    supabase.from('ad_spend').select('spend').eq('org_id', orgId).eq('date', pdStr),
   ])
 
   const sumRev = (rows: any[]) => rows.reduce((s, o) => s + Number(o.total_price || 0), 0)
@@ -74,17 +75,17 @@ export async function GET(request: Request) {
   const adSpend = sumSpend(ySpend.data ?? [])
   const roas = adSpend > 0 ? revenue / adSpend : 0
 
-  const pRevenue = sumRev(pwOrders.data ?? [])
-  const pOrders = countOrd(pwOrders.data ?? [])
-  const pAdSpend = sumSpend(pwSpend.data ?? [])
+  const pRevenue = sumRev(pdOrders.data ?? [])
+  const pOrders = countOrd(pdOrders.data ?? [])
+  const pAdSpend = sumSpend(pdSpend.data ?? [])
   const pRoas = pAdSpend > 0 ? pRevenue / pAdSpend : 0
 
   const metrics = {
     revenue, orders, ad_spend: adSpend, roas,
-    revenue_wow: pRevenue > 0 ? pct(revenue, pRevenue) : null,
-    orders_wow: pOrders > 0 ? pct(orders, pOrders) : null,
-    ad_spend_wow: pAdSpend > 0 ? pct(adSpend, pAdSpend) : null,
-    roas_wow: pRoas > 0 ? pct(roas, pRoas) : null,
+    revenue_dod: pRevenue > 0 ? pct(revenue, pRevenue) : null,
+    orders_dod: pOrders > 0 ? pct(orders, pOrders) : null,
+    ad_spend_dod: pAdSpend > 0 ? pct(adSpend, pAdSpend) : null,
+    roas_dod: pRoas > 0 ? pct(roas, pRoas) : null,
   }
 
   return NextResponse.json({ data: { date: yStr, metrics } }, { headers: NO_CACHE })

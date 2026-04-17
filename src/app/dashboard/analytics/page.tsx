@@ -136,7 +136,7 @@ function YesterdayPill({ label, value, wow, invert, skeleton }: { label: string;
         <span style={{ fontSize: '0.68rem', color: '#bbb', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>pending</span>
       ) : typeof wow === 'number' ? (
         <span className={`badge ${isGood ? 'pill-up' : 'pill-down'}`}>
-          {isUp ? '↑' : '↓'} {Math.abs(wow).toFixed(1)}% WoW
+          {isUp ? '↑' : '↓'} {Math.abs(wow).toFixed(1)}% DoD
         </span>
       ) : (
         <span className="badge badge-gray">no comparison</span>
@@ -160,10 +160,10 @@ function YesterdayInsightCard({ insight }: { insight: any | null }) {
   const dateStr = insight?.date ?? ydate.toLocaleDateString('en-CA')
   const m = insight?.metrics ?? {}
   const pills = [
-    { label: 'Revenue',  value: fmtMoney(Number(m.revenue ?? 0)),  wow: typeof m.revenue_wow  === 'number' ? m.revenue_wow  : null },
-    { label: 'Orders',   value: Number(m.orders ?? 0).toLocaleString('en-US'), wow: typeof m.orders_wow === 'number' ? m.orders_wow : null },
-    { label: 'Ad Spend', value: fmtMoney(Number(m.ad_spend ?? 0)), wow: typeof m.ad_spend_wow === 'number' ? m.ad_spend_wow : null, invert: true },
-    { label: 'ROAS',     value: `${Number(m.roas ?? 0).toFixed(2)}x`, wow: typeof m.roas_wow === 'number' ? m.roas_wow : null },
+    { label: 'Revenue',  value: fmtMoney(Number(m.revenue ?? 0)),  wow: typeof m.revenue_dod  === 'number' ? m.revenue_dod  : null },
+    { label: 'Orders',   value: Number(m.orders ?? 0).toLocaleString('en-US'), wow: typeof m.orders_dod === 'number' ? m.orders_dod : null },
+    { label: 'Ad Spend', value: fmtMoney(Number(m.ad_spend ?? 0)), wow: typeof m.ad_spend_dod === 'number' ? m.ad_spend_dod : null, invert: true },
+    { label: 'ROAS',     value: `${Number(m.roas ?? 0).toFixed(2)}x`, wow: typeof m.roas_dod === 'number' ? m.roas_dod : null },
   ]
 
   return (
@@ -424,7 +424,7 @@ export default function AnalyticsPage() {
       })
       .catch(() => { if (stored) setSyncTimestamps({ shopify: null, amazon: null, meta: null, ...localTs }) })
 
-    // Fetch most recent daily insight for this org (AI narrative + WoW metrics)
+    // Fetch yesterday's metrics for the Yesterday card (DoD comparison)
     fetch(`/api/insights/yesterday?org_id=${orgId}&_t=${Date.now()}`, { cache: 'no-store' as RequestCache })
       .then(r => r.ok ? r.json() : { data: null })
       .then(({ data }) => setYesterdayInsight(data ?? null))
@@ -1129,12 +1129,12 @@ export default function AnalyticsPage() {
             const m = yesterdayInsight?.metrics
             const contextualSuggestions: string[] = []
             if (m) {
-              if (typeof m.roas_wow === 'number' && m.roas_wow <= -5) contextualSuggestions.push('Why did ROAS drop yesterday?')
-              else if (typeof m.roas_wow === 'number' && m.roas_wow >= 10) contextualSuggestions.push('What drove ROAS up yesterday?')
-              if (typeof m.revenue_wow === 'number' && m.revenue_wow <= -5) contextualSuggestions.push('Where did we lose revenue yesterday?')
-              else if (typeof m.revenue_wow === 'number' && m.revenue_wow >= 10) contextualSuggestions.push('What fueled yesterday\u2019s revenue bump?')
-              if (typeof m.ad_spend_wow === 'number' && m.ad_spend_wow >= 15) contextualSuggestions.push('Why did ad spend spike vs last week?')
-              if (typeof m.orders_wow === 'number' && m.orders_wow <= -5) contextualSuggestions.push('Why are orders down vs last week?')
+              if (typeof m.roas_dod === 'number' && m.roas_dod <= -5) contextualSuggestions.push('Why did ROAS drop yesterday?')
+              else if (typeof m.roas_dod === 'number' && m.roas_dod >= 10) contextualSuggestions.push('What drove ROAS up yesterday?')
+              if (typeof m.revenue_dod === 'number' && m.revenue_dod <= -5) contextualSuggestions.push('Where did we lose revenue yesterday?')
+              else if (typeof m.revenue_dod === 'number' && m.revenue_dod >= 10) contextualSuggestions.push('What fueled yesterday\u2019s revenue bump?')
+              if (typeof m.ad_spend_dod === 'number' && m.ad_spend_dod >= 15) contextualSuggestions.push('Why did ad spend spike vs the day before?')
+              if (typeof m.orders_dod === 'number' && m.orders_dod <= -5) contextualSuggestions.push('Why are orders down vs the day before?')
             }
             const suggestions = contextualSuggestions.length > 0
               ? [...contextualSuggestions, 'How are we trending this month?']
