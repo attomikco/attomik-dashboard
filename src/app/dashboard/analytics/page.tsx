@@ -111,38 +111,27 @@ function YesterdayPill({ label, value, wow, invert, skeleton }: { label: string;
   const isGood = typeof wow !== 'number' ? null : (invert ? !isUp : isUp)
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+      background: C.paper, border: `1px solid ${C.border}`,
       borderRadius: 10, padding: '14px 16px', minWidth: 0,
     }}>
-      <div style={{ fontSize: '0.68rem', color: '#888', fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>{label}</div>
-      <div style={{ fontFamily: 'var(--font-dm-mono), DM Mono, monospace', fontSize: '1.3rem', fontWeight: 700, color: skeleton ? '#333' : '#fff', marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <div style={{ fontSize: '0.7rem', color: C.muted, fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>{label}</div>
+      <div style={{ fontFamily: 'var(--font-dm-mono), DM Mono, monospace', fontSize: '1.3rem', fontWeight: 700, color: skeleton ? '#bbb' : C.ink, marginBottom: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {skeleton ? '—' : value}
       </div>
       {skeleton ? (
-        <span style={{ fontSize: '0.68rem', color: '#555', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>pending</span>
+        <span style={{ fontSize: '0.68rem', color: '#bbb', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>pending</span>
       ) : typeof wow === 'number' ? (
-        <span style={{
-          display: 'inline-flex', alignItems: 'center', gap: 3,
-          padding: '2px 8px', borderRadius: 999,
-          background: isGood ? 'rgba(0,255,151,0.15)' : 'rgba(255,107,107,0.15)',
-          color: isGood ? '#00ff97' : '#ff6b6b',
-          fontSize: '0.68rem', fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 700,
-        }}>
+        <span className={`badge ${isGood ? 'pill-up' : 'pill-down'}`}>
           {isUp ? '↑' : '↓'} {Math.abs(wow).toFixed(1)}% WoW
         </span>
       ) : (
-        <span style={{
-          display: 'inline-flex', alignItems: 'center', gap: 3,
-          padding: '2px 8px', borderRadius: 999,
-          background: 'rgba(255,255,255,0.06)', color: '#777',
-          fontSize: '0.68rem', fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 600,
-        }}>no comparison</span>
+        <span className="badge badge-gray">no comparison</span>
       )}
     </div>
   )
 }
 
-function YesterdayInsightCard({ insight, connectedBelow }: { insight: any | null; connectedBelow?: boolean }) {
+function YesterdayInsightCard({ insight }: { insight: any | null }) {
   const fmtDateLong = (d: string) => {
     const dt = new Date(d + 'T12:00:00')
     return dt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
@@ -151,17 +140,6 @@ function YesterdayInsightCard({ insight, connectedBelow }: { insight: any | null
     if (n >= 1_000_000) return `$${(n/1_000_000).toFixed(2)}M`
     if (n >= 1_000) return `$${(n/1_000).toFixed(1)}k`
     return `$${n.toFixed(0)}`
-  }
-
-  const cardStyle: React.CSSProperties = {
-    background: '#0a0a0a',
-    border: '1px solid rgba(0,255,151,0.2)',
-    borderRadius: connectedBelow ? '12px 12px 0 0' : 12,
-    borderBottom: connectedBelow ? 'none' : '1px solid rgba(0,255,151,0.2)',
-    padding: 0,
-    marginBottom: connectedBelow ? 0 : 24,
-    color: '#eee',
-    overflow: 'hidden',
   }
 
   const ydate = new Date(); ydate.setDate(ydate.getDate() - 1)
@@ -175,11 +153,13 @@ function YesterdayInsightCard({ insight, connectedBelow }: { insight: any | null
   ]
 
   return (
-    <div className="yesterday-card" style={cardStyle}>
+    <div className="card yesterday-card" style={{ padding: 0, marginBottom: 16, overflow: 'hidden' }}>
       <div style={{ padding: '18px 22px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Sparkles size={14} color={C.accent} />
-        <span style={{ fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 700, fontSize: '0.9rem', color: '#fff' }}>Yesterday</span>
-        <span style={{ fontSize: '0.8rem', color: '#999', fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>· {fmtDateLong(dateStr)}</span>
+        <div style={{ width: 26, height: 26, borderRadius: 6, background: 'rgba(0,255,151,0.18)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+          <Sparkles size={13} color="#007a48" />
+        </div>
+        <span style={{ fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontWeight: 800, fontSize: '0.95rem', color: C.ink, letterSpacing: '-0.01em' }}>Yesterday</span>
+        <span style={{ fontSize: '0.8rem', color: C.muted, fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>· {fmtDateLong(dateStr)}</span>
       </div>
       <div style={{ padding: '0 22px 20px' }}>
         <div className="yesterday-pills" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
@@ -1130,7 +1110,7 @@ export default function AnalyticsPage() {
           <div style={{ color: C.muted, textAlign: 'center', padding: '80px 0', fontFamily: 'var(--font-barlow), Barlow, sans-serif', fontSize: '1rem' }}>No data yet. Upload a CSV to get started.</div>
         ) : (<>
 
-          {/* ── YESTERDAY INSIGHT + ASK ATTOMIK (connected dark section) ── */}
+          {/* ── YESTERDAY + ASK ATTOMIK (separate light cards) ── */}
           {insightFetched && (() => {
             const m = yesterdayInsight?.metrics
             const contextualSuggestions: string[] = []
@@ -1146,18 +1126,14 @@ export default function AnalyticsPage() {
               ? [...contextualSuggestions, 'How are we trending this month?']
               : undefined
             return (
-              <div style={{ marginBottom: 24 }}>
-                <YesterdayInsightCard
-                  insight={yesterdayInsight}
-                  connectedBelow
-                />
+              <>
+                <YesterdayInsightCard insight={yesterdayInsight} />
+                <div style={{ marginBottom: 16 }}>
                 <AskAttomik
                   userName={userName}
                   orgName={orgName}
                   timezone={timezone}
                   period={`${fmtDate(range.start)} – ${fmtDate(range.end)}`}
-                  dark
-                  connectedAbove
                   suggestions={suggestions}
                   metrics={{
                     totalRev: fmt$(d.totalRevC), totalRevChg: pct(d.totalRevC, d.totalRevP).toFixed(1),
@@ -1197,7 +1173,8 @@ export default function AnalyticsPage() {
                     subPctRev: d.subPctRevC > 0 ? d.subPctRevC.toFixed(1) : null,
                   }}
                 />
-              </div>
+                </div>
+              </>
             )
           })()}
 

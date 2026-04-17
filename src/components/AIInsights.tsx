@@ -42,7 +42,7 @@ export default function AIInsights({ metrics, period, preset, orgName, platform 
   }
 
   return (
-    <div className="card card-dark" style={{ padding: isMobile ? 16 : 24, marginBottom: 8, borderColor: '#222' }}>
+    <div className="card" style={{ padding: isMobile ? 16 : 24, marginBottom: 16 }}>
       {/* Header row */}
       <div style={{
         display: 'flex',
@@ -54,14 +54,14 @@ export default function AIInsights({ metrics, period, preset, orgName, platform 
       }}>
         {/* Left: icon + title */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(0,255,151,0.15)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-            <Sparkles size={16} color="#00ff97" />
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(0,255,151,0.18)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+            <Sparkles size={16} color="#007a48" />
           </div>
           <div>
-            <div style={{ fontSize: '1rem', fontWeight: 800, color: '#fff', fontFamily: 'Barlow, sans-serif', letterSpacing: '-0.02em' }}>
+            <div style={{ fontSize: '1rem', fontWeight: 800, color: '#000', fontFamily: 'Barlow, sans-serif', letterSpacing: '-0.02em' }}>
               AI Insights
             </div>
-            <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.55)', fontFamily: 'Barlow, sans-serif' }}>
+            <div style={{ fontSize: '0.75rem', color: '#666', fontFamily: 'Barlow, sans-serif' }}>
               Powered by Attomik
             </div>
           </div>
@@ -71,10 +71,9 @@ export default function AIInsights({ metrics, period, preset, orgName, platform 
         <button
           onClick={generate}
           disabled={loading}
-          className={`btn ${loading ? 'btn-ghost' : 'btn-primary'}`}
+          className={`btn ${loading ? 'btn-ghost' : 'btn-dark'}`}
           style={{
             width: isMobile ? '100%' : 'auto',
-            ...(loading ? { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.4)' } : {}),
           }}
         >
           {loading ? (
@@ -89,20 +88,20 @@ export default function AIInsights({ metrics, period, preset, orgName, platform 
 
       {loading && (
         <div style={{ marginTop: generated ? 0 : 16 }}>
-          <div style={{ height: 14, background: 'rgba(255,255,255,0.06)', borderRadius: 4, width: '90%', marginBottom: 8 }} className="animate-pulse" />
-          <div style={{ height: 14, background: 'rgba(255,255,255,0.06)', borderRadius: 4, width: '75%', marginBottom: 8 }} className="animate-pulse" />
-          <div style={{ height: 14, background: 'rgba(255,255,255,0.06)', borderRadius: 4, width: '85%' }} className="animate-pulse" />
+          <div style={{ height: 14, background: '#f2f2f2', borderRadius: 4, width: '90%', marginBottom: 8 }} className="animate-pulse" />
+          <div style={{ height: 14, background: '#f2f2f2', borderRadius: 4, width: '75%', marginBottom: 8 }} className="animate-pulse" />
+          <div style={{ height: 14, background: '#f2f2f2', borderRadius: 4, width: '85%' }} className="animate-pulse" />
         </div>
       )}
 
       {!loading && insight && (
-        <p style={{ fontSize: isMobile ? '0.875rem' : '0.9375rem', color: '#fff', fontFamily: 'Barlow, sans-serif', lineHeight: 1.7, margin: 0 }}>
+        <p style={{ fontSize: isMobile ? '0.875rem' : '0.9375rem', color: '#000', fontFamily: 'Barlow, sans-serif', lineHeight: 1.7, margin: 0 }}>
           {insight}
         </p>
       )}
 
       {!loading && !insight && (
-        <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', fontFamily: 'Barlow, sans-serif', marginTop: isMobile ? 12 : 0, margin: 0 }}>
+        <p style={{ fontSize: '0.875rem', color: '#666', fontFamily: 'Barlow, sans-serif', marginTop: isMobile ? 12 : 0, margin: 0 }}>
           {isMobile ? 'Tap "Generate insights" for an AI-powered analysis.' : 'Click "Generate insights" to get an AI-powered analysis of this period\'s performance.'}
         </p>
       )}
