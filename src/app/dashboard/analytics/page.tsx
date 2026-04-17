@@ -753,35 +753,14 @@ export default function AnalyticsPage() {
     fillBuckets(curBuckets, enabledOrders, cSpend)
     const dayArr = Object.values(curBuckets) as any[]
 
-    // Compare period bucketed at the same granularity, aligned to current by bucket index
-    const prevBuckets = buildBuckets(prevStart, prevEnd)
-    fillBuckets(prevBuckets, enabledOrdersP, pSpend)
-    const prevArr = Object.values(prevBuckets) as any[]
-    const prevAt = (i: number) => prevArr[i]
-
-    setRevenueRoasData(dayArr.map((d, i) => {
-      const p = prevAt(i)
-      return { date: d.date, revenue: d.revenue, roas: d.roas, prevRevenue: p?.revenue ?? null, prevRoas: p?.roas ?? null }
-    }))
-    setSpendSalesData(dayArr.map((d, i) => {
-      const p = prevAt(i)
-      return { date: d.date, revenue: d.revenue, spend: d.spend, prevRevenue: p?.revenue ?? null, prevSpend: p?.spend ?? null }
-    }))
-    setRoasData(
-      dayArr
-        .map((d, i) => ({ date: d.date, roas: d.roas, prevRoas: prevAt(i)?.roas ?? null }))
-        .filter(d => d.roas > 0)
-    )
-    setChannelData(dayArr.map((d, i) => {
-      const p = prevAt(i)
-      const prevTotal = p ? (Number(p.shopify) + Number(p.amazon)) : null
-      return {
-        date: d.date,
-        shopify: showShopify ? d.shopify : 0,
-        amazon: showAmazon ? d.amazon : 0,
-        prevTotal,
-      }
-    }))
+    setRevenueRoasData(dayArr.map(d => ({ date: d.date, revenue: d.revenue, roas: d.roas })))
+    setSpendSalesData(dayArr.map(d => ({ date: d.date, revenue: d.revenue, spend: d.spend })))
+    setRoasData(dayArr.filter(d => d.roas > 0).map(d => ({ date: d.date, roas: d.roas })))
+    setChannelData(dayArr.map(d => ({
+      date: d.date,
+      shopify: showShopify ? d.shopify : 0,
+      amazon: showAmazon ? d.amazon : 0,
+    })))
 
     // Pacing: cumulative revenue by day index within the period
     // Day 1 = first day of current period, Day 1 of prev = first day of prev period
@@ -1158,17 +1137,17 @@ export default function AnalyticsPage() {
               target={monthlyTarget?.sales_target ? { value: monthlyTarget.sales_target, current: d.totalRevC, label: 'target' } : undefined} />
             <KpiCard label="Total Ad Spend" value={fmt$(d.totalSpC)}  change={pct(d.totalSpC, d.totalSpP)} invertColors
               target={monthlyTarget?.ad_spend_budget ? { value: monthlyTarget.ad_spend_budget, current: d.totalSpC, label: 'budget' } : undefined} />
-            <KpiCard label="ROAS"           value={fmtX(d.roasC)}     change={pct(d.roasC, d.roasP)}
+            <KpiCard label="ROAS"           value={fmtX(d.roasC)}     change={pct(d.roasC, d.roasP)} subtitle="Return on Ad Spend"
               target={monthlyTarget?.roas_target ? { value: monthlyTarget.roas_target, current: d.roasC, label: 'target', format: fmtX } : undefined} />
           </div>
           <div className="kpi-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
             <KpiCard label="Orders" value={fmtN(d.ordC)} change={pct(d.ordC, d.ordP)} />
-            <KpiCard label="AOV"    value={fmt$(d.aovC)} change={pct(d.aovC, d.aovP)}
+            <KpiCard label="AOV"    value={fmt$(d.aovC)} change={pct(d.aovC, d.aovP)} subtitle="Average Order Value"
               target={monthlyTarget?.aov_target ? { value: monthlyTarget.aov_target, current: d.aovC, label: 'target' } : undefined} />
             {trafficData && trafficData.users > 0 ? (
-              <KpiCard label="Conv. Rate (Users)" value={fmtPct(d.shopOrdC / trafficData.users * 100)} change={trafficData.usersP > 0 && d.shopOrdP > 0 ? pct(d.shopOrdC / trafficData.users * 100, d.shopOrdP / trafficData.usersP * 100) : undefined} subtitle="Shopify Orders ÷ Users" />
+              <KpiCard label="Conv. Rate (Users)" value={fmtPct(d.shopOrdC / trafficData.users * 100)} change={trafficData.usersP > 0 && d.shopOrdP > 0 ? pct(d.shopOrdC / trafficData.users * 100, d.shopOrdP / trafficData.usersP * 100) : undefined} subtitle="Conversion Rate · Orders ÷ Users" />
             ) : (
-              <KpiCard label="CAC" value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors
+              <KpiCard label="CAC" value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors subtitle="Customer Acquisition Cost"
                 target={monthlyTarget?.cac_target ? { value: monthlyTarget.cac_target, current: d.cacC, label: 'target' } : undefined} />
             )}
           </div>
@@ -1176,10 +1155,10 @@ export default function AnalyticsPage() {
           {/* ── CLTV, CAC & CLTV/CAC ── */}
           {(d.cltvC > 0 || (trafficData && trafficData.users > 0 && d.cacC > 0)) && (
             <div className="kpi-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
-              {d.cltvC > 0 && <KpiCard label="CLTV" value={fmt$(d.cltvC)} change={d.cltvP > 0 ? pct(d.cltvC, d.cltvP) : undefined} subtitle="Shopify · ACL (2) × AOV × Freq" />}
-              {trafficData && trafficData.users > 0 && <KpiCard label="CAC" value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors
+              {d.cltvC > 0 && <KpiCard label="CLTV" value={fmt$(d.cltvC)} change={d.cltvP > 0 ? pct(d.cltvC, d.cltvP) : undefined} subtitle="Customer Lifetime Value · ACL × AOV × Freq" />}
+              {trafficData && trafficData.users > 0 && <KpiCard label="CAC" value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors subtitle="Customer Acquisition Cost"
                 target={monthlyTarget?.cac_target ? { value: monthlyTarget.cac_target, current: d.cacC, label: 'target' } : undefined} />}
-              {d.cltvC > 0 && d.cacC > 0 && <KpiCard label="CLTV / CAC" value={`${(d.cltvC / d.cacC).toFixed(2)}x`} change={d.cltvP > 0 && d.cacP > 0 ? pct(d.cltvC / d.cacC, d.cltvP / d.cacP) : undefined} />}
+              {d.cltvC > 0 && d.cacC > 0 && <KpiCard label="CLTV / CAC" value={`${(d.cltvC / d.cacC).toFixed(2)}x`} change={d.cltvP > 0 && d.cacP > 0 ? pct(d.cltvC / d.cacC, d.cltvP / d.cacP) : undefined} subtitle="Lifetime value vs. acquisition cost" />}
             </div>
           )}
 
@@ -1292,7 +1271,7 @@ export default function AnalyticsPage() {
             <KpiCard label="New Customer Rev."       value={fmt$(d.newRevC)} subtitle={d.totalRevC > 0 ? `${((d.newRevC/d.totalRevC)*100).toFixed(1)}% of total` : ''} />
             <KpiCard label="Returning Customer Rev." value={fmt$(d.retRevC)} subtitle={d.totalRevC > 0 ? `${((d.retRevC/d.totalRevC)*100).toFixed(1)}% of total` : ''} />
             <KpiCard label="Returning Customer Rate"             value={fmtPct(d.shRcrC)} change={pct(d.shRcrC, d.shRcrP)} />
-            <KpiCard label="CAC"                     value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors />
+            <KpiCard label="CAC"                     value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors subtitle="Customer Acquisition Cost" />
           </div>
           {d.monthlyRetention?.length > 0 && (
             <div className="chart-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
