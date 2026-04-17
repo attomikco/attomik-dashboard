@@ -87,9 +87,10 @@ function KpiCard({ label, value, change, invertColors, subtitle, children, targe
       <div className="kpi-value" style={{ marginBottom: 8 }}>
         {value}
       </div>
-      {subtitle && (
-        <div style={{ fontSize: '0.8rem', color: C.muted, marginBottom: 8, fontFamily: 'Barlow, sans-serif' }}>{subtitle}</div>
-      )}
+      {/* Always render the subtitle slot so cards line up even when some rows mix cards with/without subtitles */}
+      <div style={{ fontSize: '0.8rem', color: C.muted, marginBottom: 8, fontFamily: 'Barlow, sans-serif', minHeight: '1.15em', lineHeight: 1.35 }}>
+        {subtitle || '\u00a0'}
+      </div>
       {change !== undefined && (
         <span className={`badge ${isGood ? 'pill-up' : 'pill-down'}`}>
           {up ? '↑' : '↓'} {Math.abs(change).toFixed(1)}%
@@ -1247,19 +1248,19 @@ export default function AnalyticsPage() {
           {/* ── OVERVIEW KPIs ── */}
           <SectionHeader title="Overview" />
           <div className="kpi-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
-            <KpiCard label="Total Sales"    value={fmt$(d.totalRevC)} change={pct(d.totalRevC, d.totalRevP)}
+            <KpiCard label="Total Sales"    value={fmt$(d.totalRevC)} change={pct(d.totalRevC, d.totalRevP)} subtitle="Blended revenue"
               target={monthlyTarget?.sales_target ? { value: monthlyTarget.sales_target, current: d.totalRevC, label: 'target' } : undefined} />
-            <KpiCard label="Total Ad Spend" value={fmt$(d.totalSpC)}  change={pct(d.totalSpC, d.totalSpP)} invertColors
+            <KpiCard label="Total Ad Spend" value={fmt$(d.totalSpC)}  change={pct(d.totalSpC, d.totalSpP)} invertColors subtitle="Paid media"
               target={monthlyTarget?.ad_spend_budget ? { value: monthlyTarget.ad_spend_budget, current: d.totalSpC, label: 'budget' } : undefined} />
             <KpiCard label="ROAS"           value={fmtX(d.roasC)}     change={pct(d.roasC, d.roasP)} subtitle="Return on Ad Spend"
               target={monthlyTarget?.roas_target ? { value: monthlyTarget.roas_target, current: d.roasC, label: 'target', format: fmtX } : undefined} />
           </div>
           <div className="kpi-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
-            <KpiCard label="Orders" value={fmtN(d.ordC)} change={pct(d.ordC, d.ordP)} />
+            <KpiCard label="Orders" value={fmtN(d.ordC)} change={pct(d.ordC, d.ordP)} subtitle="Total orders · all channels" />
             <KpiCard label="AOV"    value={fmt$(d.aovC)} change={pct(d.aovC, d.aovP)} subtitle="Average Order Value"
               target={monthlyTarget?.aov_target ? { value: monthlyTarget.aov_target, current: d.aovC, label: 'target' } : undefined} />
             {trafficData && trafficData.users > 0 ? (
-              <KpiCard label="Conv. Rate (Users)" value={fmtPct(d.shopOrdC / trafficData.users * 100)} change={trafficData.usersP > 0 && d.shopOrdP > 0 ? pct(d.shopOrdC / trafficData.users * 100, d.shopOrdP / trafficData.usersP * 100) : undefined} subtitle="Conversion Rate · Orders ÷ Users" />
+              <KpiCard label="Conv. Rate (Users)" value={fmtPct(d.shopOrdC / trafficData.users * 100)} change={trafficData.usersP > 0 && d.shopOrdP > 0 ? pct(d.shopOrdC / trafficData.users * 100, d.shopOrdP / trafficData.usersP * 100) : undefined} subtitle="Shopify Orders \u00f7 Users" />
             ) : (
               <KpiCard label="CAC" value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors subtitle="Customer Acquisition Cost"
                 target={monthlyTarget?.cac_target ? { value: monthlyTarget.cac_target, current: d.cacC, label: 'target' } : undefined} />
@@ -1269,7 +1270,7 @@ export default function AnalyticsPage() {
           {/* ── CLTV, CAC & CLTV/CAC ── */}
           {(d.cltvC > 0 || (trafficData && trafficData.users > 0 && d.cacC > 0)) && (
             <div className="kpi-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
-              {d.cltvC > 0 && <KpiCard label="CLTV" value={fmt$(d.cltvC)} change={d.cltvP > 0 ? pct(d.cltvC, d.cltvP) : undefined} subtitle="Customer Lifetime Value · ACL × AOV × Freq" />}
+              {d.cltvC > 0 && <KpiCard label="CLTV" value={fmt$(d.cltvC)} change={d.cltvP > 0 ? pct(d.cltvC, d.cltvP) : undefined} subtitle="ACL (2) × AOV × Freq" />}
               {trafficData && trafficData.users > 0 && <KpiCard label="CAC" value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors subtitle="Customer Acquisition Cost"
                 target={monthlyTarget?.cac_target ? { value: monthlyTarget.cac_target, current: d.cacC, label: 'target' } : undefined} />}
               {d.cltvC > 0 && d.cacC > 0 && <KpiCard label="CLTV / CAC" value={`${(d.cltvC / d.cacC).toFixed(2)}x`} change={d.cltvP > 0 && d.cacP > 0 ? pct(d.cltvC / d.cacC, d.cltvP / d.cacP) : undefined} subtitle="Lifetime value vs. acquisition cost" />}
@@ -1288,21 +1289,25 @@ export default function AnalyticsPage() {
                   label: 'Shopify',
                   value: fmt$(d.shTotalC),
                   sub: d.shTotalP > 0 ? chg(d.shTotalC, d.shTotalP) : '',
+                  desc: 'Shopify channel revenue',
                 }] : []),
                 ...(d.shTotalC > 0 && d.totalRevC > 0 ? [{
                   label: 'Shopify % of Total',
                   value: `${shPctC.toFixed(1)}%`,
                   sub: shPctP > 0 ? chg(shPctC, shPctP) : '',
+                  desc: 'Shopify share of blended revenue',
                 }] : []),
                 ...(d.amzRevC > 0 ? [{
                   label: 'Amazon',
                   value: fmt$(d.amzRevC),
                   sub: d.amzRevP > 0 ? chg(d.amzRevC, d.amzRevP) : '',
+                  desc: 'Amazon channel revenue',
                 }] : []),
                 ...(d.amzRevC > 0 && d.totalRevC > 0 ? [{
                   label: 'Amazon % of Total',
                   value: `${amzPctC.toFixed(1)}%`,
                   sub: amzPctP > 0 ? chg(amzPctC, amzPctP) : '',
+                  desc: 'Amazon share of blended revenue',
                 }] : []),
               ]} />
             )
