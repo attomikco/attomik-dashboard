@@ -66,7 +66,18 @@ const C = {
 function KpiCard({ label, value, change, invertColors, subtitle, children, target }: { label: string; value: string; change?: number; invertColors?: boolean; subtitle?: string; children?: React.ReactNode; target?: { value: number; current: number; label?: string; format?: (n: number) => string } }) {
   const up = change === undefined ? null : change >= 0
   const isGood = up === null ? null : (invertColors ? !up : up)
-  const tPct = target && target.value > 0 ? Math.min(100, (target.current / target.value) * 100) : 0
+  // Progress against target. Formula is current/target for every metric so the
+  // bar always reads "how much of the line have we crossed". Direction is
+  // encoded via color:
+  //   invertColors=false (higher is better, e.g. Revenue): at/over = green
+  //   invertColors=true  (lower is better, e.g. Ad Spend): over = red (over budget)
+  const tRatio = target && target.value > 0 ? (target.current / target.value) * 100 : 0
+  const tBarWidth = Math.min(tRatio, 100)
+  const tOver = tRatio > 100
+  const tBarColor = invertColors
+    ? (tOver ? '#ef4444' : C.accent)
+    : (tOver ? C.success : C.accent)
+  const tIsBad = invertColors && tOver
   const tFmt = target?.format || fmt$
   return (
     <div className="kpi-card">
@@ -86,15 +97,17 @@ function KpiCard({ label, value, change, invertColors, subtitle, children, targe
       )}
       {target && target.value > 0 && (
         <div style={{ marginTop: 8, width: '100%' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: C.muted, marginBottom: 4, fontFamily: 'Barlow, sans-serif' }}>
-            <span>{tPct.toFixed(0)}% of {target.label || 'target'}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: tIsBad ? '#b91c1c' : C.muted, marginBottom: 4, fontFamily: 'Barlow, sans-serif' }}>
+            <span style={{ fontWeight: tIsBad ? 700 : 400 }}>
+              {tIsBad ? `over ${target.label || 'target'} · ${tRatio.toFixed(0)}%` : `${tRatio.toFixed(0)}% of ${target.label || 'target'}`}
+            </span>
             <span>{tFmt(target.value)}</span>
           </div>
           <div style={{ height: 4, background: C.cream, borderRadius: 2, overflow: 'hidden' }}>
             <div style={{
               height: '100%',
-              width: `${tPct}%`,
-              background: tPct >= 100 ? C.success : C.accent,
+              width: `${tBarWidth}%`,
+              background: tBarColor,
               borderRadius: 2,
               transition: 'width 0.5s ease',
             }} />
