@@ -131,8 +131,10 @@ export async function POST(request: Request) {
     }
 
     // Track Shopify sync timestamp
-    await serviceClient.from('sync_timestamps').delete().eq('org_id', orgId).eq('source', 'shopify')
-    await serviceClient.from('sync_timestamps').insert({ org_id: orgId, source: 'shopify', last_synced_at: new Date().toISOString() })
+    const { error: tsError } = await serviceClient
+      .from('sync_timestamps')
+      .upsert({ org_id: orgId, source: 'shopify', last_synced_at: new Date().toISOString() }, { onConflict: 'org_id,source' })
+    if (tsError) console.error('Shopify sync_timestamps upsert failed:', tsError)
 
     const totalRevenue  = (deduped as any[]).reduce((s: number, r: any) => s + r.total_price, 0)
     const totalDiscount = (deduped as any[]).reduce((s: number, r: any) => s + r.discount_amount, 0)
