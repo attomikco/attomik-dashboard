@@ -340,12 +340,20 @@ export async function POST(request: Request) {
 
     const sb = createServiceClient()
 
-    const { data: org } = await sb.from('organizations')
-      .select('id, name, slug, weekly_email_enabled, weekly_email_unsubscribed')
-      .eq('id', org_id).single()
+    const { data: org, error: orgError } = await sb.from('organizations')
+      .select('id, name, slug').eq('id', org_id).maybeSingle()
+    if (orgError) return NextResponse.json({ error: `Org lookup failed: ${orgError.message}` }, { status: 500 })
     if (!org) return NextResponse.json({ error: 'Org not found' }, { status: 404 })
 
-    const unsubscribed = new Set(((org as any).weekly_email_unsubscribed ?? []).map((e: string) => e.toLowerCase()))
+    // Pull the unsubscribe list separately so a missing column (migration
+    // not yet applied) degrades gracefully instead of failing the whole fetch.
+    let unsubList: string[] = []
+    const { data: unsubRow } = await sb.from('organizations')
+      .select('weekly_email_unsubscribed').eq('id', org_id).maybeSingle()
+    if (unsubRow && Array.isArray((unsubRow as any).weekly_email_unsubscribed)) {
+      unsubList = (unsubRow as any).weekly_email_unsubscribed
+    }
+    const unsubscribed = new Set(unsubList.map(e => e.toLowerCase()))
     const override = process.env.WEEKLY_EMAIL_OVERRIDE?.trim()
     const memberRecipients = override ? [override] : await getRecipients(sb, org_id)
     const recipients = memberRecipients.filter(e => !unsubscribed.has(e.toLowerCase()))
@@ -394,7 +402,7 @@ export async function POST(request: Request) {
       shopifyPct, amazonPct,
     })
 
-    const orgSlug = (org as any).slug as string | null
+    const orgSlug = ((org as any).slug ?? null) as string | null
     const dashboardUrl = orgSlug
       ? `https://dashboard.attomik.co/dashboard/analytics?org=${encodeURIComponent(orgSlug)}`
       : `https://dashboard.attomik.co/dashboard/analytics`

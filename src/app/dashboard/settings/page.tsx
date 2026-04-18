@@ -92,12 +92,21 @@ export default function SettingsPage() {
       else setMetaAdAccountId('')
       setMetaTokenSet(!!activeOrg?.meta_access_token)
       setMetaAccessToken('')
-      setWeeklyEnabled(!!activeOrg?.weekly_email_enabled)
       loadTargets(targetYear, targetMonth)
       loadAmzSpend(amzYear, amzMonth)
       loadWeeklyMembers(activeOrgId)
+      loadWeeklyConfig(activeOrgId)
       refreshTimestamps()
     }
+  }
+
+  const loadWeeklyConfig = async (id: string) => {
+    try {
+      const res = await fetch(`/api/email/weekly/config?org_id=${id}`)
+      if (!res.ok) { setWeeklyEnabled(false); return }
+      const data = await res.json()
+      setWeeklyEnabled(!!data.weekly_email_enabled)
+    } catch { setWeeklyEnabled(false) }
   }
 
   const loadWeeklyMembers = async (id: string) => {
@@ -116,10 +125,19 @@ export default function SettingsPage() {
     setSavingWeekly(true); setWeeklyMsg(null)
     const id = orgId()
     if (!id) { setWeeklyMsg({ type: 'error', text: 'No active org found' }); setSavingWeekly(false); return }
-    const { error } = await supabase.from('organizations').update({ weekly_email_enabled: weeklyEnabled }).eq('id', id)
+    try {
+      const res = await fetch('/api/email/weekly/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ org_id: id, weekly_email_enabled: weeklyEnabled }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Save failed')
+      setWeeklyMsg({ type: 'success', text: weeklyEnabled ? 'Weekly email enabled' : 'Weekly email disabled' })
+    } catch (e: any) {
+      setWeeklyMsg({ type: 'error', text: e.message })
+    }
     setSavingWeekly(false)
-    if (error) setWeeklyMsg({ type: 'error', text: error.message })
-    else setWeeklyMsg({ type: 'success', text: weeklyEnabled ? 'Weekly email enabled' : 'Weekly email disabled' })
   }
 
   const handleSendWeekly = async () => {
