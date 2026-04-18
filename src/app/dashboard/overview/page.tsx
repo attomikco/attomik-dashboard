@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, ChevronRight, ChevronDown, Building2, TrendingUp, TrendingDown, RefreshCw, Sparkles } from 'lucide-react'
+import { ArrowRight, ChevronRight, Building2, TrendingUp, TrendingDown, RefreshCw, Sparkles } from 'lucide-react'
 import DateRangePicker, { DateRange, getComparisonPeriod } from '@/components/DateRangePicker'
 import { Skeleton, SkeletonKpiCard } from '@/components/Skeleton'
 
@@ -103,14 +103,6 @@ export default function OverviewPage() {
   const [syncingMeta, setSyncingMeta] = useState(false)
   const [metaSyncResult, setMetaSyncResult] = useState<{ ok: boolean; text: string } | null>(null)
   const [syncTimestamps, setSyncTimestamps] = useState<Record<string, string | null>>({ shopify: null, meta: null })
-  const [yesterdaySummaries, setYesterdaySummaries] = useState<Record<string, {
-    summary: string; revenue: number; orders: number; adSpend: number; roas: number
-    revenueDelta: number; ordersDelta: number; adSpendDelta: number; roasDelta: number
-  }> | null>(null)
-  const [summaryLoading, setSummaryLoading] = useState(false)
-  const [summaryError, setSummaryError] = useState<string | null>(null)
-  const [expandedSummaries, setExpandedSummaries] = useState<Set<string>>(new Set())
-  const [summarySectionOpen, setSummarySectionOpen] = useState(true)
   const [yesterdayTable, setYesterdayTable] = useState<{
     data: { org_id: string; org_name: string; revenue: number; orders: number; ad_spend: number; roas: number; revenue_dod: number | null; orders_dod: number | null }[]
     date: string | null
@@ -424,24 +416,6 @@ export default function OverviewPage() {
     window.location.href = '/dashboard/analytics'
   }
 
-  // Yesterday summary helpers
-  const yesterdayDate = (() => {
-    const d = new Date()
-    d.setDate(d.getDate() - 1)
-    return d
-  })()
-  const yesterdayStr = yesterdayDate.toLocaleDateString('en-CA')
-  const yesterdayLabel = yesterdayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-  const summaryCacheKey = `yesterday-summary-${yesterdayStr}`
-
-  // Load cached summary on mount
-  useEffect(() => {
-    try {
-      const cached = localStorage.getItem(summaryCacheKey)
-      if (cached) setYesterdaySummaries(JSON.parse(cached))
-    } catch {}
-  }, [])
-
   // Fetch compact yesterday table for all orgs on mount
   useEffect(() => {
     const viewAsUserId = localStorage.getItem('viewAsUserId')
@@ -451,26 +425,6 @@ export default function OverviewPage() {
       .then(payload => { if (payload) setYesterdayTable(payload) })
       .catch(() => {})
   }, [])
-
-  const generateSummary = async () => {
-    if (orgs.length === 0) return
-    setSummaryLoading(true)
-    setSummaryError(null)
-    try {
-      const res = await fetch('/api/ai/yesterday-summary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ org_ids: orgs.map(o => o.id) }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to generate summary')
-      setYesterdaySummaries(data.summaries)
-      localStorage.setItem(summaryCacheKey, JSON.stringify(data.summaries))
-    } catch (err: any) {
-      setSummaryError(err.message)
-    }
-    setSummaryLoading(false)
-  }
 
   const sorted = [...orgs].sort((a, b) => b[sortBy] - a[sortBy])
   const loaded = orgs.filter(o => !o.loading)
@@ -519,176 +473,113 @@ export default function OverviewPage() {
 
       <div className={`overview-content page-content${isRefetching ? ' is-refetching' : ''}`} style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 80px' }}>
 
-        {/* Yesterday's Summary */}
-        {!loadingOrgs && orgs.length > 0 && (
-          <div className="card" style={{ marginBottom: 24, padding: 0, overflow: 'hidden' }}>
-            <div
-              onClick={() => setSummarySectionOpen(p => !p)}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '16px 20px', cursor: 'pointer', userSelect: 'none',
-                transition: 'background 0.1s',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#fafafa')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            >
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Sparkles size={14} color={C.ink} />
-                  <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>Yesterday</span>
-                  <span className="mono" style={{ fontSize: '0.72rem', color: '#aaa' }}>{yesterdayLabel}</span>
-                </div>
+        {/* ── Yesterday table — first thing on the page for quick glance ── */}
+        {yesterdayTable && yesterdayTable.data.length > 0 && (() => {
+          const rows = yesterdayTable.data
+          const totalRev = rows.reduce((s, r) => s + r.revenue, 0)
+          const totalOrd = rows.reduce((s, r) => s + r.orders, 0)
+          const totalSp  = rows.reduce((s, r) => s + r.ad_spend, 0)
+          const blendRoas = totalSp > 0 ? totalRev / totalSp : 0
+          const headerLabel = yesterdayTable.date
+            ? new Date(yesterdayTable.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+            : ''
+
+          const dodBadge = (v: number | null, invert = false) => {
+            if (v === null || v === undefined) {
+              return <span className="badge badge-gray" style={{ fontSize: '0.62rem' }}>—</span>
+            }
+            const up = v >= 0
+            const good = invert ? !up : up
+            return (
+              <span className={`badge ${good ? 'pill-up' : 'pill-down'}`} style={{ fontSize: '0.62rem', padding: '1px 6px' }}>
+                {up ? '↑' : '↓'} {Math.abs(v).toFixed(1)}%
+              </span>
+            )
+          }
+
+          const cellBase: React.CSSProperties = {
+            padding: '6px 10px',
+            fontFamily: 'var(--font-dm-mono), DM Mono, monospace',
+            fontSize: '0.78rem',
+            whiteSpace: 'nowrap',
+            borderBottom: `1px solid ${C.border}`,
+          }
+          const numRight: React.CSSProperties = { ...cellBase, textAlign: 'right' }
+
+          return (
+            <div className="card" style={{ padding: 0, marginBottom: 20, overflow: 'hidden' }}>
+              <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: `1px solid ${C.border}` }}>
+                <Sparkles size={16} color={C.ink} />
+                <span style={{ fontWeight: 800, fontSize: '1.05rem', fontFamily: 'Barlow, sans-serif', letterSpacing: '-0.01em' }}>Yesterday</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: C.muted, fontFamily: 'Barlow, sans-serif' }}>· {headerLabel}</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {!yesterdaySummaries && !summaryLoading && (
-                  <button
-                    onClick={e => { e.stopPropagation(); generateSummary() }}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 6,
-                      padding: '8px 16px', background: C.ink, border: 'none', borderRadius: 8,
-                      fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.78rem',
-                      color: C.accent, cursor: 'pointer',
-                    }}
-                  >
-                    <Sparkles size={12} />
-                    Generate Summary
-                  </button>
-                )}
-                {summaryLoading && (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', fontFamily: 'Barlow, sans-serif', color: '#888' }}>
-                    <RefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} />
-                    Generating…
-                  </span>
-                )}
-                {yesterdaySummaries && !summaryLoading && (
-                  <button
-                    onClick={e => { e.stopPropagation(); generateSummary() }}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                      padding: '6px 10px', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 6,
-                      fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.72rem',
-                      color: C.muted, cursor: 'pointer',
-                    }}
-                  >
-                    <RefreshCw size={10} />
-                    Refresh
-                  </button>
-                )}
-                <ChevronDown size={14} color={C.muted} style={{
-                  transition: 'transform 0.2s',
-                  transform: summarySectionOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                  flexShrink: 0,
-                }} />
+              <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      {[
+                        { label: 'Brand',    align: 'left'  as const, hideMobile: false },
+                        { label: 'Revenue',  align: 'right' as const, hideMobile: false },
+                        { label: 'Orders',   align: 'right' as const, hideMobile: false },
+                        { label: 'Ad Spend', align: 'right' as const, hideMobile: true  },
+                        { label: 'ROAS',     align: 'right' as const, hideMobile: true  },
+                      ].map((h, i) => (
+                        <th key={i} className={h.hideMobile ? 'yt-col-hide-mobile' : ''} style={{
+                          textAlign: h.align,
+                          padding: '8px 10px',
+                          fontSize: '0.65rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.08em',
+                          color: C.muted,
+                          fontWeight: 700,
+                          fontFamily: 'Barlow, sans-serif',
+                          borderBottom: `1px solid ${C.border}`,
+                          position: 'sticky',
+                          top: 0,
+                          background: C.paper,
+                          zIndex: 1,
+                        }}>{h.label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(r => (
+                      <tr key={r.org_id}>
+                        <td style={{ ...cellBase, textAlign: 'left', fontFamily: 'Barlow, sans-serif', fontWeight: 600 }}>
+                          {r.org_name}
+                        </td>
+                        <td style={numRight}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+                            {fmt$(r.revenue)}
+                            {dodBadge(r.revenue_dod)}
+                          </span>
+                        </td>
+                        <td style={numRight}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+                            {fmtN(r.orders)}
+                            {dodBadge(r.orders_dod)}
+                          </span>
+                        </td>
+                        <td className="yt-col-hide-mobile" style={numRight}>{fmt$(r.ad_spend)}</td>
+                        <td className="yt-col-hide-mobile" style={numRight}>{r.roas > 0 ? `${r.roas.toFixed(2)}x` : '—'}</td>
+                      </tr>
+                    ))}
+                    {/* Total row */}
+                    <tr style={{ background: C.cream }}>
+                      <td style={{ ...cellBase, textAlign: 'left', fontFamily: 'Barlow, sans-serif', fontWeight: 800, borderBottom: 'none' }}>
+                        Total
+                      </td>
+                      <td style={{ ...numRight, fontWeight: 800, borderBottom: 'none' }}>{fmt$(totalRev)}</td>
+                      <td style={{ ...numRight, fontWeight: 800, borderBottom: 'none' }}>{fmtN(totalOrd)}</td>
+                      <td className="yt-col-hide-mobile" style={{ ...numRight, fontWeight: 800, borderBottom: 'none' }}>{fmt$(totalSp)}</td>
+                      <td className="yt-col-hide-mobile" style={{ ...numRight, fontWeight: 800, borderBottom: 'none' }}>{blendRoas > 0 ? `${blendRoas.toFixed(2)}x` : '—'}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
-
-            {summarySectionOpen && summaryError && (
-              <div style={{ padding: '12px 20px', fontSize: '0.8rem', color: '#b91c1c', fontFamily: 'Barlow, sans-serif', borderTop: `1px solid ${C.border}` }}>
-                {summaryError}
-              </div>
-            )}
-
-            {summarySectionOpen && yesterdaySummaries && (
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {orgs.map((org, i) => {
-                  const s = yesterdaySummaries[org.id]
-                  if (!s) return null
-                  const isOpen = expandedSummaries.has(org.id)
-                  const toggle = () => setExpandedSummaries(prev => {
-                    const next = new Set(prev)
-                    next.has(org.id) ? next.delete(org.id) : next.add(org.id)
-                    return next
-                  })
-                  return (
-                    <div key={org.id} style={{
-                      borderTop: i > 0 ? `1px solid ${C.border}` : 'none',
-                    }}>
-                      {/* Accordion header */}
-                      <div
-                        onClick={toggle}
-                        style={{
-                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                          padding: '14px 20px', cursor: 'pointer', userSelect: 'none',
-                          transition: 'background 0.1s',
-                        }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#fafafa')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ width: 24, height: 24, borderRadius: 6, background: C.ink, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                            <Building2 size={11} color={C.accent} />
-                          </div>
-                          <span style={{ fontWeight: 700, fontSize: '0.85rem', fontFamily: 'Barlow, sans-serif' }}>{org.name}</span>
-                          {/* Inline quick stats when collapsed */}
-                          {!isOpen && (
-                            <div style={{ display: 'flex', gap: 12, marginLeft: 8 }}>
-                              <span className="mono" style={{ fontSize: '0.72rem', color: C.muted }}>
-                                {`$${s.revenue >= 1000 ? (s.revenue/1000).toFixed(1) + 'k' : s.revenue.toFixed(0)}`}
-                              </span>
-                              <span className="mono" style={{ fontSize: '0.72rem', color: C.muted }}>
-                                {s.orders} orders
-                              </span>
-                              {s.roas > 0 && (
-                                <span className="mono" style={{ fontSize: '0.72rem', color: C.muted }}>
-                                  {s.roas.toFixed(2)}x
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        <ChevronDown size={14} color={C.muted} style={{
-                          transition: 'transform 0.2s',
-                          transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                          flexShrink: 0,
-                        }} />
-                      </div>
-
-                      {/* Accordion body */}
-                      {isOpen && (
-                        <div style={{ padding: '0 20px 16px' }}>
-                          {/* Metric pills */}
-                          <div className="yesterday-metrics" style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-                            {[
-                              { label: 'Revenue', value: `$${s.revenue >= 1000 ? (s.revenue/1000).toFixed(1) + 'k' : s.revenue.toFixed(0)}`, delta: s.revenueDelta },
-                              { label: 'Orders', value: String(s.orders), delta: s.ordersDelta },
-                              { label: 'Spend', value: `$${s.adSpend >= 1000 ? (s.adSpend/1000).toFixed(1) + 'k' : s.adSpend.toFixed(0)}`, delta: s.adSpendDelta, invert: true },
-                              { label: 'ROAS', value: s.roas > 0 ? `${s.roas.toFixed(2)}x` : '—', delta: s.roasDelta },
-                            ].map(m => (
-                              <div key={m.label} style={{
-                                display: 'flex', alignItems: 'center', gap: 6,
-                                background: C.cream, borderRadius: 6, padding: '6px 10px',
-                              }}>
-                                <span style={{ fontSize: '0.68rem', color: C.muted, fontFamily: 'Barlow, sans-serif' }}>{m.label}</span>
-                                <span className="mono" style={{ fontSize: '0.78rem', fontWeight: 700 }}>{m.value}</span>
-                                {Math.abs(m.delta) >= 0.05 && (
-                                  <span style={{
-                                    fontSize: '0.65rem', fontWeight: 600,
-                                    color: (m.invert ? m.delta <= 0 : m.delta >= 0) ? '#007a48' : '#b91c1c',
-                                    fontFamily: 'Barlow, sans-serif',
-                                  }}>
-                                    {m.delta >= 0 ? '+' : ''}{m.delta.toFixed(1)}%
-                                  </span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* AI Summary */}
-                          <p style={{
-                            fontSize: '0.82rem', lineHeight: 1.55, color: '#333',
-                            fontFamily: 'Barlow, sans-serif', margin: 0,
-                          }}>
-                            {s.summary}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        )}
+          )
+        })()}
 
         {/* Summary strip — only meaningful with 2+ orgs */}
         {!loadingOrgs && orgs.length > 1 && (
@@ -718,7 +609,7 @@ export default function OverviewPage() {
             display: 'flex', alignItems: 'flex-start', gap: 16,
             marginBottom: 24, flexWrap: 'wrap',
           }}>
-            <div className="sync-item" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div className="sync-item sync-item-all" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <button
                 onClick={handleSyncAll}
                 disabled={syncingShopify || syncingMeta}
@@ -837,108 +728,6 @@ export default function OverviewPage() {
           </div>
         ) : (
           <>
-            {/* ── Compact Yesterday table — one row per brand, totals at the bottom ── */}
-            {yesterdayTable && yesterdayTable.data.length > 0 && (() => {
-              const rows = yesterdayTable.data
-              const totalRev = rows.reduce((s, r) => s + r.revenue, 0)
-              const totalOrd = rows.reduce((s, r) => s + r.orders, 0)
-              const totalSp  = rows.reduce((s, r) => s + r.ad_spend, 0)
-              const blendRoas = totalSp > 0 ? totalRev / totalSp : 0
-              const headerLabel = yesterdayTable.date
-                ? new Date(yesterdayTable.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-                : ''
-
-              const dodBadge = (v: number | null, invert = false) => {
-                if (v === null || v === undefined) {
-                  return <span className="badge badge-gray" style={{ fontSize: '0.62rem' }}>—</span>
-                }
-                const up = v >= 0
-                const good = invert ? !up : up
-                return (
-                  <span className={`badge ${good ? 'pill-up' : 'pill-down'}`} style={{ fontSize: '0.62rem', padding: '1px 6px' }}>
-                    {up ? '↑' : '↓'} {Math.abs(v).toFixed(1)}%
-                  </span>
-                )
-              }
-
-              const cellBase: React.CSSProperties = {
-                padding: '6px 10px',
-                fontFamily: 'var(--font-dm-mono), DM Mono, monospace',
-                fontSize: '0.78rem',
-                whiteSpace: 'nowrap',
-                borderBottom: `1px solid ${C.border}`,
-              }
-              const numRight: React.CSSProperties = { ...cellBase, textAlign: 'right' }
-
-              return (
-                <div className="card" style={{ padding: 0, marginBottom: 20, overflow: 'hidden' }}>
-                  <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: `1px solid ${C.border}` }}>
-                    <Sparkles size={13} color={C.ink} />
-                    <span style={{ fontWeight: 700, fontSize: '0.85rem', fontFamily: 'Barlow, sans-serif' }}>Yesterday</span>
-                    <span className="mono" style={{ fontSize: '0.7rem', color: C.muted }}>· {headerLabel}</span>
-                  </div>
-                  <div style={{ maxHeight: 320, overflowY: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr>
-                          {['Brand', 'Revenue', 'Orders', 'Ad Spend', 'ROAS'].map((h, i) => (
-                            <th key={i} style={{
-                              textAlign: i === 0 ? 'left' : 'right',
-                              padding: '8px 10px',
-                              fontSize: '0.65rem',
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.08em',
-                              color: C.muted,
-                              fontWeight: 700,
-                              fontFamily: 'Barlow, sans-serif',
-                              borderBottom: `1px solid ${C.border}`,
-                              position: 'sticky',
-                              top: 0,
-                              background: C.paper,
-                              zIndex: 1,
-                            }}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {rows.map(r => (
-                          <tr key={r.org_id}>
-                            <td style={{ ...cellBase, textAlign: 'left', fontFamily: 'Barlow, sans-serif', fontWeight: 600 }}>
-                              {r.org_name}
-                            </td>
-                            <td style={numRight}>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
-                                {fmt$(r.revenue)}
-                                {dodBadge(r.revenue_dod)}
-                              </span>
-                            </td>
-                            <td style={numRight}>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
-                                {fmtN(r.orders)}
-                                {dodBadge(r.orders_dod)}
-                              </span>
-                            </td>
-                            <td style={numRight}>{fmt$(r.ad_spend)}</td>
-                            <td style={numRight}>{r.roas > 0 ? `${r.roas.toFixed(2)}x` : '—'}</td>
-                          </tr>
-                        ))}
-                        {/* Total row */}
-                        <tr style={{ background: C.cream }}>
-                          <td style={{ ...cellBase, textAlign: 'left', fontFamily: 'Barlow, sans-serif', fontWeight: 800, borderBottom: 'none' }}>
-                            Total
-                          </td>
-                          <td style={{ ...numRight, fontWeight: 800, borderBottom: 'none' }}>{fmt$(totalRev)}</td>
-                          <td style={{ ...numRight, fontWeight: 800, borderBottom: 'none' }}>{fmtN(totalOrd)}</td>
-                          <td style={{ ...numRight, fontWeight: 800, borderBottom: 'none' }}>{fmt$(totalSp)}</td>
-                          <td style={{ ...numRight, fontWeight: 800, borderBottom: 'none' }}>{blendRoas > 0 ? `${blendRoas.toFixed(2)}x` : '—'}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )
-            })()}
-
             {/* ── Desktop table ── */}
             <div className="overview-table table-wrapper"><div className="table-scroll">
               <table style={{ minWidth: 980 }}>
@@ -1162,13 +951,16 @@ export default function OverviewPage() {
           .overview-topbar  { flex-wrap: wrap !important; padding: 14px 16px 14px 60px !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 100 !important; }
           .overview-content { padding-top: 84px !important; }
           .overview-subtitle { flex-direction: column !important; align-items: flex-start !important; gap: 4px !important; }
-          .overview-sync-row { flex-direction: column !important; gap: 10px !important; align-items: stretch !important; }
-          .overview-sync-row .sync-item { width: 100% !important; }
-          .overview-sync-row .sync-item button { width: 100% !important; }
+          .overview-sync-row { flex-direction: row !important; gap: 8px !important; align-items: stretch !important; margin-bottom: 16px !important; }
+          .overview-sync-row .sync-item-all { display: none !important; }
+          .overview-sync-row .sync-item { flex: 1 1 0 !important; min-width: 0 !important; }
+          .overview-sync-row .sync-item button { width: 100% !important; padding: 6px 10px !important; font-size: 0.72rem !important; }
+          .overview-sync-row .sync-item > div { font-size: 0.62rem !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
           .overview-table { display: none !important; }
           .overview-cards { display: flex !important; }
-          .yesterday-metrics { gap: 6px !important; }
-          .yesterday-metrics > div { flex: 1 1 calc(50% - 3px); min-width: 0; }
+        }
+        @media (max-width: 640px) {
+          .yt-col-hide-mobile { display: none !important; }
         }
       `}</style>
     </div>
