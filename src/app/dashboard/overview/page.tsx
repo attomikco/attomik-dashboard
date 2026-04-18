@@ -473,141 +473,11 @@ export default function OverviewPage() {
 
       <div className={`overview-content page-content${isRefetching ? ' is-refetching' : ''}`} style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 80px' }}>
 
-        {/* ── Yesterday table — first thing on the page for quick glance ── */}
-        {yesterdayTable && yesterdayTable.data.length > 0 && (() => {
-          const rows = yesterdayTable.data
-          const totalRev = rows.reduce((s, r) => s + r.revenue, 0)
-          const totalOrd = rows.reduce((s, r) => s + r.orders, 0)
-          const totalSp  = rows.reduce((s, r) => s + r.ad_spend, 0)
-          const blendRoas = totalSp > 0 ? totalRev / totalSp : 0
-          const headerLabel = yesterdayTable.date
-            ? new Date(yesterdayTable.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-            : ''
-
-          const dodBadge = (v: number | null, invert = false) => {
-            if (v === null || v === undefined) {
-              return <span className="badge badge-gray" style={{ fontSize: '0.62rem' }}>—</span>
-            }
-            const up = v >= 0
-            const good = invert ? !up : up
-            return (
-              <span className={`badge ${good ? 'pill-up' : 'pill-down'}`} style={{ fontSize: '0.62rem', padding: '1px 6px' }}>
-                {up ? '↑' : '↓'} {Math.abs(v).toFixed(1)}%
-              </span>
-            )
-          }
-
-          const cellBase: React.CSSProperties = {
-            padding: '6px 10px',
-            fontFamily: 'var(--font-dm-mono), DM Mono, monospace',
-            fontSize: '0.78rem',
-            whiteSpace: 'nowrap',
-            borderBottom: `1px solid ${C.border}`,
-          }
-          const numRight: React.CSSProperties = { ...cellBase, textAlign: 'right' }
-
-          return (
-            <div className="card" style={{ padding: 0, marginBottom: 20, overflow: 'hidden' }}>
-              <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: `1px solid ${C.border}` }}>
-                <Sparkles size={16} color={C.ink} />
-                <span style={{ fontWeight: 800, fontSize: '1.05rem', fontFamily: 'Barlow, sans-serif', letterSpacing: '-0.01em' }}>Yesterday</span>
-                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: C.muted, fontFamily: 'Barlow, sans-serif' }}>· {headerLabel}</span>
-              </div>
-              <div style={{ maxHeight: 320, overflowY: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>
-                      {[
-                        { label: 'Brand',    align: 'left'  as const, hideMobile: false },
-                        { label: 'Revenue',  align: 'right' as const, hideMobile: false },
-                        { label: 'Orders',   align: 'right' as const, hideMobile: false },
-                        { label: 'Ad Spend', align: 'right' as const, hideMobile: true  },
-                        { label: 'ROAS',     align: 'right' as const, hideMobile: true  },
-                      ].map((h, i) => (
-                        <th key={i} className={h.hideMobile ? 'yt-col-hide-mobile' : ''} style={{
-                          textAlign: h.align,
-                          padding: '8px 10px',
-                          fontSize: '0.65rem',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.08em',
-                          color: C.muted,
-                          fontWeight: 700,
-                          fontFamily: 'Barlow, sans-serif',
-                          borderBottom: `1px solid ${C.border}`,
-                          position: 'sticky',
-                          top: 0,
-                          background: C.paper,
-                          zIndex: 1,
-                        }}>{h.label}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map(r => (
-                      <tr key={r.org_id}>
-                        <td style={{ ...cellBase, textAlign: 'left', fontFamily: 'Barlow, sans-serif', fontWeight: 600 }}>
-                          {r.org_name}
-                        </td>
-                        <td style={numRight}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
-                            {fmt$(r.revenue)}
-                            {dodBadge(r.revenue_dod)}
-                          </span>
-                        </td>
-                        <td style={numRight}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
-                            {fmtN(r.orders)}
-                            {dodBadge(r.orders_dod)}
-                          </span>
-                        </td>
-                        <td className="yt-col-hide-mobile" style={numRight}>{fmt$(r.ad_spend)}</td>
-                        <td className="yt-col-hide-mobile" style={numRight}>{r.roas > 0 ? `${r.roas.toFixed(2)}x` : '—'}</td>
-                      </tr>
-                    ))}
-                    {/* Total row */}
-                    <tr style={{ background: C.cream }}>
-                      <td style={{ ...cellBase, textAlign: 'left', fontFamily: 'Barlow, sans-serif', fontWeight: 800, borderBottom: 'none' }}>
-                        Total
-                      </td>
-                      <td style={{ ...numRight, fontWeight: 800, borderBottom: 'none' }}>{fmt$(totalRev)}</td>
-                      <td style={{ ...numRight, fontWeight: 800, borderBottom: 'none' }}>{fmtN(totalOrd)}</td>
-                      <td className="yt-col-hide-mobile" style={{ ...numRight, fontWeight: 800, borderBottom: 'none' }}>{fmt$(totalSp)}</td>
-                      <td className="yt-col-hide-mobile" style={{ ...numRight, fontWeight: 800, borderBottom: 'none' }}>{blendRoas > 0 ? `${blendRoas.toFixed(2)}x` : '—'}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )
-        })()}
-
-        {/* Summary strip — only meaningful with 2+ orgs */}
-        {!loadingOrgs && orgs.length > 1 && (
-          <div style={{ marginBottom: 20 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}
-               className="summary-grid">
-            {[
-              { label: 'Total Sales',  value: fmt$(totalRevenue), delta: pct(totalRevenue, totalPrevRev) },
-              { label: 'Total Orders',   value: fmtN(totalOrders),  delta: pct(totalOrders, totalPrevOrd) },
-              { label: 'Total Ad Spend', value: fmt$(totalSpend),   delta: pct(totalSpend, totalPrevSp), invert: true },
-              { label: 'Blended ROAS',   value: blendedRoas > 0 ? `${blendedRoas.toFixed(2)}x` : '—', delta: pct(blendedRoas, prevRoas) },
-              { label: 'Blended CAC',    value: blendedCac > 0 ? fmt$(blendedCac) : '—', delta: prevBlendedCac > 0 ? pct(blendedCac, prevBlendedCac) : 0, invert: true },
-            ].map(k => (
-              <div key={k.label} className="kpi-card" style={{ padding: '18px 20px' }}>
-                <div className="kpi-label">{k.label}</div>
-                <div className="kpi-value" style={{ marginBottom: 6 }}>{k.value}</div>
-                <DeltaBadge value={k.delta} invert={k.invert} />
-              </div>
-            ))}
-          </div>
-          </div>
-        )}
-
-        {/* Sync row — below KPIs, never overlapping */}
+        {/* Sync row — at the very top for quick access */}
         {isSuperadmin && !loadingOrgs && (
           <div className="overview-sync-row" style={{
             display: 'flex', alignItems: 'flex-start', gap: 16,
-            marginBottom: 24, flexWrap: 'wrap',
+            marginBottom: 20, flexWrap: 'wrap',
           }}>
             <div className="sync-item sync-item-all" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <button
@@ -684,6 +554,139 @@ export default function OverviewPage() {
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ── Yesterday table — first thing on the page for quick glance ── */}
+        {yesterdayTable && yesterdayTable.data.length > 0 && (() => {
+          const rows = yesterdayTable.data
+          const totalRev = rows.reduce((s, r) => s + r.revenue, 0)
+          const totalOrd = rows.reduce((s, r) => s + r.orders, 0)
+          const totalSp  = rows.reduce((s, r) => s + r.ad_spend, 0)
+          const blendRoas = totalSp > 0 ? totalRev / totalSp : 0
+          const headerLabel = yesterdayTable.date
+            ? new Date(yesterdayTable.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+            : ''
+
+          const dodBadge = (v: number | null, invert = false) => {
+            if (v === null || v === undefined) {
+              return <span className="badge badge-gray" style={{ fontSize: '0.62rem' }}>—</span>
+            }
+            const up = v >= 0
+            const good = invert ? !up : up
+            return (
+              <span className={`badge ${good ? 'pill-up' : 'pill-down'}`} style={{ fontSize: '0.62rem', padding: '1px 6px' }}>
+                {up ? '↑' : '↓'} {Math.abs(v).toFixed(1)}%
+              </span>
+            )
+          }
+
+          const cellBase: React.CSSProperties = {
+            padding: '6px 10px',
+            fontFamily: 'var(--font-dm-mono), DM Mono, monospace',
+            fontSize: '0.78rem',
+            whiteSpace: 'nowrap',
+            borderBottom: `1px solid ${C.border}`,
+          }
+          const numCenter: React.CSSProperties = { ...cellBase, textAlign: 'center' }
+          const stackCenter: React.CSSProperties = {
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+          }
+
+          return (
+            <div className="card" style={{ padding: 0, marginBottom: 20, overflow: 'hidden' }}>
+              <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: `1px solid ${C.border}` }}>
+                <Sparkles size={16} color={C.ink} />
+                <span style={{ fontWeight: 800, fontSize: '1.05rem', fontFamily: 'Barlow, sans-serif', letterSpacing: '-0.01em' }}>Yesterday</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: C.muted, fontFamily: 'Barlow, sans-serif' }}>· {headerLabel}</span>
+              </div>
+              <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      {[
+                        { label: 'Brand',    align: 'left'   as const, hideMobile: false },
+                        { label: 'Revenue',  align: 'center' as const, hideMobile: false },
+                        { label: 'Orders',   align: 'center' as const, hideMobile: false },
+                        { label: 'Ad Spend', align: 'center' as const, hideMobile: true  },
+                        { label: 'ROAS',     align: 'center' as const, hideMobile: true  },
+                      ].map((h, i) => (
+                        <th key={i} className={h.hideMobile ? 'yt-col-hide-mobile' : ''} style={{
+                          textAlign: h.align,
+                          padding: '8px 10px',
+                          fontSize: '0.65rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.08em',
+                          color: C.muted,
+                          fontWeight: 700,
+                          fontFamily: 'Barlow, sans-serif',
+                          borderBottom: `1px solid ${C.border}`,
+                          position: 'sticky',
+                          top: 0,
+                          background: C.paper,
+                          zIndex: 1,
+                        }}>{h.label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(r => (
+                      <tr key={r.org_id}>
+                        <td style={{ ...cellBase, textAlign: 'left', fontFamily: 'Barlow, sans-serif', fontWeight: 600 }}>
+                          {r.org_name}
+                        </td>
+                        <td style={numCenter}>
+                          <span style={stackCenter}>
+                            <span>{fmt$(r.revenue)}</span>
+                            {dodBadge(r.revenue_dod)}
+                          </span>
+                        </td>
+                        <td style={numCenter}>
+                          <span style={stackCenter}>
+                            <span>{fmtN(r.orders)}</span>
+                            {dodBadge(r.orders_dod)}
+                          </span>
+                        </td>
+                        <td className="yt-col-hide-mobile" style={numCenter}>{fmt$(r.ad_spend)}</td>
+                        <td className="yt-col-hide-mobile" style={numCenter}>{r.roas > 0 ? `${r.roas.toFixed(2)}x` : '—'}</td>
+                      </tr>
+                    ))}
+                    {/* Total row */}
+                    <tr style={{ background: C.cream }}>
+                      <td style={{ ...cellBase, textAlign: 'left', fontFamily: 'Barlow, sans-serif', fontWeight: 800, borderBottom: 'none' }}>
+                        Total
+                      </td>
+                      <td style={{ ...numCenter, fontWeight: 800, borderBottom: 'none' }}>{fmt$(totalRev)}</td>
+                      <td style={{ ...numCenter, fontWeight: 800, borderBottom: 'none' }}>{fmtN(totalOrd)}</td>
+                      <td className="yt-col-hide-mobile" style={{ ...numCenter, fontWeight: 800, borderBottom: 'none' }}>{fmt$(totalSp)}</td>
+                      <td className="yt-col-hide-mobile" style={{ ...numCenter, fontWeight: 800, borderBottom: 'none' }}>{blendRoas > 0 ? `${blendRoas.toFixed(2)}x` : '—'}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Summary strip — only meaningful with 2+ orgs */}
+        {!loadingOrgs && orgs.length > 1 && (
+          <div style={{ marginBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}
+               className="summary-grid">
+            {[
+              { label: 'Total Sales',  value: fmt$(totalRevenue), delta: pct(totalRevenue, totalPrevRev) },
+              { label: 'Total Orders',   value: fmtN(totalOrders),  delta: pct(totalOrders, totalPrevOrd) },
+              { label: 'Total Ad Spend', value: fmt$(totalSpend),   delta: pct(totalSpend, totalPrevSp), invert: true },
+              { label: 'Blended ROAS',   value: blendedRoas > 0 ? `${blendedRoas.toFixed(2)}x` : '—', delta: pct(blendedRoas, prevRoas) },
+              { label: 'Blended CAC',    value: blendedCac > 0 ? fmt$(blendedCac) : '—', delta: prevBlendedCac > 0 ? pct(blendedCac, prevBlendedCac) : 0, invert: true },
+            ].map(k => (
+              <div key={k.label} className="kpi-card" style={{ padding: '18px 20px' }}>
+                <div className="kpi-label">{k.label}</div>
+                <div className="kpi-value" style={{ marginBottom: 6 }}>{k.value}</div>
+                <DeltaBadge value={k.delta} invert={k.invert} />
+              </div>
+            ))}
+          </div>
           </div>
         )}
 
