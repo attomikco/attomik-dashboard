@@ -4,7 +4,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-type Order = { total_price: number | string; source: string | null; created_at: string }
+type Order = { total_price: number | string; source: string | null; status: string | null; created_at: string }
 type Spend = { spend: number | string; date: string }
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -13,47 +13,113 @@ const DAYS_LONG = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','
 const fmtMoney = (n: number) =>
   `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
 
-const fmtRange = (start: Date, end: Date) => {
-  const s = `${MONTHS[start.getUTCMonth()]} ${start.getUTCDate()}`
-  const e = `${MONTHS[end.getUTCMonth()]} ${end.getUTCDate()}, ${end.getUTCFullYear()}`
-  return `${s} – ${e}`
+// Format "Apr 6 – Apr 12, 2026" from two YYYY-MM-DD keys
+function fmtRangeKeys(startKey: string, endKey: string): string {
+  const [, sm, sd] = startKey.split('-').map(Number)
+  const [ey, em, ed] = endKey.split('-').map(Number)
+  return `${MONTHS[sm - 1]} ${sd} – ${MONTHS[em - 1]} ${ed}, ${ey}`
 }
 
-function computeLastWeekBounds(now = new Date()) {
-  const base = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
-  const dow = base.getUTCDay()
-  const daysSinceMonday = (dow + 6) % 7
-  const thisMon = new Date(base)
-  thisMon.setUTCDate(base.getUTCDate() - daysSinceMonday)
-  const lastMon = new Date(thisMon)
-  lastMon.setUTCDate(thisMon.getUTCDate() - 7)
-  const lastSun = new Date(thisMon)
-  lastSun.setUTCDate(thisMon.getUTCDate() - 1)
-  const prevMon = new Date(lastMon)
-  prevMon.setUTCDate(lastMon.getUTCDate() - 7)
-  const prevSun = new Date(lastMon)
-  prevSun.setUTCDate(lastMon.getUTCDate() - 1)
-  return { lastMon, lastSun, thisMon, prevMon, prevSun }
+// YYYY-MM-DD of a Date in a specific timezone — matches analytics' utcToOrgDate
+function utcToOrgDate(iso: string, tz: string): string {
+  return new Date(iso).toLocaleDateString('en-CA', { timeZone: tz })
 }
 
-async function fetchAllOrders(sb: any, orgId: string, gteISO: string, ltISO: string) {
+// Convert a YYYY-MM-DD (interpreted in tz) to the UTC instant of that tz-local
+// midnight (or end-of-day). Mirrors the helper used in analytics/page.tsx.
+function tzDateToUTC(dateStr: string, tz: string, endOfDay = false): Date {
+  const time = endOfDay ? '23:59:59' : '00:00:00'
+  const utcAnchor = new Date(`${dateStr}T${time}Z`)
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  })
+  const parts = fmt.formatToParts(utcAnchor)
+  const p: Record<string, string> = {}
+  for (const part of parts) if (part.type !== 'literal') p[part.type] = part.value
+  const localAtAnchor = new Date(`${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}`)
+  const targetLocal = new Date(`${dateStr}T${time}`)
+  const diffMs = targetLocal.getTime() - localAtAnchor.getTime()
+  return new Date(utcAnchor.getTime() + diffMs)
+}
+
+function nextDayKey(ymd: string): string {
+  const [y, m, d] = ymd.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10)
+}
+
+// Compute last complete Mon–Sun week, anchored in the org timezone. All returned
+// values are YYYY-MM-DD *calendar* dates in that tz.
+function computeLastWeekBoundsTz(tz: string, now = new Date()) {
+  const todayKey = now.toLocaleDateString('en-CA', { timeZone: tz })
+  const [y, m, d] = todayKey.split('-').map(Number)
+  const base = new Date(Date.UTC(y, m - 1, d))
+  const daysSinceMonday = (base.getUTCDay() + 6) % 7
+  const shift = (offset: number) => {
+    const x = new Date(base)
+    x.setUTCDate(base.getUTCDate() + offset)
+    return x.toISOString().slice(0, 10)
+  }
+  return {
+    lastMonKey: shift(-daysSinceMonday - 7),
+    lastSunKey: shift(-daysSinceMonday - 1),
+    prevMonKey: shift(-daysSinceMonday - 14),
+    prevSunKey: shift(-daysSinceMonday - 8),
+  }
+}
+
+function weekDayKeys(mondayKey: string): string[] {
+  const [y, m, d] = mondayKey.split('-').map(Number)
+  const base = new Date(Date.UTC(y, m - 1, d))
+  const keys: string[] = []
+  for (let i = 0; i < 7; i++) {
+    const day = new Date(base)
+    day.setUTCDate(base.getUTCDate() + i)
+    keys.push(day.toISOString().slice(0, 10))
+  }
+  return keys
+}
+
+async function fetchOrdersBounded(
+  sb: any, orgId: string, gteISO: string, ltOrLteISO: string,
+  opts: { source?: 'amazon' | 'non-amazon'; exclusiveUpper?: boolean } = {}
+): Promise<Order[]> {
   const size = 1000
   let from = 0
   const all: Order[] = []
   while (true) {
-    const { data } = await sb.from('orders')
-      .select('total_price, source, created_at')
+    let q = sb.from('orders')
+      .select('total_price, source, status, created_at')
       .eq('org_id', orgId)
       .gte('created_at', gteISO)
-      .lt('created_at', ltISO)
-      .order('created_at', { ascending: true })
-      .range(from, from + size - 1)
+    q = opts.exclusiveUpper ? q.lt('created_at', ltOrLteISO) : q.lte('created_at', ltOrLteISO)
+    if (opts.source === 'amazon') q = q.eq('source', 'amazon')
+    else if (opts.source === 'non-amazon') q = q.neq('source', 'amazon')
+    q = q.order('created_at', { ascending: true }).range(from, from + size - 1)
+    const { data } = await q
     if (!data || data.length === 0) break
     all.push(...data)
     if (data.length < size) break
     from += size
   }
   return all
+}
+
+// Fetch a Mon–Sun window: tz-aware bounds for Shopify/other sources + plain UTC
+// bounds for Amazon (which is stored at midnight UTC), matching analytics.
+async function fetchWeekOrders(
+  sb: any, orgId: string, mondayKey: string, sundayKey: string, tz: string
+): Promise<Order[]> {
+  const shopStart = tzDateToUTC(mondayKey, tz, false).toISOString()
+  const shopEnd = tzDateToUTC(nextDayKey(sundayKey), tz, false).toISOString()
+  const amzStart = `${mondayKey}T00:00:00.000Z`
+  const amzEnd = `${sundayKey}T23:59:59.999Z`
+  const [nonAmazon, amazon] = await Promise.all([
+    fetchOrdersBounded(sb, orgId, shopStart, shopEnd, { source: 'non-amazon', exclusiveUpper: true }),
+    fetchOrdersBounded(sb, orgId, amzStart, amzEnd, { source: 'amazon' }),
+  ])
+  return [...nonAmazon, ...amazon]
 }
 
 async function fetchAllSpend(sb: any, orgId: string, gteDate: string, lteDate: string) {
@@ -74,8 +140,6 @@ async function fetchAllSpend(sb: any, orgId: string, gteDate: string, lteDate: s
   return all
 }
 
-const toDateOnly = (d: Date) => d.toISOString().slice(0, 10)
-
 function aggregate(orders: Order[]) {
   let revenue = 0
   let shopify = 0
@@ -89,19 +153,25 @@ function aggregate(orders: Order[]) {
   return { revenue, orders: orders.length, shopify, amazon }
 }
 
-function bestDay(orders: Order[], weekStart: Date) {
-  const buckets: number[] = Array(7).fill(0)
-  const startMs = weekStart.getTime()
+function bestDay(orders: Order[], weekKeys: string[], tz: string) {
+  // Bucket by the order's calendar date in the org's timezone, matching the
+  // analytics page. Exclude fully refunded orders (analytics does the same for
+  // day-level revenue buckets).
+  const buckets = new Map<string, number>()
+  for (const k of weekKeys) buckets.set(k, 0)
   for (const o of orders) {
-    const t = new Date(o.created_at).getTime()
-    const idx = Math.floor((t - startMs) / 86400000)
-    if (idx >= 0 && idx < 7) buckets[idx] += Number(o.total_price) || 0
+    if (o.status === 'refunded') continue
+    const key = utcToOrgDate(o.created_at, tz)
+    if (!buckets.has(key)) continue
+    buckets.set(key, (buckets.get(key) ?? 0) + (Number(o.total_price) || 0))
   }
-  let maxIdx = 0
-  for (let i = 1; i < 7; i++) if (buckets[i] > buckets[maxIdx]) maxIdx = i
-  const dayDate = new Date(weekStart)
-  dayDate.setUTCDate(weekStart.getUTCDate() + maxIdx)
-  return { name: DAYS_LONG[dayDate.getUTCDay()], revenue: buckets[maxIdx] }
+  let maxKey = weekKeys[0]
+  for (const k of weekKeys) {
+    if ((buckets.get(k) ?? 0) > (buckets.get(maxKey) ?? 0)) maxKey = k
+  }
+  const [y, m, d] = maxKey.split('-').map(Number)
+  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay()
+  return { name: DAYS_LONG[dow], revenue: buckets.get(maxKey) ?? 0 }
 }
 
 function wowPct(cur: number, prev: number) {
@@ -357,9 +427,10 @@ export async function POST(request: Request) {
     const sb = createServiceClient()
 
     const { data: org, error: orgError } = await sb.from('organizations')
-      .select('id, name, slug').eq('id', org_id).maybeSingle()
+      .select('id, name, slug, timezone').eq('id', org_id).maybeSingle()
     if (orgError) return NextResponse.json({ error: `Org lookup failed: ${orgError.message}` }, { status: 500 })
     if (!org) return NextResponse.json({ error: 'Org not found' }, { status: 404 })
+    const tz = (((org as any).timezone as string | null) ?? 'America/New_York')
 
     // Pull the unsubscribe list separately so a missing column (migration
     // not yet applied) degrades gracefully instead of failing the whole fetch.
@@ -375,17 +446,14 @@ export async function POST(request: Request) {
     const recipients = memberRecipients.filter(e => !unsubscribed.has(e.toLowerCase()))
     if (recipients.length === 0) return NextResponse.json({ error: 'No recipients' }, { status: 400 })
 
-    const { lastMon, lastSun, thisMon, prevMon, prevSun } = computeLastWeekBounds()
-    const lastMonISO = lastMon.toISOString()
-    const thisMonISO = thisMon.toISOString()
-    const prevMonISO = prevMon.toISOString()
-    const prevSunNextISO = new Date(prevSun.getTime() + 86400000).toISOString() // exclusive upper
+    const { lastMonKey, lastSunKey, prevMonKey, prevSunKey } = computeLastWeekBoundsTz(tz)
+    const weekKeys = weekDayKeys(lastMonKey)
 
     const [curOrders, prevOrders, curSpend, prevSpend] = await Promise.all([
-      fetchAllOrders(sb, org_id, lastMonISO, thisMonISO),
-      fetchAllOrders(sb, org_id, prevMonISO, prevSunNextISO),
-      fetchAllSpend(sb, org_id, toDateOnly(lastMon), toDateOnly(lastSun)),
-      fetchAllSpend(sb, org_id, toDateOnly(prevMon), toDateOnly(prevSun)),
+      fetchWeekOrders(sb, org_id, lastMonKey, lastSunKey, tz),
+      fetchWeekOrders(sb, org_id, prevMonKey, prevSunKey, tz),
+      fetchAllSpend(sb, org_id, lastMonKey, lastSunKey),
+      fetchAllSpend(sb, org_id, prevMonKey, prevSunKey),
     ])
 
     const cur = aggregate(curOrders)
@@ -406,7 +474,7 @@ export async function POST(request: Request) {
     const cltvPct = curCltv !== null && prevCltv !== null && prevCltv > 0 ? wowPct(curCltv, prevCltv) : null
     const cltvCacPct = curCltvCac !== null && prevCltvCac !== null && prevCltvCac > 0 ? wowPct(curCltvCac, prevCltvCac) : null
 
-    const best = bestDay(curOrders, lastMon)
+    const best = bestDay(curOrders, weekKeys, tz)
     const chanTotal = cur.shopify + cur.amazon
     const shopifyPct = chanTotal > 0 ? (cur.shopify / chanTotal) * 100 : 0
     const amazonPct = chanTotal > 0 ? (cur.amazon / chanTotal) * 100 : 0
@@ -429,7 +497,7 @@ export async function POST(request: Request) {
 
     const html = buildHtml({
       orgName: org.name,
-      rangeLabel: fmtRange(lastMon, lastSun),
+      rangeLabel: fmtRangeKeys(lastMonKey, lastSunKey),
       aiSummary,
       dashboardUrl,
       kpis: {
@@ -449,7 +517,7 @@ export async function POST(request: Request) {
       channel: { shopify: fmtMoney(cur.shopify), shopifyPct, amazon: fmtMoney(cur.amazon), amazonPct },
     })
 
-    const subject = `${org.name} — Weekly Performance · ${fmtRange(lastMon, lastSun)}`
+    const subject = `${org.name} — Weekly Performance · ${fmtRangeKeys(lastMonKey, lastSunKey)}`
     const sentTo: string[] = []
     const errors: string[] = []
 
@@ -481,7 +549,7 @@ export async function POST(request: Request) {
       success: true,
       sentTo,
       failed: errors.length ? errors : undefined,
-      range: { start: toDateOnly(lastMon), end: toDateOnly(lastSun) },
+      range: { start: lastMonKey, end: lastSunKey },
     })
   } catch (err: any) {
     console.error('Weekly email error:', err)
