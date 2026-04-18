@@ -589,8 +589,8 @@ export default function OverviewPage() {
             borderBottom: `1px solid ${C.border}`,
           }
           const numCenter: React.CSSProperties = { ...cellBase, textAlign: 'center' }
-          const stackCenter: React.CSSProperties = {
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+          const rowCenter: React.CSSProperties = {
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           }
 
           return (
@@ -636,14 +636,14 @@ export default function OverviewPage() {
                           {r.org_name}
                         </td>
                         <td style={numCenter}>
-                          <span style={stackCenter}>
-                            <span>{fmt$(r.revenue)}</span>
+                          <span style={rowCenter}>
+                            {fmt$(r.revenue)}
                             {dodBadge(r.revenue_dod)}
                           </span>
                         </td>
                         <td style={numCenter}>
-                          <span style={stackCenter}>
-                            <span>{fmtN(r.orders)}</span>
+                          <span style={rowCenter}>
+                            {fmtN(r.orders)}
                             {dodBadge(r.orders_dod)}
                           </span>
                         </td>
