@@ -45,8 +45,12 @@ function tzDateToUTC(dateStr: string, tz: string, endOfDay = false): Date {
 }
 
 function nextDayKey(ymd: string): string {
+  return shiftDayKey(ymd, 1)
+}
+
+function shiftDayKey(ymd: string, offsetDays: number): string {
   const [y, m, d] = ymd.split('-').map(Number)
-  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10)
+  return new Date(Date.UTC(y, m - 1, d + offsetDays)).toISOString().slice(0, 10)
 }
 
 // Compute last complete Mon–Sun week, anchored in the org timezone. All returned
@@ -106,15 +110,16 @@ async function fetchOrdersBounded(
   return all
 }
 
-// Fetch a Mon–Sun window: tz-aware bounds for Shopify/other sources + plain UTC
-// bounds for Amazon (which is stored at midnight UTC), matching analytics.
-async function fetchWeekOrders(
-  sb: any, orgId: string, mondayKey: string, sundayKey: string, tz: string
+// Fetch orders across an inclusive [startKey, endKey] date range in the org
+// timezone: tz-aware UTC bounds for Shopify/other sources + plain UTC bounds
+// for Amazon (which is stored at midnight UTC), matching analytics.
+async function fetchOrdersForRange(
+  sb: any, orgId: string, startKey: string, endKey: string, tz: string
 ): Promise<Order[]> {
-  const shopStart = tzDateToUTC(mondayKey, tz, false).toISOString()
-  const shopEnd = tzDateToUTC(nextDayKey(sundayKey), tz, false).toISOString()
-  const amzStart = `${mondayKey}T00:00:00.000Z`
-  const amzEnd = `${sundayKey}T23:59:59.999Z`
+  const shopStart = tzDateToUTC(startKey, tz, false).toISOString()
+  const shopEnd = tzDateToUTC(nextDayKey(endKey), tz, false).toISOString()
+  const amzStart = `${startKey}T00:00:00.000Z`
+  const amzEnd = `${endKey}T23:59:59.999Z`
   const [nonAmazon, amazon] = await Promise.all([
     fetchOrdersBounded(sb, orgId, shopStart, shopEnd, { source: 'non-amazon', exclusiveUpper: true }),
     fetchOrdersBounded(sb, orgId, amzStart, amzEnd, { source: 'amazon' }),
@@ -233,13 +238,18 @@ async function generateAISummary(ctx: {
   revenueWow: number | null; ordersWow: number | null; adSpendWow: number | null; roasWow: number | null
   bestDay: { name: string; revenue: number }
   shopifyPct: number; amazonPct: number
+  avg: {
+    revPerWeek: number; ordersPerWeek: number
+    aov: number; roas: number; cac: number | null
+  }
 }): Promise<string> {
   if (!process.env.ANTHROPIC_API_KEY) return ''
   const pct = (n: number | null) => n === null ? 'N/A' : `${n > 0 ? '+' : ''}${n.toFixed(1)}%`
   const cacStr = ctx.cac === null ? 'N/A' : `$${ctx.cac.toFixed(0)}`
-  const prompt = `Write a 2-3 sentence weekly performance summary for ${ctx.orgName}. Be specific with numbers, founder-friendly tone, no fluff, no advice. Just what happened.
+  const avgCacStr = ctx.avg.cac === null ? 'N/A' : `$${ctx.avg.cac.toFixed(0)}`
+  const prompt = `Write a 2-3 sentence weekly performance summary for ${ctx.orgName}. Be specific with numbers. Note what's up or down vs last week AND whether it's above or below the 4-week average where relevant. Help the reader understand if a decline is a blip or a trend. Founder-friendly tone, no fluff, no generic advice.
 
-Data:
+This week:
 - Revenue: $${ctx.revenue.toFixed(0)} (${pct(ctx.revenueWow)} vs last week)
 - Orders: ${ctx.orders} (${pct(ctx.ordersWow)} vs last week)
 - Ad Spend: $${ctx.adSpend.toFixed(0)} (${pct(ctx.adSpendWow)} vs last week)
@@ -247,7 +257,14 @@ Data:
 - AOV: $${ctx.aov.toFixed(0)}
 - CAC: ${cacStr}
 - Best day: ${ctx.bestDay.name} at $${ctx.bestDay.revenue.toFixed(0)}
-- Shopify: ${ctx.shopifyPct.toFixed(0)}% of revenue, Amazon: ${ctx.amazonPct.toFixed(0)}%`
+- Shopify: ${ctx.shopifyPct.toFixed(0)}% of revenue, Amazon: ${ctx.amazonPct.toFixed(0)}%
+
+4-week averages (the 4 weeks before last week):
+- Revenue/wk: $${ctx.avg.revPerWeek.toFixed(0)}
+- Orders/wk: ${Math.round(ctx.avg.ordersPerWeek)}
+- AOV: $${ctx.avg.aov.toFixed(0)}
+- ROAS: ${ctx.avg.roas.toFixed(2)}x
+- CAC: ${avgCacStr}`
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -283,10 +300,16 @@ function buildHtml(opts: {
     revenue: Kpi; orders: Kpi; adSpend: Kpi; roas: Kpi
     aov: Kpi; cac: Kpi; cltv: Kpi; cltvCac: Kpi
   }
+  averages: { revPerWeek: string; ordersPerWeek: string; aov: string; roas: string; cac: string }
   bestDay: { name: string; revenue: string }
   channel: { shopify: string; shopifyPct: number; amazon: string; amazonPct: number }
 }) {
-  const { orgName, rangeLabel, aiSummary, dashboardUrl, kpis, bestDay, channel } = opts
+  const { orgName, rangeLabel, aiSummary, dashboardUrl, kpis, averages, bestDay, channel } = opts
+  const avgStat = (label: string, value: string) => `
+    <td width="20%" valign="top" style="text-align:center;padding:0 4px;">
+      <div style="font-size:9px;font-weight:700;color:#888888;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">${label}</div>
+      <div style="font-size:13px;font-weight:700;color:#000000;font-family:'DM Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:-0.01em;">${value}</div>
+    </td>`
   const preheaderText = escapeHtml(toPlainText(aiSummary || `${orgName} weekly performance — ${rangeLabel}`))
   const summaryBlock = aiSummary
     ? `<tr><td style="padding:16px 32px 0;">
@@ -363,6 +386,23 @@ function buildHtml(opts: {
         ${summaryBlock}
 
         <tr><td style="padding:16px 32px 0;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f8f8;border:1px solid #e0e0e0;border-radius:12px;">
+            <tr><td style="padding:14px 18px;">
+              <div style="font-size:10px;font-weight:700;color:#666666;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:10px;">Your 4-Week Averages</div>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  ${avgStat('Rev/wk', averages.revPerWeek)}
+                  ${avgStat('Orders/wk', averages.ordersPerWeek)}
+                  ${avgStat('AOV', averages.aov)}
+                  ${avgStat('ROAS', averages.roas)}
+                  ${avgStat('CAC', averages.cac)}
+                </tr>
+              </table>
+            </td></tr>
+          </table>
+        </td></tr>
+
+        <tr><td style="padding:12px 32px 0;">
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f8f8;border:1px solid #e0e0e0;border-radius:12px;">
             <tr>
               <td style="padding:16px 18px;">
@@ -448,12 +488,17 @@ export async function POST(request: Request) {
 
     const { lastMonKey, lastSunKey, prevMonKey, prevSunKey } = computeLastWeekBoundsTz(tz)
     const weekKeys = weekDayKeys(lastMonKey)
+    // 4 weeks ending the Sunday before last week (28 days immediately prior to lastMonKey)
+    const avgStartKey = shiftDayKey(lastMonKey, -28)
+    const avgEndKey = shiftDayKey(lastMonKey, -1)
 
-    const [curOrders, prevOrders, curSpend, prevSpend] = await Promise.all([
-      fetchWeekOrders(sb, org_id, lastMonKey, lastSunKey, tz),
-      fetchWeekOrders(sb, org_id, prevMonKey, prevSunKey, tz),
+    const [curOrders, prevOrders, avgOrders, curSpend, prevSpend, avgSpend] = await Promise.all([
+      fetchOrdersForRange(sb, org_id, lastMonKey, lastSunKey, tz),
+      fetchOrdersForRange(sb, org_id, prevMonKey, prevSunKey, tz),
+      fetchOrdersForRange(sb, org_id, avgStartKey, avgEndKey, tz),
       fetchAllSpend(sb, org_id, lastMonKey, lastSunKey),
       fetchAllSpend(sb, org_id, prevMonKey, prevSunKey),
+      fetchAllSpend(sb, org_id, avgStartKey, avgEndKey),
     ])
 
     const cur = aggregate(curOrders)
@@ -479,6 +524,16 @@ export async function POST(request: Request) {
     const shopifyPct = chanTotal > 0 ? (cur.shopify / chanTotal) * 100 : 0
     const amazonPct = chanTotal > 0 ? (cur.amazon / chanTotal) * 100 : 0
 
+    // 4-week averages for context (prior 4 complete weeks, Mon–Sun each)
+    const avgAgg = aggregate(avgOrders)
+    const avgAdSpendTotal = avgSpend.reduce((s, r) => s + (Number(r.spend) || 0), 0)
+    const WEEKS = 4
+    const avgRevPerWeek = avgAgg.revenue / WEEKS
+    const avgOrdersPerWeek = avgAgg.orders / WEEKS
+    const avgAov = avgAgg.orders > 0 ? avgAgg.revenue / avgAgg.orders : 0
+    const avgRoas = avgAdSpendTotal > 0 ? avgAgg.revenue / avgAdSpendTotal : 0
+    const avgCac = avgAgg.orders > 0 ? avgAdSpendTotal / avgAgg.orders : null
+
     const aiSummary = await generateAISummary({
       orgName: org.name,
       revenue: cur.revenue, orders: cur.orders, adSpend: curAdSpend, roas: curRoas, aov: curAov, cac: curCac,
@@ -488,6 +543,13 @@ export async function POST(request: Request) {
       roasWow: wowPct(curRoas, prevRoas),
       bestDay: { name: best.name, revenue: best.revenue },
       shopifyPct, amazonPct,
+      avg: {
+        revPerWeek: avgRevPerWeek,
+        ordersPerWeek: avgOrdersPerWeek,
+        aov: avgAov,
+        roas: avgRoas,
+        cac: avgCac,
+      },
     })
 
     const orgSlug = ((org as any).slug ?? null) as string | null
@@ -512,6 +574,13 @@ export async function POST(request: Request) {
         },
         cltv: { value: curCltv === null ? '—' : fmtMoney(curCltv), pct: cltvPct },
         cltvCac: { value: curCltvCac === null ? '—' : `${curCltvCac.toFixed(2)}x`, pct: cltvCacPct },
+      },
+      averages: {
+        revPerWeek: fmtMoney(avgRevPerWeek),
+        ordersPerWeek: Math.round(avgOrdersPerWeek).toLocaleString('en-US'),
+        aov: fmtMoney(avgAov),
+        roas: `${avgRoas.toFixed(2)}x`,
+        cac: avgCac === null ? '—' : fmtMoney(avgCac),
       },
       bestDay: { name: best.name, revenue: fmtMoney(best.revenue) },
       channel: { shopify: fmtMoney(cur.shopify), shopifyPct, amazon: fmtMoney(cur.amazon), amazonPct },
