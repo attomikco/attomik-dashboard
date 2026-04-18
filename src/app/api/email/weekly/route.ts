@@ -139,9 +139,57 @@ function kpiCell(label: string, value: string, pct: number | null | undefined, w
 type Kpi = { value: string; pct: number | null }
 type KpiNoWow = { value: string }
 
+async function generateAISummary(ctx: {
+  orgName: string
+  revenue: number; orders: number; adSpend: number; roas: number; aov: number; cac: number | null
+  revenueWow: number | null; ordersWow: number | null; adSpendWow: number | null; roasWow: number | null
+  bestDay: { name: string; revenue: number }
+  shopifyPct: number; amazonPct: number
+}): Promise<string> {
+  if (!process.env.ANTHROPIC_API_KEY) return ''
+  const pct = (n: number | null) => n === null ? 'N/A' : `${n > 0 ? '+' : ''}${n.toFixed(1)}%`
+  const cacStr = ctx.cac === null ? 'N/A' : `$${ctx.cac.toFixed(0)}`
+  const prompt = `Write a 2-3 sentence weekly performance summary for ${ctx.orgName}. Be specific with numbers, founder-friendly tone, no fluff, no advice. Just what happened.
+
+Data:
+- Revenue: $${ctx.revenue.toFixed(0)} (${pct(ctx.revenueWow)} vs last week)
+- Orders: ${ctx.orders} (${pct(ctx.ordersWow)} vs last week)
+- Ad Spend: $${ctx.adSpend.toFixed(0)} (${pct(ctx.adSpendWow)} vs last week)
+- ROAS: ${ctx.roas.toFixed(2)}x (${pct(ctx.roasWow)} vs last week)
+- AOV: $${ctx.aov.toFixed(0)}
+- CAC: ${cacStr}
+- Best day: ${ctx.bestDay.name} at $${ctx.bestDay.revenue.toFixed(0)}
+- Shopify: ${ctx.shopifyPct.toFixed(0)}% of revenue, Amazon: ${ctx.amazonPct.toFixed(0)}%`
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 150,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    })
+    if (!res.ok) return ''
+    const data = await res.json()
+    return (data.content?.[0]?.text ?? '').trim()
+  } catch {
+    return ''
+  }
+}
+
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
 function buildHtml(opts: {
   orgName: string
   rangeLabel: string
+  aiSummary: string
   kpis: {
     revenue: Kpi; orders: Kpi; adSpend: Kpi; roas: Kpi
     aov: Kpi; cac: Kpi; cltvCac: KpiNoWow
@@ -149,7 +197,17 @@ function buildHtml(opts: {
   bestDay: { name: string; revenue: string }
   channel: { shopify: string; shopifyPct: number; amazon: string; amazonPct: number }
 }) {
-  const { orgName, rangeLabel, kpis, bestDay, channel } = opts
+  const { orgName, rangeLabel, aiSummary, kpis, bestDay, channel } = opts
+  const summaryBlock = aiSummary
+    ? `<tr><td style="padding:16px 32px 0;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f0f0;border:1px solid #e0e0e0;border-radius:12px;">
+            <tr><td style="padding:16px 18px;">
+              <div style="font-size:10px;font-weight:700;color:#00ff97;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:8px;">✦ Attomik AI</div>
+              <div style="font-size:14px;color:#333333;line-height:1.6;">${escapeHtml(aiSummary)}</div>
+            </td></tr>
+          </table>
+        </td></tr>`
+    : ''
   return `<!DOCTYPE html>
 <html><head>
 <meta charset="utf-8">
@@ -191,6 +249,8 @@ function buildHtml(opts: {
             </tr>
           </table>
         </td></tr>
+
+        ${summaryBlock}
 
         <tr><td style="padding:16px 32px 0;">
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f8f8;border:1px solid #e0e0e0;border-radius:12px;">
@@ -294,9 +354,21 @@ export async function POST(request: Request) {
     const shopifyPct = chanTotal > 0 ? (cur.shopify / chanTotal) * 100 : 0
     const amazonPct = chanTotal > 0 ? (cur.amazon / chanTotal) * 100 : 0
 
+    const aiSummary = await generateAISummary({
+      orgName: org.name,
+      revenue: cur.revenue, orders: cur.orders, adSpend: curAdSpend, roas: curRoas, aov: curAov, cac: curCac,
+      revenueWow: wowPct(cur.revenue, prev.revenue),
+      ordersWow: wowPct(cur.orders, prev.orders),
+      adSpendWow: wowPct(curAdSpend, prevAdSpend),
+      roasWow: wowPct(curRoas, prevRoas),
+      bestDay: { name: best.name, revenue: best.revenue },
+      shopifyPct, amazonPct,
+    })
+
     const html = buildHtml({
       orgName: org.name,
       rangeLabel: `Weekly Performance · ${fmtRange(lastMon, lastSun)}`,
+      aiSummary,
       kpis: {
         revenue: { value: fmtMoney(cur.revenue), pct: wowPct(cur.revenue, prev.revenue) },
         orders: { value: cur.orders.toLocaleString('en-US'), pct: wowPct(cur.orders, prev.orders) },
