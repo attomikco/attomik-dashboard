@@ -557,7 +557,29 @@ export default function OverviewPage() {
           </div>
         )}
 
-        {/* ── Yesterday table — first thing on the page for quick glance ── */}
+        {/* Summary strip — only meaningful with 2+ orgs */}
+        {!loadingOrgs && orgs.length > 1 && (
+          <div style={{ marginBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}
+               className="summary-grid">
+            {[
+              { label: 'Total Sales',  value: fmt$(totalRevenue), delta: pct(totalRevenue, totalPrevRev) },
+              { label: 'Total Orders',   value: fmtN(totalOrders),  delta: pct(totalOrders, totalPrevOrd) },
+              { label: 'Total Ad Spend', value: fmt$(totalSpend),   delta: pct(totalSpend, totalPrevSp), invert: true },
+              { label: 'Blended ROAS',   value: blendedRoas > 0 ? `${blendedRoas.toFixed(2)}x` : '—', delta: pct(blendedRoas, prevRoas) },
+              { label: 'Blended CAC',    value: blendedCac > 0 ? fmt$(blendedCac) : '—', delta: prevBlendedCac > 0 ? pct(blendedCac, prevBlendedCac) : 0, invert: true },
+            ].map(k => (
+              <div key={k.label} className="kpi-card" style={{ padding: '18px 20px' }}>
+                <div className="kpi-label">{k.label}</div>
+                <div className="kpi-value" style={{ marginBottom: 6 }}>{k.value}</div>
+                <DeltaBadge value={k.delta} invert={k.invert} />
+              </div>
+            ))}
+          </div>
+          </div>
+        )}
+
+        {/* ── Yesterday table — placed below main KPIs ── */}
         {yesterdayTable && yesterdayTable.data.length > 0 && (() => {
           const rows = yesterdayTable.data
           const totalRev = rows.reduce((s, r) => s + r.revenue, 0)
@@ -667,28 +689,6 @@ export default function OverviewPage() {
             </div>
           )
         })()}
-
-        {/* Summary strip — only meaningful with 2+ orgs */}
-        {!loadingOrgs && orgs.length > 1 && (
-          <div style={{ marginBottom: 20 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}
-               className="summary-grid">
-            {[
-              { label: 'Total Sales',  value: fmt$(totalRevenue), delta: pct(totalRevenue, totalPrevRev) },
-              { label: 'Total Orders',   value: fmtN(totalOrders),  delta: pct(totalOrders, totalPrevOrd) },
-              { label: 'Total Ad Spend', value: fmt$(totalSpend),   delta: pct(totalSpend, totalPrevSp), invert: true },
-              { label: 'Blended ROAS',   value: blendedRoas > 0 ? `${blendedRoas.toFixed(2)}x` : '—', delta: pct(blendedRoas, prevRoas) },
-              { label: 'Blended CAC',    value: blendedCac > 0 ? fmt$(blendedCac) : '—', delta: prevBlendedCac > 0 ? pct(blendedCac, prevBlendedCac) : 0, invert: true },
-            ].map(k => (
-              <div key={k.label} className="kpi-card" style={{ padding: '18px 20px' }}>
-                <div className="kpi-label">{k.label}</div>
-                <div className="kpi-value" style={{ marginBottom: 6 }}>{k.value}</div>
-                <DeltaBadge value={k.delta} invert={k.invert} />
-              </div>
-            ))}
-          </div>
-          </div>
-        )}
 
         {/* Sort controls */}
         {!loadingOrgs && orgs.length > 0 && (
