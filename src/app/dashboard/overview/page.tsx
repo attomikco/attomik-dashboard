@@ -314,10 +314,8 @@ export default function OverviewPage() {
 
   const refreshTimestamps = async (orgIds?: string[]) => {
     const ids = orgIds ?? orgs.map(o => o.id)
-    // Start with any timestamps saved in localStorage (immune to read replica lag)
-    const stored = localStorage.getItem('syncTimestamps')
-    const latest: Record<string, string | null> = stored ? JSON.parse(stored) : { shopify: null, meta: null }
-    // Also fetch from API — use whichever is newer
+    // DB is source of truth — fetch fresh, pick latest across all orgs per source
+    const latest: Record<string, string | null> = { shopify: null, meta: null }
     await Promise.all(ids.map(async (id) => {
       try {
         const res = await fetch(`/api/sync/timestamps?org_id=${id}&_t=${Date.now()}`, { cache: 'no-store' })
@@ -330,7 +328,6 @@ export default function OverviewPage() {
         }
       } catch {}
     }))
-    localStorage.setItem('syncTimestamps', JSON.stringify(latest))
     setSyncTimestamps(latest)
   }
 
@@ -354,12 +351,7 @@ export default function OverviewPage() {
     } catch (err: any) {
       setShopifySyncResult({ ok: false, text: err.message })
     }
-    const now = new Date().toISOString()
-    setSyncTimestamps(prev => {
-      const next = { ...prev, shopify: now }
-      localStorage.setItem('syncTimestamps', JSON.stringify(next))
-      return next
-    })
+    setSyncTimestamps(prev => ({ ...prev, shopify: new Date().toISOString() }))
     setSyncingShopify(false)
   }
 
@@ -408,12 +400,7 @@ export default function OverviewPage() {
     } catch (err: any) {
       setMetaSyncResult({ ok: false, text: err.message })
     }
-    const now = new Date().toISOString()
-    setSyncTimestamps(prev => {
-      const next = { ...prev, meta: now }
-      localStorage.setItem('syncTimestamps', JSON.stringify(next))
-      return next
-    })
+    setSyncTimestamps(prev => ({ ...prev, meta: new Date().toISOString() }))
     setSyncingMeta(false)
   }
 

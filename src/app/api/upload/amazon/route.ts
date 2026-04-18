@@ -39,6 +39,18 @@ export async function POST(request: Request) {
       return { date, revenue, units, orders, sessions, org_id: orgId! }
     }).filter(r => r.date && (r.revenue > 0 || r.units > 0))
 
+    console.log('[amazon-upload] parse summary', {
+      orgId,
+      rawRowCount: rows.length,
+      validRecordCount: records.length,
+      headers: Object.keys(rows[0] ?? {}),
+      firstValidRecord: records[0] ?? null,
+    })
+
+    if (records.length === 0) {
+      return NextResponse.json({ error: 'No valid Amazon rows found. Make sure the CSV has Date and Ordered Product Sales columns.' }, { status: 400 })
+    }
+
     // Store as one order row per day
     const orderRecords = records.map(r => ({
       org_id: r.org_id,
@@ -55,20 +67,42 @@ export async function POST(request: Request) {
     const serviceClient = createServiceClient()
 
     // Delete existing Amazon rows for this org + date range to allow re-upload
-    const dates = records.map(r => `amazon_daily_${r.date}`)
-    await serviceClient.from('orders').delete().eq('org_id', orgId!).in('external_id', dates)
+    const externalIds = [...new Set(orderRecords.map(r => r.external_id))]
+    if (externalIds.length > 0) {
+      await serviceClient.from('orders').delete().eq('org_id', orgId!).in('external_id', externalIds)
+    }
 
     const { data, error: dbError } = await serviceClient
       .from('orders')
       .insert(orderRecords)
-      .select()
+      .select('id')
     if (dbError) throw dbError
 
-    // Track Amazon sync timestamp
-    const { error: tsError } = await serviceClient
+    // Track Amazon sync timestamp — mirrors Shopify/Meta upsert pattern
+    const tsPayload = { org_id: orgId, source: 'amazon' as const, last_synced_at: new Date().toISOString() }
+    console.log('[amazon-upload] about to upsert sync_timestamps', {
+      orgId,
+      payload: tsPayload,
+      hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    })
+    const { data: tsData, error: tsError } = await serviceClient
       .from('sync_timestamps')
-      .upsert({ org_id: orgId, source: 'amazon', last_synced_at: new Date().toISOString() }, { onConflict: 'org_id,source' })
-    if (tsError) console.error('Amazon sync_timestamps upsert failed:', tsError)
+      .upsert(tsPayload, { onConflict: 'org_id,source' })
+      .select()
+    console.log('[amazon-upload] upsert result', { tsData, tsError })
+    if (tsError) {
+      console.error('Amazon sync_timestamps upsert failed:', tsError)
+      return NextResponse.json({ error: `Import saved but sync timestamp failed: ${tsError.message}` }, { status: 500 })
+    }
+
+    // Verify the row actually landed — reads the authoritative value back from the DB
+    const { data: verifyRow, error: verifyError } = await serviceClient
+      .from('sync_timestamps')
+      .select('source, last_synced_at')
+      .eq('org_id', orgId!)
+      .eq('source', 'amazon')
+      .maybeSingle()
+    console.log('[amazon-upload] verify read', { verifyRow, verifyError })
 
     const totalRevenue = records.reduce((s, r) => s + r.revenue, 0)
     const totalUnits   = records.reduce((s, r) => s + r.units, 0)

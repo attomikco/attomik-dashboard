@@ -407,22 +407,15 @@ export default function AnalyticsPage() {
     if (orgData?.name) { setOrgName(orgData.name); document.title = `${orgData.name} Analytics | Attomik` }
     if (orgData?.shopify_synced_at) setLastSynced(orgData.shopify_synced_at)
 
-    // Fetch sync timestamps — merge localStorage (immune to replica lag) with API
-    const stored = localStorage.getItem('syncTimestamps')
-    const localTs: Record<string, string | null> = stored ? JSON.parse(stored) : {}
+    // Fetch sync timestamps — DB is source of truth, no localStorage merge
     fetch(`/api/sync/timestamps?org_id=${orgId}&_t=${Date.now()}`, { cache: 'no-store' as RequestCache })
       .then(r => r.ok ? r.json() : [])
       .then((rows: { source: string; last_synced_at: string }[]) => {
         const ts: Record<string, string | null> = { shopify: null, amazon: null, meta: null }
         for (const row of rows) ts[row.source] = row.last_synced_at
-        // Use whichever is newer: API or localStorage
-        for (const key of Object.keys(ts)) {
-          if (localTs[key] && (!ts[key] || localTs[key]! > ts[key]!)) ts[key] = localTs[key]
-        }
-        localStorage.setItem('syncTimestamps', JSON.stringify(ts))
         setSyncTimestamps(ts)
       })
-      .catch(() => { if (stored) setSyncTimestamps({ shopify: null, amazon: null, meta: null, ...localTs }) })
+      .catch(() => setSyncTimestamps({ shopify: null, amazon: null, meta: null }))
 
     // Fetch yesterday's metrics for the Yesterday card (DoD comparison)
     fetch(`/api/insights/yesterday?org_id=${orgId}&_t=${Date.now()}`, { cache: 'no-store' as RequestCache })
