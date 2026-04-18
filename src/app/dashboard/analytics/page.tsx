@@ -1040,6 +1040,24 @@ export default function AnalyticsPage() {
             {fmtDate(range.start)} – {fmtDate(range.end)} · vs {fmtDate(prevStart)} – {fmtDate(prevEndLabel)}
             {lastSynced && <span style={{ color: '#ccc' }}> · Synced {new Date(lastSynced).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>}
           </p>
+          <p className="caption" style={{ marginTop: 2, fontSize: '0.72rem', opacity: 0.75, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {([
+              { key: 'shopify', label: 'Shopify' },
+              { key: 'amazon',  label: 'Amazon'  },
+              { key: 'meta',    label: 'Meta'    },
+            ] as const).map(({ key, label }, i) => {
+              const ts = syncTimestamps[key]
+              const formatted = ts
+                ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                : 'Never'
+              return (
+                <span key={key}>
+                  {i > 0 && <span style={{ margin: '0 10px', opacity: 0.5 }}>·</span>}
+                  {label} · {formatted}
+                </span>
+              )
+            })}
+          </p>
         </div>
         <div className="topbar-actions">
           {isSuperadmin && d && <EmailInsights
@@ -1068,26 +1086,6 @@ export default function AnalyticsPage() {
           />}
           <DateRangePicker value={range} onChange={r => setRange(r)} />
         </div>
-      </div>
-
-      {/* Sync status bar */}
-      <div style={{ background: '#000', padding: '10px clamp(16px, 4vw, 40px)', display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center', fontFamily: 'var(--font-dm-mono), DM Mono, monospace', fontSize: '0.75rem' }}>
-        {[
-          { label: 'Shopify Sync', ts: syncTimestamps.shopify },
-          { label: 'Amazon Import', ts: syncTimestamps.amazon },
-          { label: 'Meta Ads', ts: syncTimestamps.meta },
-        ].map(({ label, ts }) => (
-          <span key={label} style={{ color: '#999', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: ts ? '#00ff97' : '#444', display: 'inline-block' }} />
-            <span style={{ color: '#ccc' }}>{label}</span>
-            {' '}
-            <span style={{ color: ts ? '#00ff97' : '#666' }}>
-              {ts
-                ? `${new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} (${timeAgo(ts)})`
-                : 'Never'}
-            </span>
-          </span>
-        ))}
       </div>
 
       {isRefetching && <div className="page-loading-bar" />}
