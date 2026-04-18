@@ -140,6 +140,18 @@ function markdownToHtml(s: string) {
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/[*#]/g, '')
+    .replace(/\n{2,}/g, '<br><br>')
+    .replace(/\n/g, '<br>')
+}
+
+function toPlainText(s: string) {
+  return s
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/[*#_`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 type Kpi = { value: string; pct: number | null }
@@ -205,6 +217,7 @@ function buildHtml(opts: {
   channel: { shopify: string; shopifyPct: number; amazon: string; amazonPct: number }
 }) {
   const { orgName, rangeLabel, aiSummary, dashboardUrl, kpis, bestDay, channel } = opts
+  const preheaderText = escapeHtml(toPlainText(aiSummary || `${orgName} weekly performance — ${rangeLabel}`))
   const summaryBlock = aiSummary
     ? `<tr><td style="padding:16px 32px 0;">
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f0f0;border:1px solid #e0e0e0;border-radius:12px;">
@@ -224,6 +237,7 @@ function buildHtml(opts: {
 <title>${orgName} — Weekly Performance</title>
 </head>
 <body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#333333;">
+  <div style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;mso-hide:all;">${preheaderText}</div>
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;padding:32px 12px;color-scheme:light only;">
     <tr><td align="center">
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e0e0e0;">
