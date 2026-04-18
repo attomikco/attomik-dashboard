@@ -110,50 +110,71 @@ function wowPct(cur: number, prev: number) {
 }
 
 function changeBadge(pct: number | null) {
-  if (pct === null) return `<span style="font-size:11px;font-weight:600;color:#888;">—</span>`
+  if (pct === null) return `<span style="font-size:11px;font-weight:600;color:#666666;">—</span>`
   const up = pct >= 0
-  const color = up ? '#007a48' : '#b00020'
-  const bg = up ? '#e6fff4' : '#ffeaea'
+  const bg = up ? '#00ff97' : '#fee2e2'
+  const color = up ? '#003d1f' : '#dc2626'
   const arrow = up ? '▲' : '▼'
   const val = Math.abs(pct).toFixed(1)
   return `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:${bg};color:${color};font-size:11px;font-weight:700;letter-spacing:0.02em;">${arrow} ${val}%</span>`
 }
 
-function kpiCell(label: string, value: string, pct: number | null) {
+function kpiCell(label: string, value: string, pct: number | null | undefined, width: '50%' | '33.33%' = '50%') {
+  const badge = pct === undefined
+    ? `<span style="display:inline-block;font-size:11px;font-weight:600;color:#999999;">&nbsp;</span>`
+    : changeBadge(pct)
+  const valueSize = width === '33.33%' ? '20px' : '26px'
   return `
-    <td width="50%" valign="top" style="padding:8px;">
-      <table width="100%" cellpadding="0" cellspacing="0" style="background:#fafafa;border:1px solid #ececec;border-radius:12px;">
-        <tr><td style="padding:18px 18px 16px;">
-          <div style="font-size:11px;font-weight:700;color:#666;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;">${label}</div>
-          <div style="font-size:26px;font-weight:800;color:#000;letter-spacing:-0.02em;line-height:1.1;margin-bottom:8px;">${value}</div>
-          ${changeBadge(pct)}
+    <td width="${width}" valign="top" style="padding:6px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f8f8;border:1px solid #e0e0e0;border-radius:12px;">
+        <tr><td style="padding:16px 16px 14px;">
+          <div style="font-size:11px;font-weight:700;color:#666666;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;">${label}</div>
+          <div style="font-size:${valueSize};font-weight:800;color:#000000;letter-spacing:-0.02em;line-height:1.1;margin-bottom:8px;">${value}</div>
+          ${badge}
         </td></tr>
       </table>
     </td>`
 }
 
+type Kpi = { value: string; pct: number | null }
+type KpiNoWow = { value: string }
+
 function buildHtml(opts: {
   orgName: string
   rangeLabel: string
-  kpis: { revenue: { value: string; pct: number | null }; orders: { value: string; pct: number | null }; adSpend: { value: string; pct: number | null }; roas: { value: string; pct: number | null } }
+  kpis: {
+    revenue: Kpi; orders: Kpi; adSpend: Kpi; roas: Kpi
+    aov: Kpi; cac: Kpi; cltvCac: KpiNoWow
+  }
   bestDay: { name: string; revenue: string }
   channel: { shopify: string; shopifyPct: number; amazon: string; amazonPct: number }
 }) {
   const { orgName, rangeLabel, kpis, bestDay, channel } = opts
   return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${orgName} — Weekly Performance</title></head>
-<body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#000;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:32px 12px;">
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light only">
+<meta name="supported-color-schemes" content="light only">
+<title>${orgName} — Weekly Performance</title>
+</head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#333333;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;padding:32px 12px;">
     <tr><td align="center">
-      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #ececec;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e0e0e0;">
         <tr><td style="background:#00ff97;height:6px;font-size:0;line-height:0;">&nbsp;</td></tr>
-        <tr><td style="padding:32px 32px 8px;">
-          <div style="font-size:12px;font-weight:700;color:#00b86b;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">Weekly Performance</div>
-          <div style="font-size:24px;font-weight:800;color:#000;letter-spacing:-0.02em;line-height:1.2;">${orgName}</div>
-          <div style="font-size:13px;color:#666;margin-top:4px;">${rangeLabel}</div>
+        <tr><td align="center" style="padding:32px 32px 0;">
+          <img src="https://static.wixstatic.com/media/87635f_7c6f600cb41c4dd4a4446bed800e0657~mv2.png/v1/fill/w_980,h_282,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/Color%20logo%20-%20no%20background.png"
+               alt="Attomik" width="120" style="display:block;width:120px;height:auto;border:0;outline:none;text-decoration:none;" />
+          <div style="font-size:10px;font-weight:700;color:#00ff97;letter-spacing:0.22em;text-transform:uppercase;margin-top:10px;">Attomik AI</div>
+        </td></tr>
+        <tr><td align="center" style="padding:18px 32px 8px;">
+          <div style="font-size:11px;font-weight:700;color:#666666;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">Weekly Performance</div>
+          <div style="font-size:24px;font-weight:800;color:#000000;letter-spacing:-0.02em;line-height:1.2;">${orgName}</div>
+          <div style="font-size:13px;color:#666666;margin-top:4px;">${rangeLabel}</div>
         </td></tr>
 
-        <tr><td style="padding:20px 24px 8px;">
+        <tr><td style="padding:20px 26px 4px;">
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
               ${kpiCell('Revenue', kpis.revenue.value, kpis.revenue.pct)}
@@ -163,45 +184,50 @@ function buildHtml(opts: {
               ${kpiCell('Ad Spend', kpis.adSpend.value, kpis.adSpend.pct)}
               ${kpiCell('ROAS', kpis.roas.value, kpis.roas.pct)}
             </tr>
+            <tr>
+              ${kpiCell('AOV', kpis.aov.value, kpis.aov.pct, '33.33%')}
+              ${kpiCell('CAC', kpis.cac.value, kpis.cac.pct, '33.33%')}
+              ${kpiCell('CLTV/CAC', kpis.cltvCac.value, undefined, '33.33%')}
+            </tr>
           </table>
         </td></tr>
 
         <tr><td style="padding:16px 32px 0;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="background:#fafafa;border:1px solid #ececec;border-radius:12px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f8f8;border:1px solid #e0e0e0;border-radius:12px;">
             <tr>
               <td style="padding:16px 18px;">
-                <div style="font-size:11px;font-weight:700;color:#666;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">Best Day</div>
-                <div style="font-size:16px;font-weight:700;color:#000;">${bestDay.name}</div>
+                <div style="font-size:11px;font-weight:700;color:#666666;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">Best Day</div>
+                <div style="font-size:16px;font-weight:700;color:#000000;">${bestDay.name}</div>
               </td>
               <td align="right" style="padding:16px 18px;">
-                <div style="font-size:20px;font-weight:800;color:#000;letter-spacing:-0.02em;">${bestDay.revenue}</div>
+                <div style="font-size:20px;font-weight:800;color:#000000;letter-spacing:-0.02em;">${bestDay.revenue}</div>
               </td>
             </tr>
           </table>
         </td></tr>
 
         <tr><td style="padding:12px 32px 0;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="background:#fafafa;border:1px solid #ececec;border-radius:12px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f8f8;border:1px solid #e0e0e0;border-radius:12px;">
             <tr><td style="padding:16px 18px;">
-              <div style="font-size:11px;font-weight:700;color:#666;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">Channel Split</div>
-              <div style="font-size:14px;color:#000;line-height:1.6;">
-                <strong>Shopify</strong> ${channel.shopify} <span style="color:#666;">(${channel.shopifyPct.toFixed(0)}%)</span>
-                <span style="color:#ccc;margin:0 8px;">·</span>
-                <strong>Amazon</strong> ${channel.amazon} <span style="color:#666;">(${channel.amazonPct.toFixed(0)}%)</span>
+              <div style="font-size:11px;font-weight:700;color:#666666;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">Channel Split</div>
+              <div style="font-size:14px;color:#333333;line-height:1.6;">
+                <strong style="color:#000000;">Shopify</strong> ${channel.shopify} <span style="color:#666666;">(${channel.shopifyPct.toFixed(0)}%)</span>
+                <span style="color:#cccccc;margin:0 8px;">·</span>
+                <strong style="color:#000000;">Amazon</strong> ${channel.amazon} <span style="color:#666666;">(${channel.amazonPct.toFixed(0)}%)</span>
               </div>
             </td></tr>
           </table>
         </td></tr>
 
         <tr><td align="center" style="padding:28px 32px 32px;">
-          <a href="https://dashboard.attomik.co" style="display:inline-block;background:#000;color:#00ff97;text-decoration:none;font-weight:700;font-size:14px;padding:14px 28px;border-radius:999px;letter-spacing:0.02em;">View Dashboard →</a>
+          <a href="https://dashboard.attomik.co" style="display:inline-block;background:#000000;color:#00ff97;text-decoration:none;font-weight:700;font-size:14px;padding:14px 28px;border-radius:999px;letter-spacing:0.02em;">View Dashboard →</a>
         </td></tr>
 
-        <tr><td style="background:#fafafa;padding:16px 32px;border-top:1px solid #ececec;">
-          <div style="font-size:11px;color:#888;text-align:center;line-height:1.6;">
-            Powered by <a href="https://attomik.co" style="color:#888;text-decoration:none;font-weight:600;">Attomik</a>
-            <span style="color:#ccc;margin:0 6px;">·</span>
-            <a href="https://dashboard.attomik.co/dashboard/settings" style="color:#888;text-decoration:none;">Unsubscribe</a>
+        <tr><td style="background:#f8f8f8;padding:16px 32px;border-top:1px solid #e0e0e0;">
+          <div style="font-size:11px;color:#666666;text-align:center;line-height:1.6;">
+            Generated by <a href="https://attomik.co" style="color:#666666;text-decoration:none;font-weight:600;">Attomik AI</a>
+            <span style="color:#cccccc;margin:0 6px;">·</span>
+            <a href="https://dashboard.attomik.co/dashboard/settings" style="color:#666666;text-decoration:none;">Unsubscribe</a>
           </div>
         </td></tr>
       </table>
@@ -257,6 +283,12 @@ export async function POST(request: Request) {
     const curRoas = curAdSpend > 0 ? cur.revenue / curAdSpend : 0
     const prevRoas = prevAdSpend > 0 ? prev.revenue / prevAdSpend : 0
 
+    const curAov = cur.orders > 0 ? cur.revenue / cur.orders : 0
+    const prevAov = prev.orders > 0 ? prev.revenue / prev.orders : 0
+    const curCac = cur.orders > 0 ? curAdSpend / cur.orders : null
+    const prevCac = prev.orders > 0 ? prevAdSpend / prev.orders : null
+    const curCltvCac = curCac && curCac > 0 ? (curAov * 2) / curCac : null
+
     const best = bestDay(curOrders, lastMon)
     const chanTotal = cur.shopify + cur.amazon
     const shopifyPct = chanTotal > 0 ? (cur.shopify / chanTotal) * 100 : 0
@@ -270,6 +302,12 @@ export async function POST(request: Request) {
         orders: { value: cur.orders.toLocaleString('en-US'), pct: wowPct(cur.orders, prev.orders) },
         adSpend: { value: fmtMoney(curAdSpend), pct: wowPct(curAdSpend, prevAdSpend) },
         roas: { value: `${curRoas.toFixed(2)}x`, pct: wowPct(curRoas, prevRoas) },
+        aov: { value: fmtMoney(curAov), pct: wowPct(curAov, prevAov) },
+        cac: {
+          value: curCac === null ? '—' : fmtMoney(curCac),
+          pct: curCac !== null && prevCac !== null ? wowPct(curCac, prevCac) : null,
+        },
+        cltvCac: { value: curCltvCac === null ? '—' : `${curCltvCac.toFixed(2)}x` },
       },
       bestDay: { name: best.name, revenue: fmtMoney(best.revenue) },
       channel: { shopify: fmtMoney(cur.shopify), shopifyPct, amazon: fmtMoney(cur.amazon), amazonPct },
