@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { CheckCircle, XCircle, RefreshCw, Unplug, ShoppingBag } from 'lucide-react'
+import { CheckCircle, XCircle, RefreshCw, Unplug, ShoppingBag, Mail, Send } from 'lucide-react'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -21,6 +21,7 @@ export default function SettingsPage() {
   const [user, setUser]       = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
   const [org, setOrg]         = useState<any>(null)
+  const [isSuperadmin, setIsSuperadmin] = useState(false)
 
   const [domain, setDomain]         = useState('')
   const [clientId, setClientId]     = useState('')
@@ -53,6 +54,12 @@ export default function SettingsPage() {
   const [savingTargets, setSavingTargets] = useState(false)
   const [targetMsg, setTargetMsg]     = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  const [weeklyEnabled, setWeeklyEnabled] = useState(false)
+  const [weeklyMembers, setWeeklyMembers] = useState<{ email: string; full_name: string | null }[]>([])
+  const [savingWeekly, setSavingWeekly]   = useState(false)
+  const [sendingWeekly, setSendingWeekly] = useState(false)
+  const [weeklyMsg, setWeeklyMsg]         = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
   const [amzYear, setAmzYear]       = useState(new Date().getFullYear())
   const [amzMonth, setAmzMonth]     = useState(new Date().getMonth() + 1)
   const [amzSpend, setAmzSpend]     = useState('')
@@ -69,6 +76,7 @@ export default function SettingsPage() {
     const { data: prof } = await supabase
       .from('profiles').select('*, organizations(*)').eq('id', user.id).single()
     setProfile(prof)
+    setIsSuperadmin(!!(prof as any)?.is_superadmin)
 
     const activeOrgId = localStorage.getItem('activeOrgId') || (prof as any)?.org_id
     if (activeOrgId) {
@@ -84,10 +92,53 @@ export default function SettingsPage() {
       else setMetaAdAccountId('')
       setMetaTokenSet(!!activeOrg?.meta_access_token)
       setMetaAccessToken('')
+      setWeeklyEnabled(!!activeOrg?.weekly_email_enabled)
       loadTargets(targetYear, targetMonth)
       loadAmzSpend(amzYear, amzMonth)
+      loadWeeklyMembers(activeOrgId)
       refreshTimestamps()
     }
+  }
+
+  const loadWeeklyMembers = async (id: string) => {
+    try {
+      const res = await fetch(`/api/members?org_id=${id}`)
+      if (!res.ok) return
+      const data = await res.json()
+      const members = (data.members ?? [])
+        .filter((m: any) => m.email)
+        .map((m: any) => ({ email: m.email, full_name: m.full_name }))
+      setWeeklyMembers(members)
+    } catch {}
+  }
+
+  const handleSaveWeekly = async () => {
+    setSavingWeekly(true); setWeeklyMsg(null)
+    const id = orgId()
+    if (!id) { setWeeklyMsg({ type: 'error', text: 'No active org found' }); setSavingWeekly(false); return }
+    const { error } = await supabase.from('organizations').update({ weekly_email_enabled: weeklyEnabled }).eq('id', id)
+    setSavingWeekly(false)
+    if (error) setWeeklyMsg({ type: 'error', text: error.message })
+    else setWeeklyMsg({ type: 'success', text: weeklyEnabled ? 'Weekly email enabled' : 'Weekly email disabled' })
+  }
+
+  const handleSendWeekly = async () => {
+    setSendingWeekly(true); setWeeklyMsg(null)
+    const id = orgId()
+    if (!id) { setWeeklyMsg({ type: 'error', text: 'No active org found' }); setSendingWeekly(false); return }
+    try {
+      const res = await fetch('/api/email/weekly', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ org_id: id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Send failed')
+      setWeeklyMsg({ type: 'success', text: `Sent to ${data.sentTo.length} recipient${data.sentTo.length === 1 ? '' : 's'}` })
+    } catch (e: any) {
+      setWeeklyMsg({ type: 'error', text: e.message })
+    }
+    setSendingWeekly(false)
   }
 
   const orgId = () => localStorage.getItem('activeOrgId') || org?.id
@@ -413,17 +464,19 @@ export default function SettingsPage() {
             </button>
 
             {isConnected && (<>
-              <button className="btn btn-primary" onClick={() => handleSync(false)} disabled={syncing}>
-                <RefreshCw size={14} style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
-                {syncing ? 'Syncing…' : 'Sync new orders'}
-              </button>
-              <button className="btn btn-dark" onClick={() => handleSync(true)} disabled={syncing}>
-                <RefreshCw size={14} />
-                Full sync
-              </button>
-              <button className="btn btn-secondary" onClick={handleClean} disabled={cleaning}>
-                {cleaning ? '…' : '🧹'} {cleaning ? 'Cleaning…' : 'Clean duplicates'}
-              </button>
+              {isSuperadmin && (<>
+                <button className="btn btn-primary" onClick={() => handleSync(false)} disabled={syncing}>
+                  <RefreshCw size={14} style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
+                  {syncing ? 'Syncing…' : 'Sync new orders'}
+                </button>
+                <button className="btn btn-dark" onClick={() => handleSync(true)} disabled={syncing}>
+                  <RefreshCw size={14} />
+                  Full sync
+                </button>
+                <button className="btn btn-secondary" onClick={handleClean} disabled={cleaning}>
+                  {cleaning ? '…' : '🧹'} {cleaning ? 'Cleaning…' : 'Clean duplicates'}
+                </button>
+              </>)}
               <button className="btn btn-danger" onClick={handleDisconnect} disabled={disconnecting}>
                 <Unplug size={14} />
                 Disconnect
@@ -573,7 +626,7 @@ export default function SettingsPage() {
               {savingMeta ? 'Saving…' : metaAdAccountId ? 'Save Meta Ads' : 'Disconnect Meta Ads'}
             </button>
 
-            {metaAdAccountId && metaTokenSet && (
+            {metaAdAccountId && metaTokenSet && isSuperadmin && (
               <button className="btn btn-primary" onClick={handleMetaSync} disabled={syncingMeta}>
                 <RefreshCw size={14} style={{ animation: syncingMeta ? 'spin 1s linear infinite' : 'none' }} />
                 {syncingMeta ? 'Syncing…' : 'Sync Meta Ads'}
@@ -683,6 +736,66 @@ export default function SettingsPage() {
           <button className="btn btn-dark" onClick={handleSaveTargets} disabled={savingTargets}>
             {savingTargets ? 'Saving…' : 'Save Targets'}
           </button>
+        </Section>
+
+        <Section title="Weekly Email">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 8, background: '#00ff97', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+              <Mail size={18} color="#000" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Weekly Performance Email</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
+                Monday mornings · Last week Mon–Sun summary
+              </div>
+            </div>
+            <span className={`badge ${weeklyEnabled ? 'badge-paid' : 'badge-failed'}`}>
+              {weeklyEnabled ? '● Enabled' : '○ Disabled'}
+            </span>
+          </div>
+
+          {weeklyMsg && (
+            <div className={`alert ${weeklyMsg.type === 'success' ? 'alert-success' : 'alert-error'}`} style={{ marginBottom: 16 }}>
+              {weeklyMsg.type === 'success' ? <CheckCircle size={16} /> : <XCircle size={16} />}
+              <span style={{ fontWeight: 600 }}>{weeklyMsg.text}</span>
+            </div>
+          )}
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--cream)', cursor: 'pointer', marginBottom: 16 }}>
+            <input type="checkbox" checked={weeklyEnabled} onChange={e => setWeeklyEnabled(e.target.checked)}
+              style={{ width: 16, height: 16, cursor: 'pointer' }} />
+            <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>Send weekly email every Monday at 8:00 AM</span>
+          </label>
+
+          <div style={{ marginBottom: 16 }}>
+            <div className="form-label" style={{ marginBottom: 8 }}>Recipients ({weeklyMembers.length})</div>
+            {weeklyMembers.length === 0 ? (
+              <div style={{ padding: 12, fontSize: '0.8rem', color: 'var(--muted)', border: '1px dashed var(--border)', borderRadius: 8 }}>
+                No org members yet. Invite teammates in the Members page.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {weeklyMembers.map(m => (
+                  <span key={m.email} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', border: '1px solid var(--border)', borderRadius: 999, background: 'var(--cream)', fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}>
+                    {m.email}
+                  </span>
+                ))}
+              </div>
+            )}
+            <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 8, lineHeight: 1.5 }}>
+              All org members receive the weekly email automatically.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button className="btn btn-dark" onClick={handleSaveWeekly} disabled={savingWeekly}>
+              {savingWeekly ? 'Saving…' : 'Save'}
+            </button>
+            <button className="btn btn-primary" onClick={handleSendWeekly} disabled={sendingWeekly || weeklyMembers.length === 0}>
+              <Send size={14} style={{ animation: sendingWeekly ? 'spin 1s linear infinite' : 'none' }} />
+              {sendingWeekly ? 'Sending…' : 'Send Weekly Email'}
+            </button>
+          </div>
         </Section>
 
         <Section title="Other integrations">
