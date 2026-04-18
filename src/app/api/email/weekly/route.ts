@@ -110,30 +110,36 @@ function wowPct(cur: number, prev: number) {
 }
 
 function changeBadge(pct: number | null) {
-  if (pct === null) return `<span style="font-size:11px;font-weight:600;color:#666666;">—</span>`
+  if (pct === null) return `<span style="font-size:11px;font-weight:600;color:#666666 !important;">—</span>`
   const up = pct >= 0
-  const bg = up ? '#00ff97' : '#fee2e2'
-  const color = up ? '#003d1f' : '#dc2626'
+  const bg = up ? '#dcfce7' : '#fee2e2'
+  const color = up ? '#16a34a' : '#dc2626'
   const arrow = up ? '▲' : '▼'
   const val = Math.abs(pct).toFixed(1)
-  return `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:${bg};color:${color};font-size:11px;font-weight:700;letter-spacing:0.02em;">${arrow} ${val}%</span>`
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background-color:${bg} !important;color:${color} !important;font-size:11px;font-weight:700;letter-spacing:0.02em;">${arrow} ${val}%</span>`
 }
 
-function kpiCell(label: string, value: string, pct: number | null | undefined, width: '50%' | '33.33%' = '50%') {
+function kpiCell(label: string, value: string, pct: number | null | undefined) {
   const badge = pct === undefined
     ? `<span style="display:inline-block;font-size:11px;font-weight:600;color:#999999;">&nbsp;</span>`
     : changeBadge(pct)
-  const valueSize = width === '33.33%' ? '20px' : '26px'
   return `
-    <td width="${width}" valign="top" style="padding:6px;">
+    <td width="50%" valign="top" style="padding:6px;">
       <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f8f8;border:1px solid #e0e0e0;border-radius:12px;">
         <tr><td style="padding:16px 16px 14px;">
           <div style="font-size:11px;font-weight:700;color:#666666;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;">${label}</div>
-          <div style="font-size:${valueSize};font-weight:800;color:#000000;letter-spacing:-0.02em;line-height:1.1;margin-bottom:8px;">${value}</div>
+          <div style="font-size:26px;font-weight:800;color:#000000;letter-spacing:-0.02em;line-height:1.1;margin-bottom:8px;">${value}</div>
           ${badge}
         </td></tr>
       </table>
     </td>`
+}
+
+function markdownToHtml(s: string) {
+  return s
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/[*#]/g, '')
 }
 
 type Kpi = { value: string; pct: number | null }
@@ -190,20 +196,21 @@ function buildHtml(opts: {
   orgName: string
   rangeLabel: string
   aiSummary: string
+  dashboardUrl: string
   kpis: {
     revenue: Kpi; orders: Kpi; adSpend: Kpi; roas: Kpi
-    aov: Kpi; cac: Kpi; cltvCac: KpiNoWow
+    aov: Kpi; cac: Kpi; cltv: KpiNoWow; cltvCac: KpiNoWow
   }
   bestDay: { name: string; revenue: string }
   channel: { shopify: string; shopifyPct: number; amazon: string; amazonPct: number }
 }) {
-  const { orgName, rangeLabel, aiSummary, kpis, bestDay, channel } = opts
+  const { orgName, rangeLabel, aiSummary, dashboardUrl, kpis, bestDay, channel } = opts
   const summaryBlock = aiSummary
     ? `<tr><td style="padding:16px 32px 0;">
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f0f0;border:1px solid #e0e0e0;border-radius:12px;">
             <tr><td style="padding:16px 18px;">
-              <div style="font-size:10px;font-weight:700;color:#00ff97;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:8px;">✦ Attomik AI</div>
-              <div style="font-size:14px;color:#333333;line-height:1.6;">${escapeHtml(aiSummary)}</div>
+              <div style="font-size:10px;font-weight:700;color:#000000;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:8px;"><span style="color:#00ff97">✦</span> ATTOMIK AI</div>
+              <div style="font-size:14px;color:#333333;line-height:1.6;">${markdownToHtml(escapeHtml(aiSummary))}</div>
             </td></tr>
           </table>
         </td></tr>`
@@ -213,18 +220,32 @@ function buildHtml(opts: {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light only">
-<meta name="supported-color-schemes" content="light only">
+<meta name="supported-color-schemes" content="light">
 <title>${orgName} — Weekly Performance</title>
 </head>
 <body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#333333;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;padding:32px 12px;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;padding:32px 12px;color-scheme:light only;">
     <tr><td align="center">
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e0e0e0;">
         <tr><td style="background:#00ff97;height:6px;font-size:0;line-height:0;">&nbsp;</td></tr>
         <tr><td align="center" style="padding:32px 32px 0;">
-          <img src="https://static.wixstatic.com/media/87635f_7c6f600cb41c4dd4a4446bed800e0657~mv2.png/v1/fill/w_980,h_282,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/Color%20logo%20-%20no%20background.png"
-               alt="Attomik" width="120" style="display:block;width:120px;height:auto;border:0;outline:none;text-decoration:none;" />
-          <div style="font-size:10px;font-weight:700;color:#00ff97;letter-spacing:0.22em;text-transform:uppercase;margin-top:10px;">Attomik AI</div>
+          <div style="text-align:center;margin-bottom:8px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="160" height="46" viewBox="0 0 3162.208309618669 909.2179303030312">
+              <g transform="scale(8.11041548093341) translate(10, 10)">
+                <g transform="matrix(1.0466489028630275,0,0,1.0466489028630275,-6.279812066960743,-6.279893417178165)" fill="#000">
+                  <g transform="translate(0,-952.36218)">
+                    <path d="m 13.540789,1013.168 c -4.1612604,0 -7.5408665,3.3922 -7.5408665,7.5693 0,4.1771 3.3796061,7.605 7.5408665,7.605 0.813543,0 1.613976,-0.1361 2.383228,-0.3928 12.281102,18.8997 36.649842,23.2608 54.493227,13.032 0.521221,-0.2991 0.724607,-1.0475 0.426614,-1.571 -0.297992,-0.5234 -1.043503,-0.7275 -1.565078,-0.4284 -16.772953,9.6153 -39.67122,5.6292 -51.327282,-12.1037 1.894251,-1.3812 3.130157,-3.6195 3.130157,-6.1411 0,-4.1771 -3.379252,-7.5693 -7.540866,-7.5693 z" fill-rule="evenodd"/>
+                    <path d="m 70.417244,970.57299 c -0.951023,0.12132 -1.237323,1.69026 -0.391181,2.14225 13.429842,8.21899 20.928543,24.30182 17.64248,40.55986 -0.392953,-0.067 -0.80185,-0.107 -1.209331,-0.107 -4.161259,0 -7.540866,3.3922 -7.540866,7.5692 0,4.1771 3.379607,7.605 7.540866,7.605 4.16126,0 7.540866,-3.4279 7.540866,-7.605 0,-2.9516 -1.686968,-5.51 -4.161614,-6.748 3.607441,-17.29107 -4.331338,-34.48188 -18.638503,-43.23773 -0.189921,-0.12122 -0.415984,-0.18423 -0.64063,-0.17852 -0.04784,-0.003 -0.09425,-0.003 -0.142087,0 z" fill-rule="evenodd"/>
+                    <path d="m 50.000001,958.36218 c -4.012441,0 -7.27441,3.16987 -7.505079,7.14083 -17.197086,3.19362 -29.727637,16.85266 -32.5821254,33.06201 a 1.1383515,1.1426463 0 1 0 2.2407874,0.39275 c 2.681221,-15.22486 14.388307,-28.07084 30.518858,-31.1697 0.826653,3.28539 3.802677,5.71266 7.327559,5.71266 4.161259,0 7.540866,-3.39219 7.540866,-7.56928 0,-4.17708 -3.379607,-7.56927 -7.540866,-7.56927 z" fill-rule="evenodd"/>
+                  </g>
+                </g>
+                <g transform="matrix(2.781435636606215,0,0,2.781435636606215,111.83311435253162,11.314013949983305)" fill="#000">
+                  <path d="M12.76 20 l-1.6 -3.72 l-7.94 0 l-1.6 3.72 l-1.56 0 l6.28 -14.58 l1.74 0 l6.3 14.58 l-1.62 0 z M10.58 14.88 l-3.4 -7.88 l-3.38 7.88 l6.78 0 z M21.24 6.86 l0 13.14 l-1.52 0 l0 -13.14 l-4.88 0 l0 -1.44 l11.28 0 l0 1.44 l-4.88 0 z M33.32 6.86 l0 13.14 l-1.52 0 l0 -13.14 l-4.88 0 l0 -1.44 l11.28 0 l0 1.44 l-4.88 0 z M54.26 12.68 c0 1.38 -0.32 2.64 -0.94 3.78 c-0.64 1.14 -1.52 2.04 -2.64 2.7 c-1.14 0.66 -2.38 1 -3.78 1 c-1.02 0 -1.98 -0.2 -2.9 -0.58 c-0.9 -0.38 -1.68 -0.9 -2.32 -1.58 c-0.64 -0.64 -1.14 -1.42 -1.52 -2.34 c-0.36 -0.92 -0.56 -1.88 -0.56 -2.9 c0 -1.38 0.32 -2.64 0.96 -3.78 c0.62 -1.14 1.5 -2.06 2.64 -2.72 c1.12 -0.66 2.38 -0.98 3.76 -0.98 c1.02 0 1.98 0.18 2.9 0.56 c0.9 0.4 1.68 0.92 2.32 1.56 c0.64 0.68 1.16 1.46 1.52 2.36 c0.38 0.92 0.56 1.88 0.56 2.92 z M52.68 12.76 c0 -1.64 -0.6 -3.16 -1.6 -4.26 s-2.5 -1.8 -4.18 -1.8 c-1.08 0 -2.06 0.28 -2.94 0.8 c-0.88 0.56 -1.56 1.28 -2.04 2.18 c-0.48 0.92 -0.72 1.92 -0.72 3 c0 1.62 0.6 3.16 1.6 4.24 c1 1.1 2.5 1.8 4.16 1.8 c1.08 0 2.06 -0.28 2.94 -0.82 c0.9 -0.52 1.58 -1.26 2.06 -2.16 s0.72 -1.9 0.72 -2.98 z M70.3 5.42 l2.2 0 l0 14.58 l-1.52 0 l0 -12.5 l0 0 l-5.42 12.5 l-1.38 0 l-5.38 -12.4 l0 0 l0 12.4 l-1.52 0 l0 -14.58 l2.18 0 l5.44 12.5 z M76.56 20 l0 -14.58 l1.54 0 l0 14.58 l-1.54 0 z M83.68 20 l-1.54 0 l0 -14.58 l1.54 0 l0 6.44 l0.1 0 l6.54 -6.44 l2.12 0 l-7.14 6.98 l7.48 7.6 l-2.16 0 l-6.84 -7.02 l-0.1 0 l0 7.02 z"/>
+                </g>
+              </g>
+            </svg>
+          </div>
+          <div style="font-size:10px;font-weight:700;color:#000000;letter-spacing:0.22em;text-transform:uppercase;margin-top:4px;"><span style="color:#00ff97">✦</span> ATTOMIK AI</div>
         </td></tr>
         <tr><td align="center" style="padding:18px 32px 8px;">
           <div style="font-size:11px;font-weight:700;color:#666666;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">Weekly Performance</div>
@@ -235,17 +256,20 @@ function buildHtml(opts: {
         <tr><td style="padding:20px 26px 4px;">
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
-              ${kpiCell('Revenue', kpis.revenue.value, kpis.revenue.pct)}
+              ${kpiCell('Total Sales', kpis.revenue.value, kpis.revenue.pct)}
+              ${kpiCell('Ad Spend', kpis.adSpend.value, kpis.adSpend.pct)}
+            </tr>
+            <tr>
+              ${kpiCell('ROAS', kpis.roas.value, kpis.roas.pct)}
+              ${kpiCell('CAC', kpis.cac.value, kpis.cac.pct)}
+            </tr>
+            <tr>
+              ${kpiCell('AOV', kpis.aov.value, kpis.aov.pct)}
               ${kpiCell('Orders', kpis.orders.value, kpis.orders.pct)}
             </tr>
             <tr>
-              ${kpiCell('Ad Spend', kpis.adSpend.value, kpis.adSpend.pct)}
-              ${kpiCell('ROAS', kpis.roas.value, kpis.roas.pct)}
-            </tr>
-            <tr>
-              ${kpiCell('AOV', kpis.aov.value, kpis.aov.pct, '33.33%')}
-              ${kpiCell('CAC', kpis.cac.value, kpis.cac.pct, '33.33%')}
-              ${kpiCell('CLTV/CAC', kpis.cltvCac.value, undefined, '33.33%')}
+              ${kpiCell('CLTV', kpis.cltv.value, undefined)}
+              ${kpiCell('CLTV/CAC', kpis.cltvCac.value, undefined)}
             </tr>
           </table>
         </td></tr>
@@ -280,14 +304,14 @@ function buildHtml(opts: {
         </td></tr>
 
         <tr><td align="center" style="padding:28px 32px 32px;">
-          <a href="https://dashboard.attomik.co" style="display:inline-block;background:#000000;color:#00ff97;text-decoration:none;font-weight:700;font-size:14px;padding:14px 28px;border-radius:999px;letter-spacing:0.02em;">View Dashboard →</a>
+          <a href="${dashboardUrl}" style="display:inline-block;background:#000000;color:#00ff97;text-decoration:none;font-weight:700;font-size:14px;padding:14px 28px;border-radius:999px;letter-spacing:0.02em;">View Dashboard →</a>
         </td></tr>
 
         <tr><td style="background:#f8f8f8;padding:16px 32px;border-top:1px solid #e0e0e0;">
           <div style="font-size:11px;color:#666666;text-align:center;line-height:1.6;">
             Generated by <a href="https://attomik.co" style="color:#666666;text-decoration:none;font-weight:600;">Attomik AI</a>
             <span style="color:#cccccc;margin:0 6px;">·</span>
-            <a href="https://dashboard.attomik.co/dashboard/settings" style="color:#666666;text-decoration:none;">Unsubscribe</a>
+            <a href="{{UNSUB_URL}}" style="color:#666666;text-decoration:none;">Unsubscribe</a>
           </div>
         </td></tr>
       </table>
@@ -316,11 +340,15 @@ export async function POST(request: Request) {
 
     const sb = createServiceClient()
 
-    const { data: org } = await sb.from('organizations').select('id, name, weekly_email_enabled').eq('id', org_id).single()
+    const { data: org } = await sb.from('organizations')
+      .select('id, name, slug, weekly_email_enabled, weekly_email_unsubscribed')
+      .eq('id', org_id).single()
     if (!org) return NextResponse.json({ error: 'Org not found' }, { status: 404 })
 
+    const unsubscribed = new Set(((org as any).weekly_email_unsubscribed ?? []).map((e: string) => e.toLowerCase()))
     const override = process.env.WEEKLY_EMAIL_OVERRIDE?.trim()
-    const recipients = override ? [override] : await getRecipients(sb, org_id)
+    const memberRecipients = override ? [override] : await getRecipients(sb, org_id)
+    const recipients = memberRecipients.filter(e => !unsubscribed.has(e.toLowerCase()))
     if (recipients.length === 0) return NextResponse.json({ error: 'No recipients' }, { status: 400 })
 
     const { lastMon, lastSun, thisMon, prevMon, prevSun } = computeLastWeekBounds()
@@ -347,7 +375,8 @@ export async function POST(request: Request) {
     const prevAov = prev.orders > 0 ? prev.revenue / prev.orders : 0
     const curCac = cur.orders > 0 ? curAdSpend / cur.orders : null
     const prevCac = prev.orders > 0 ? prevAdSpend / prev.orders : null
-    const curCltvCac = curCac && curCac > 0 ? (curAov * 2) / curCac : null
+    const curCltv = cur.orders > 0 ? curAov * 2 : null
+    const curCltvCac = curCac && curCac > 0 && curCltv !== null ? curCltv / curCac : null
 
     const best = bestDay(curOrders, lastMon)
     const chanTotal = cur.shopify + cur.amazon
@@ -365,10 +394,16 @@ export async function POST(request: Request) {
       shopifyPct, amazonPct,
     })
 
+    const orgSlug = (org as any).slug as string | null
+    const dashboardUrl = orgSlug
+      ? `https://dashboard.attomik.co/dashboard/analytics?org=${encodeURIComponent(orgSlug)}`
+      : `https://dashboard.attomik.co/dashboard/analytics`
+
     const html = buildHtml({
       orgName: org.name,
-      rangeLabel: `Weekly Performance · ${fmtRange(lastMon, lastSun)}`,
+      rangeLabel: fmtRange(lastMon, lastSun),
       aiSummary,
+      dashboardUrl,
       kpis: {
         revenue: { value: fmtMoney(cur.revenue), pct: wowPct(cur.revenue, prev.revenue) },
         orders: { value: cur.orders.toLocaleString('en-US'), pct: wowPct(cur.orders, prev.orders) },
@@ -379,6 +414,7 @@ export async function POST(request: Request) {
           value: curCac === null ? '—' : fmtMoney(curCac),
           pct: curCac !== null && prevCac !== null ? wowPct(curCac, prevCac) : null,
         },
+        cltv: { value: curCltv === null ? '—' : fmtMoney(curCltv) },
         cltvCac: { value: curCltvCac === null ? '—' : `${curCltvCac.toFixed(2)}x` },
       },
       bestDay: { name: best.name, revenue: fmtMoney(best.revenue) },
@@ -390,6 +426,8 @@ export async function POST(request: Request) {
     const errors: string[] = []
 
     for (const to of recipients) {
+      const unsubUrl = `https://dashboard.attomik.co/api/email/unsubscribe?org_id=${encodeURIComponent(org_id)}&email=${encodeURIComponent(to)}`
+      const personalHtml = html.replaceAll('{{UNSUB_URL}}', unsubUrl)
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -400,7 +438,7 @@ export async function POST(request: Request) {
           from: 'Attomik <hello@email.attomik.co>',
           to,
           subject,
-          html,
+          html: personalHtml,
         }),
       })
       if (res.ok) sentTo.push(to)

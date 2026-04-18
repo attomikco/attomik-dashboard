@@ -58,12 +58,23 @@ export default function Sidebar() {
     const viewAsUserNameStored = localStorage.getItem('viewAsUserName')
     if (viewAsUserId && viewAsUserNameStored) setViewAsName(viewAsUserNameStored)
 
+    const urlOrgSlug = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('org')
+      : null
+    const resolveOrg = <T extends { id: string; slug: string }>(list: T[]): T | undefined => {
+      if (urlOrgSlug) {
+        const byUrl = list.find(o => o.slug === urlOrgSlug)
+        if (byUrl) return byUrl
+      }
+      const savedOrgId = localStorage.getItem('activeOrgId')
+      return list.find(o => o.id === savedOrgId)
+    }
+
     if (prof?.is_superadmin && !viewAsUserId) {
       // Superadmin sees all orgs
       const { data: allOrgs } = await supabase.from('organizations').select('id, name, slug').order('name')
       setOrgs(allOrgs ?? [])
-      const savedOrgId = localStorage.getItem('activeOrgId')
-      const found = (allOrgs ?? []).find(o => o.id === savedOrgId)
+      const found = resolveOrg(allOrgs ?? [])
       const defaultOrg = found ?? allOrgs?.[0] ?? null
       setActiveOrg(defaultOrg)
       if (defaultOrg) localStorage.setItem('activeOrgId', defaultOrg.id)
@@ -73,8 +84,7 @@ export default function Sidebar() {
       const data = await res.json()
       const memberOrgs = (data.orgs ?? []).sort((a: any, b: any) => a.name.localeCompare(b.name))
       setOrgs(memberOrgs)
-      const savedOrgId = localStorage.getItem('activeOrgId')
-      const found = memberOrgs.find((o: any) => o.id === savedOrgId)
+      const found = resolveOrg(memberOrgs)
       const defaultOrg = found ?? memberOrgs[0] ?? null
       setActiveOrg(defaultOrg)
       if (defaultOrg) localStorage.setItem('activeOrgId', defaultOrg.id)
@@ -92,7 +102,7 @@ export default function Sidebar() {
         .sort((a: any, b: any) => a.name.localeCompare(b.name))
       setOrgs(memberOrgs)
       const savedOrgId = localStorage.getItem('activeOrgId')
-      const found = memberOrgs.find((o: any) => o.id === savedOrgId)
+      const found = resolveOrg(memberOrgs)
       const defaultOrg = found ?? memberOrgs[0] ?? null
       setActiveOrg(defaultOrg)
       if (defaultOrg) {
