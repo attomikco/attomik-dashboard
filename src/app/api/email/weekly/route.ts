@@ -199,7 +199,7 @@ function buildHtml(opts: {
   dashboardUrl: string
   kpis: {
     revenue: Kpi; orders: Kpi; adSpend: Kpi; roas: Kpi
-    aov: Kpi; cac: Kpi; cltv: KpiNoWow; cltvCac: KpiNoWow
+    aov: Kpi; cac: Kpi; cltv: Kpi; cltvCac: Kpi
   }
   bestDay: { name: string; revenue: string }
   channel: { shopify: string; shopifyPct: number; amazon: string; amazonPct: number }
@@ -230,6 +230,7 @@ function buildHtml(opts: {
         <tr><td style="background:#00ff97;height:6px;font-size:0;line-height:0;">&nbsp;</td></tr>
         <tr><td align="center" style="padding:32px 32px 0;">
           <div style="text-align:center;margin-bottom:8px;">
+            <div style="background-color:#f5f5f5;border-radius:8px;padding:12px 20px;display:inline-block;">
             <svg xmlns="http://www.w3.org/2000/svg" width="160" height="46" viewBox="0 0 3162.208309618669 909.2179303030312">
               <g transform="scale(8.11041548093341) translate(10, 10)">
                 <g transform="matrix(1.0466489028630275,0,0,1.0466489028630275,-6.279812066960743,-6.279893417178165)" fill="#000">
@@ -244,6 +245,7 @@ function buildHtml(opts: {
                 </g>
               </g>
             </svg>
+            </div>
           </div>
           <div style="font-size:10px;font-weight:700;color:#000000;letter-spacing:0.22em;text-transform:uppercase;margin-top:4px;"><span style="color:#00ff97">✦</span> ATTOMIK AI</div>
         </td></tr>
@@ -268,8 +270,8 @@ function buildHtml(opts: {
               ${kpiCell('Orders', kpis.orders.value, kpis.orders.pct)}
             </tr>
             <tr>
-              ${kpiCell('CLTV', kpis.cltv.value, undefined)}
-              ${kpiCell('CLTV/CAC', kpis.cltvCac.value, undefined)}
+              ${kpiCell('CLTV', kpis.cltv.value, kpis.cltv.pct)}
+              ${kpiCell('CLTV/CAC', kpis.cltvCac.value, kpis.cltvCac.pct)}
             </tr>
           </table>
         </td></tr>
@@ -384,7 +386,11 @@ export async function POST(request: Request) {
     const curCac = cur.orders > 0 ? curAdSpend / cur.orders : null
     const prevCac = prev.orders > 0 ? prevAdSpend / prev.orders : null
     const curCltv = cur.orders > 0 ? curAov * 2 : null
+    const prevCltv = prev.orders > 0 ? prevAov * 2 : null
     const curCltvCac = curCac && curCac > 0 && curCltv !== null ? curCltv / curCac : null
+    const prevCltvCac = prevCac && prevCac > 0 && prevCltv !== null ? prevCltv / prevCac : null
+    const cltvPct = curCltv !== null && prevCltv !== null && prevCltv > 0 ? wowPct(curCltv, prevCltv) : null
+    const cltvCacPct = curCltvCac !== null && prevCltvCac !== null && prevCltvCac > 0 ? wowPct(curCltvCac, prevCltvCac) : null
 
     const best = bestDay(curOrders, lastMon)
     const chanTotal = cur.shopify + cur.amazon
@@ -422,8 +428,8 @@ export async function POST(request: Request) {
           value: curCac === null ? '—' : fmtMoney(curCac),
           pct: curCac !== null && prevCac !== null ? wowPct(curCac, prevCac) : null,
         },
-        cltv: { value: curCltv === null ? '—' : fmtMoney(curCltv) },
-        cltvCac: { value: curCltvCac === null ? '—' : `${curCltvCac.toFixed(2)}x` },
+        cltv: { value: curCltv === null ? '—' : fmtMoney(curCltv), pct: cltvPct },
+        cltvCac: { value: curCltvCac === null ? '—' : `${curCltvCac.toFixed(2)}x`, pct: cltvCacPct },
       },
       bestDay: { name: best.name, revenue: fmtMoney(best.revenue) },
       channel: { shopify: fmtMoney(cur.shopify), shopifyPct, amazon: fmtMoney(cur.amazon), amazonPct },
