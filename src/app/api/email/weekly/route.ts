@@ -149,13 +149,15 @@ function aggregate(orders: Order[]) {
   let revenue = 0
   let shopify = 0
   let amazon = 0
+  let walmart = 0
   for (const o of orders) {
     const v = Number(o.total_price) || 0
     revenue += v
     if (o.source === 'amazon') amazon += v
+    else if (o.source === 'walmart') walmart += v
     else shopify += v
   }
-  return { revenue, orders: orders.length, shopify, amazon }
+  return { revenue, orders: orders.length, shopify, amazon, walmart }
 }
 
 function bestDay(orders: Order[], weekKeys: string[], tz: string) {
@@ -237,7 +239,7 @@ async function generateAISummary(ctx: {
   revenue: number; orders: number; adSpend: number; roas: number; aov: number; cac: number | null
   revenueWow: number | null; ordersWow: number | null; adSpendWow: number | null; roasWow: number | null
   bestDay: { name: string; revenue: number }
-  shopifyPct: number; amazonPct: number
+  shopifyPct: number; amazonPct: number; walmartPct: number
   avg: {
     revPerWeek: number; ordersPerWeek: number
     aov: number; roas: number; cac: number | null
@@ -257,7 +259,11 @@ This week:
 - AOV: $${ctx.aov.toFixed(0)}
 - CAC: ${cacStr}
 - Best day: ${ctx.bestDay.name} at $${ctx.bestDay.revenue.toFixed(0)}
-- Shopify: ${ctx.shopifyPct.toFixed(0)}% of revenue, Amazon: ${ctx.amazonPct.toFixed(0)}%
+- Channel mix: ${[
+  ctx.shopifyPct > 0 ? `Shopify ${ctx.shopifyPct.toFixed(0)}%` : '',
+  ctx.amazonPct  > 0 ? `Amazon ${ctx.amazonPct.toFixed(0)}%`   : '',
+  ctx.walmartPct > 0 ? `Walmart ${ctx.walmartPct.toFixed(0)}%` : '',
+].filter(Boolean).join(', ')}
 
 4-week averages (the 4 weeks before last week):
 - Revenue/wk: $${ctx.avg.revPerWeek.toFixed(0)}
@@ -307,7 +313,7 @@ function buildHtml(opts: {
   }
   averages: { revPerWeek: string; ordersPerWeek: string; aov: string; roas: string; cac: string }
   bestDay: { name: string; revenue: string }
-  channel: { shopify: string; shopifyPct: number; amazon: string; amazonPct: number }
+  channel: { shopify: string; shopifyPct: number; amazon: string; amazonPct: number; walmart: string; walmartPct: number }
 }) {
   const { orgName, rangeLabel, aiSummary, dashboardUrl, kpis, averages, bestDay, channel } = opts
   const avgStat = (label: string, value: string) => `
@@ -421,19 +427,25 @@ function buildHtml(opts: {
           </table>
         </td></tr>
 
-        ${channel.shopifyPct > 0 && channel.amazonPct > 0 ? `
+        ${(() => {
+          const parts: string[] = []
+          if (channel.shopifyPct > 0) parts.push(`<strong style="color:#000000;">Shopify</strong> ${channel.shopify} <span style="color:#666666;">(${channel.shopifyPct.toFixed(0)}%)</span>`)
+          if (channel.amazonPct  > 0) parts.push(`<strong style="color:#000000;">Amazon</strong> ${channel.amazon} <span style="color:#666666;">(${channel.amazonPct.toFixed(0)}%)</span>`)
+          if (channel.walmartPct > 0) parts.push(`<strong style="color:#000000;">Walmart</strong> ${channel.walmart} <span style="color:#666666;">(${channel.walmartPct.toFixed(0)}%)</span>`)
+          if (parts.length < 2) return ''
+          const sep = `<span style="color:#cccccc;margin:0 8px;">·</span>`
+          return `
         <tr><td style="padding:12px 32px 0;">
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f8f8;border:1px solid #e0e0e0;border-radius:12px;">
             <tr><td style="padding:16px 18px;">
               <div style="font-size:11px;font-weight:700;color:#666666;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">Channel Split</div>
               <div style="font-size:14px;color:#333333;line-height:1.6;">
-                <strong style="color:#000000;">Shopify</strong> ${channel.shopify} <span style="color:#666666;">(${channel.shopifyPct.toFixed(0)}%)</span>
-                <span style="color:#cccccc;margin:0 8px;">·</span>
-                <strong style="color:#000000;">Amazon</strong> ${channel.amazon} <span style="color:#666666;">(${channel.amazonPct.toFixed(0)}%)</span>
+                ${parts.join(sep)}
               </div>
             </td></tr>
           </table>
-        </td></tr>` : ''}
+        </td></tr>`
+        })()}
 
         <tr><td align="center" style="padding:28px 32px 32px;">
           <a href="${dashboardUrl}" style="display:inline-block;background:#000000;color:#00ff97;text-decoration:none;font-weight:700;font-size:14px;padding:14px 28px;border-radius:999px;letter-spacing:0.02em;">View Dashboard →</a>
@@ -526,9 +538,10 @@ export async function POST(request: Request) {
     const cltvCacPct = curCltvCac !== null && prevCltvCac !== null && prevCltvCac > 0 ? wowPct(curCltvCac, prevCltvCac) : null
 
     const best = bestDay(curOrders, weekKeys, tz)
-    const chanTotal = cur.shopify + cur.amazon
+    const chanTotal = cur.shopify + cur.amazon + cur.walmart
     const shopifyPct = chanTotal > 0 ? (cur.shopify / chanTotal) * 100 : 0
     const amazonPct = chanTotal > 0 ? (cur.amazon / chanTotal) * 100 : 0
+    const walmartPct = chanTotal > 0 ? (cur.walmart / chanTotal) * 100 : 0
 
     // 4-week averages for context (prior 4 complete weeks, Mon–Sun each)
     const avgAgg = aggregate(avgOrders)
@@ -548,7 +561,7 @@ export async function POST(request: Request) {
       adSpendWow: wowPct(curAdSpend, prevAdSpend),
       roasWow: wowPct(curRoas, prevRoas),
       bestDay: { name: best.name, revenue: best.revenue },
-      shopifyPct, amazonPct,
+      shopifyPct, amazonPct, walmartPct,
       avg: {
         revPerWeek: avgRevPerWeek,
         ordersPerWeek: avgOrdersPerWeek,
@@ -589,7 +602,7 @@ export async function POST(request: Request) {
         cac: avgCac === null ? '—' : fmtMoney(avgCac),
       },
       bestDay: { name: best.name, revenue: fmtMoney(best.revenue) },
-      channel: { shopify: fmtMoney(cur.shopify), shopifyPct, amazon: fmtMoney(cur.amazon), amazonPct },
+      channel: { shopify: fmtMoney(cur.shopify), shopifyPct, amazon: fmtMoney(cur.amazon), amazonPct, walmart: fmtMoney(cur.walmart), walmartPct },
     })
 
     const subject = `${org.name} — Weekly Performance · ${fmtRangeKeys(lastMonKey, lastSunKey)}`
