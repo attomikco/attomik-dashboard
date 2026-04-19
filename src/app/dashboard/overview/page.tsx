@@ -581,8 +581,8 @@ export default function OverviewPage() {
           </div>
         )}
 
-        {/* ── Yesterday table — placed below main KPIs ── */}
-        {yesterdayTable && yesterdayTable.data.length > 0 && (() => {
+        {/* ── Yesterday table — hidden per product decision ── */}
+        {false && yesterdayTable && yesterdayTable.data.length > 0 && (() => {
           const rows = yesterdayTable.data
           const totalRev = rows.reduce((s, r) => s + r.revenue, 0)
           const totalOrd = rows.reduce((s, r) => s + r.orders, 0)
