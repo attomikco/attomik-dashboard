@@ -10,6 +10,7 @@ const C = { ink: '#000', paper: '#fff', cream: '#f2f2f2', accent: '#00ff97', mut
 const CHANNELS = [
   { key: 'shopify', label: 'Shopify',  color: '#96bf48' },
   { key: 'amazon',  label: 'Amazon',   color: '#ff9900' },
+  { key: 'walmart', label: 'Walmart',  color: '#0071ce' },
   { key: 'meta',    label: 'Meta Ads', color: '#1877f2' },
   { key: 'google',  label: 'Google',   color: '#4285f4' },
   { key: 'tiktok',  label: 'TikTok',   color: '#000' },
