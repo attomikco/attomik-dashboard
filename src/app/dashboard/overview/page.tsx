@@ -630,7 +630,7 @@ export default function OverviewPage() {
                         { label: 'Brand',    align: 'left'   as const, hideMobile: false },
                         { label: 'Revenue',  align: 'center' as const, hideMobile: false },
                         { label: 'Orders',   align: 'center' as const, hideMobile: false },
-                        { label: 'Ad Spend', align: 'center' as const, hideMobile: true  },
+                        { label: 'Ad Spend', align: 'center' as const, hideMobile: false },
                         { label: 'ROAS',     align: 'center' as const, hideMobile: true  },
                       ].map((h, i) => (
                         <th key={i} className={h.hideMobile ? 'yt-col-hide-mobile' : ''} style={{
@@ -669,7 +669,7 @@ export default function OverviewPage() {
                             {dodBadge(r.orders_dod)}
                           </span>
                         </td>
-                        <td className="yt-col-hide-mobile" style={numCenter}>{fmt$(r.ad_spend)}</td>
+                        <td style={numCenter}>{fmt$(r.ad_spend)}</td>
                         <td className="yt-col-hide-mobile" style={numCenter}>{r.roas > 0 ? `${r.roas.toFixed(2)}x` : '—'}</td>
                       </tr>
                     ))}
@@ -680,7 +680,7 @@ export default function OverviewPage() {
                       </td>
                       <td style={{ ...numCenter, fontWeight: 800, borderBottom: 'none' }}>{fmt$(totalRev)}</td>
                       <td style={{ ...numCenter, fontWeight: 800, borderBottom: 'none' }}>{fmtN(totalOrd)}</td>
-                      <td className="yt-col-hide-mobile" style={{ ...numCenter, fontWeight: 800, borderBottom: 'none' }}>{fmt$(totalSp)}</td>
+                      <td style={{ ...numCenter, fontWeight: 800, borderBottom: 'none' }}>{fmt$(totalSp)}</td>
                       <td className="yt-col-hide-mobile" style={{ ...numCenter, fontWeight: 800, borderBottom: 'none' }}>{blendRoas > 0 ? `${blendRoas.toFixed(2)}x` : '—'}</td>
                     </tr>
                   </tbody>
@@ -954,8 +954,8 @@ export default function OverviewPage() {
           .overview-topbar  { flex-wrap: wrap !important; padding: 14px 16px 14px 60px !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 100 !important; }
           .overview-content { padding-top: 84px !important; }
           .overview-subtitle { flex-direction: column !important; align-items: flex-start !important; gap: 4px !important; }
-          .overview-sync-row { flex-direction: row !important; gap: 8px !important; align-items: stretch !important; margin-bottom: 16px !important; }
-          .overview-sync-row .sync-item-all { display: none !important; }
+          .overview-sync-row { flex-direction: row !important; flex-wrap: wrap !important; gap: 8px !important; align-items: stretch !important; margin-bottom: 16px !important; }
+          .overview-sync-row .sync-item-all { flex: 1 1 100% !important; min-width: 0 !important; }
           .overview-sync-row .sync-item { flex: 1 1 0 !important; min-width: 0 !important; }
           .overview-sync-row .sync-item button { width: 100% !important; padding: 6px 10px !important; font-size: 0.72rem !important; }
           .overview-sync-row .sync-item > div { font-size: 0.62rem !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
