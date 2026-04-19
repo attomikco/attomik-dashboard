@@ -943,15 +943,15 @@ export default function OverviewPage() {
         @media (max-width: 680px) {
           .summary-grid     { grid-template-columns: 1fr 1fr !important; min-width: 0 !important; gap: 8px !important; }
           .summary-grid .kpi-card { padding: 14px 14px !important; }
-          .overview-topbar  { flex-wrap: wrap !important; padding: 12px 14px 10px 58px !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 100 !important; }
-          .overview-topbar h1 { line-height: 1.1 !important; }
-          .overview-content { padding: 14px 14px 80px !important; padding-top: 72px !important; }
-          .overview-subtitle { flex-direction: column !important; align-items: flex-start !important; gap: 2px !important; margin-top: 6px !important; }
-          .overview-sync-row { flex-direction: row !important; flex-wrap: wrap !important; gap: 6px !important; align-items: stretch !important; margin-bottom: 12px !important; margin-top: 0 !important; }
-          .overview-sync-row .sync-item-all { flex: 1 1 100% !important; min-width: 0 !important; }
-          .overview-sync-row .sync-item { flex: 1 1 0 !important; min-width: 0 !important; gap: 2px !important; }
-          .overview-sync-row .sync-item button { width: 100% !important; padding: 6px 8px !important; font-size: 0.7rem !important; }
-          .overview-sync-row .sync-item > div { font-size: 0.6rem !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          .overview-topbar  { flex-wrap: wrap !important; padding: 10px 14px 8px 58px !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 100 !important; }
+          .overview-topbar h1 { line-height: 1.1 !important; font-size: 1.35rem !important; }
+          .overview-content { padding: 8px 14px 80px !important; padding-top: 66px !important; }
+          .overview-subtitle { flex-direction: column !important; align-items: flex-start !important; gap: 2px !important; margin-top: 8px !important; }
+          .overview-sync-row { flex-direction: column !important; flex-wrap: nowrap !important; gap: 6px !important; align-items: stretch !important; margin-bottom: 10px !important; margin-top: 0 !important; }
+          .overview-sync-row .sync-item,
+          .overview-sync-row .sync-item-all { flex: 1 1 100% !important; min-width: 0 !important; display: flex !important; flex-direction: row !important; align-items: center !important; gap: 10px !important; }
+          .overview-sync-row .sync-item button { width: auto !important; min-width: 130px !important; padding: 7px 12px !important; font-size: 0.75rem !important; flex-shrink: 0 !important; }
+          .overview-sync-row .sync-item > div { font-size: 0.65rem !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto !important; margin: 0 !important; text-align: right; }
           .overview-table { display: none !important; }
           .overview-cards { display: flex !important; }
         }
