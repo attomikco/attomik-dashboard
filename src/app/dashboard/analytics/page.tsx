@@ -817,7 +817,7 @@ export default function AnalyticsPage() {
     const buildBuckets = (start: string, end: string) => {
       const out: Record<string, any> = {}
       const init = (key: string, label: string) => {
-        out[key] = { date: label, revenue: 0, shopify: 0, amazon: 0, spend: 0, roas: 0 }
+        out[key] = { date: label, revenue: 0, shopify: 0, amazon: 0, walmart: 0, spend: 0, roas: 0 }
       }
       if (granularity === 'month') {
         const [sy, sm] = start.split('-').map(Number)
@@ -857,6 +857,7 @@ export default function AnalyticsPage() {
         buckets[k].revenue += Number(o.total_price)
         if (o.source === 'shopify') buckets[k].shopify += Number(o.total_price)
         if (o.source === 'amazon')  buckets[k].amazon  += Number(o.total_price)
+        if (o.source === 'walmart') buckets[k].walmart += Number(o.total_price)
       })
       spend.forEach((s: any) => {
         if (!s?.date) return
@@ -877,6 +878,7 @@ export default function AnalyticsPage() {
     setChannelData(dayArr.map(d => ({
       date: d.date,
       shopify: showShopify ? d.shopify : 0,
+      walmart: showWalmart ? d.walmart : 0,
       amazon: showAmazon ? d.amazon : 0,
     })))
 
@@ -1349,7 +1351,11 @@ export default function AnalyticsPage() {
 
           {/* ── CHARTS ROW 3 ── */}
           <div className="chart-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-            <ChartCard title="Sales by Channel" subtitle={[d.showShopify ? "Shopify (green)" : "", d.showAmazon ? "Amazon (darker green)" : ""].filter(Boolean).join(" · ")}>
+            <ChartCard title="Sales by Channel" subtitle={[
+              d.showShopify ? "Shopify (green)" : "",
+              d.showAmazon ? "Amazon (darker green)" : "",
+              d.showWalmart && d.wmRevC > 0 ? "Walmart (blue)" : "",
+            ].filter(Boolean).join(" · ")}>
               <SalesByChannelChart data={channelData} />
             </ChartCard>
             <ChartCard title="CAC Trend" subtitle="Cost per new customer · bars = new customers">
@@ -1358,18 +1364,30 @@ export default function AnalyticsPage() {
           </div>
 
           {/* ── CHARTS ROW 4 ── */}
-          <div className="chart-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-            {d.showShopify && (
-              <ChartCard title="Shopify Sales" subtitle="Daily revenue from Shopify">
-                <ChannelSalesChart data={channelData.map(c => ({ date: c.date, sales: c.shopify }))} color="#00ff97" />
-              </ChartCard>
-            )}
-            {d.showAmazon && (
-              <ChartCard title="Amazon Sales" subtitle="Daily revenue from Amazon">
-                <ChannelSalesChart data={channelData.map(c => ({ date: c.date, sales: c.amazon }))} color="#00cc78" />
-              </ChartCard>
-            )}
-          </div>
+          {(() => {
+            const visibleCount = (d.showShopify ? 1 : 0) + (d.showAmazon ? 1 : 0) + (d.showWalmart && d.wmRevC > 0 ? 1 : 0)
+            if (visibleCount === 0) return null
+            const cols = Math.min(visibleCount, 3)
+            return (
+              <div className="chart-grid" style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16, marginBottom: 16 }}>
+                {d.showShopify && (
+                  <ChartCard title="Shopify Sales" subtitle="Daily revenue from Shopify">
+                    <ChannelSalesChart data={channelData.map(c => ({ date: c.date, sales: c.shopify }))} color="#00ff97" />
+                  </ChartCard>
+                )}
+                {d.showAmazon && (
+                  <ChartCard title="Amazon Sales" subtitle="Daily revenue from Amazon">
+                    <ChannelSalesChart data={channelData.map(c => ({ date: c.date, sales: c.amazon }))} color="#00cc78" />
+                  </ChartCard>
+                )}
+                {d.showWalmart && d.wmRevC > 0 && (
+                  <ChartCard title="Walmart Sales" subtitle="Daily revenue from Walmart">
+                    <ChannelSalesChart data={channelData.map(c => ({ date: c.date, sales: c.walmart }))} color="#0071ce" />
+                  </ChartCard>
+                )}
+              </div>
+            )
+          })()}
 
           {/* ── PERIOD BREAKDOWN TABLE ── */}
           <div style={{ marginBottom: 16 }}>
