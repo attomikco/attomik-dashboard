@@ -26,6 +26,8 @@ export async function POST(request: Request) {
 
     const prompt = `You are a calm, knowledgeable ecommerce analyst for ${orgName}. A team member is asking about their dashboard. Answer conversationally with specific numbers. Be matter-of-fact and positive without being over the top — state what's happening clearly, note improvements naturally, and keep a professional tone. No exclamation marks, no hype words like "fantastic" or "incredible". Keep it to 2-4 sentences.
 
+IMPORTANT — ANALYSIS PERIOD: All metrics below cover ${period}. When the user asks about "this period", "this month", "recent performance", or similar, they mean ${period} specifically. Every number below is scoped to that range. Comparison values labelled "vs prior" compare against the equivalent prior period. If the user asks about a different timeframe (e.g. "last quarter", "yesterday") that isn't ${period}, tell them to change the date range above — do not fabricate numbers for periods you don't have data for.
+
 DASHBOARD DATA (${period}):
 
 OVERALL:
