@@ -605,6 +605,7 @@ export default function AnalyticsPage() {
     const shopReturnsC = shopAllC.filter(o => o.status === 'refunded')
     const shopReturnsP = shopAllP.filter(o => o.status === 'refunded')
     const amzC  = cur.filter(o => o.source === 'amazon'),  amzP  = prev.filter(o => o.source === 'amazon')
+    const wmC   = cur.filter(o => o.source === 'walmart'), wmP   = prev.filter(o => o.source === 'walmart')
 
     // Filter orders by enabled channels for overview metrics
     const enabledOrders = cur.filter(o =>
@@ -745,6 +746,9 @@ export default function AnalyticsPage() {
     const amzUnitP = amzP.reduce((s, o) => s + (Number(o.units)||0), 0)
     const amzAovC  = amzUnitC > 0 ? amzRevC / amzUnitC : 0
     const amzAovP  = amzUnitP > 0 ? amzRevP / amzUnitP : 0
+
+    const wmRevC   = wmC.reduce((s, o) => s + Number(o.total_price), 0)
+    const wmRevP   = wmP.reduce((s, o) => s + Number(o.total_price), 0)
 
     const metaImprC = cSpend.filter(o => o.platform === 'meta').reduce((s, o) => s + Number(o.impressions), 0)
     const metaClkC  = cSpend.filter(o => o.platform === 'meta').reduce((s, o) => s + Number(o.clicks), 0)
@@ -1007,7 +1011,7 @@ export default function AnalyticsPage() {
     const finalAovC = (showShopify && !showAmazon) ? shAovC : aovC
     const finalAovP = (showShopify && !showAmazon) ? shAovP : aovP
 
-    setData({ showShopify, showAmazon, showMeta, showGoogle, showAds,
+    setData({ showShopify, showAmazon, showWalmart, showMeta, showGoogle, showAds,
       totalRevC, totalRevP, totalSpC, totalSpP, roasC, roasP,
       ordC, ordP, shopOrdC, shopOrdP, aovC: finalAovC, aovP: finalAovP, cacC, cacP,
       newCustC, newCustP, retCustC, totalCustC, rcrC, rcrP, retRevC, newRevC, cltvC, cltvP,
@@ -1017,6 +1021,7 @@ export default function AnalyticsPage() {
       shRetCustC, shRetCustP, shRcrC, shRcrP, shRoasC, shRoasP,
       shDiscRateC, shDiscRateP, shRefRateC, shRefRateP,
       amzRevC, amzRevP, amzUnitC, amzUnitP, amzDaysC: amzC.length, amzDaysP: amzP.length, amzAovC, amzAovP,
+      wmRevC, wmRevP,
       metaSpC, metaSpP, metaImprC, metaImprP, metaClkC, metaClkP, metaConvC, metaConvP, metaRoasC, metaRoasP,
       weekRevs, weekSpend, weekOrders, weekCac, weekAov, weekRoas, weekNewCusts, weekRetCusts, weekRetRate,
       monthlyRetention,
@@ -1273,11 +1278,13 @@ export default function AnalyticsPage() {
           )}
 
           {/* ── SALES BY CHANNEL ── */}
-          {(d.shTotalC > 0 || d.amzRevC > 0) && (() => {
+          {(d.shTotalC > 0 || d.amzRevC > 0 || (d.showWalmart && d.wmRevC > 0)) && (() => {
             const shPctC = d.totalRevC > 0 ? (d.shTotalC / d.totalRevC * 100) : 0
             const shPctP = d.totalRevP > 0 ? (d.shTotalP / d.totalRevP * 100) : 0
             const amzPctC = d.totalRevC > 0 ? (d.amzRevC / d.totalRevC * 100) : 0
             const amzPctP = d.totalRevP > 0 ? (d.amzRevP / d.totalRevP * 100) : 0
+            const wmPctC  = d.totalRevC > 0 ? (d.wmRevC  / d.totalRevC * 100) : 0
+            const wmPctP  = d.totalRevP > 0 ? (d.wmRevP  / d.totalRevP * 100) : 0
             return (
               <MetricRow items={[
                 ...(d.shTotalC > 0 ? [{
@@ -1303,6 +1310,18 @@ export default function AnalyticsPage() {
                   value: `${amzPctC.toFixed(1)}%`,
                   sub: amzPctP > 0 ? chg(amzPctC, amzPctP) : '',
                   desc: 'Amazon share of blended revenue',
+                }] : []),
+                ...(d.showWalmart && d.wmRevC > 0 ? [{
+                  label: 'Walmart',
+                  value: fmt$(d.wmRevC),
+                  sub: d.wmRevP > 0 ? chg(d.wmRevC, d.wmRevP) : '',
+                  desc: 'Walmart channel revenue',
+                }] : []),
+                ...(d.showWalmart && d.wmRevC > 0 && d.totalRevC > 0 ? [{
+                  label: 'Walmart % of Total',
+                  value: `${wmPctC.toFixed(1)}%`,
+                  sub: wmPctP > 0 ? chg(wmPctC, wmPctP) : '',
+                  desc: 'Walmart share of blended revenue',
                 }] : []),
               ]} />
             )
