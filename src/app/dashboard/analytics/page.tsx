@@ -1354,7 +1354,7 @@ export default function AnalyticsPage() {
             <ChartCard title="Sales by Channel" subtitle={[
               d.showShopify ? "Shopify (green)" : "",
               d.showAmazon ? "Amazon (darker green)" : "",
-              d.showWalmart && d.wmRevC > 0 ? "Walmart (blue)" : "",
+              d.showWalmart && d.wmRevC > 0 ? "Walmart (darkest green)" : "",
             ].filter(Boolean).join(" · ")}>
               <SalesByChannelChart data={channelData} />
             </ChartCard>
@@ -1382,7 +1382,7 @@ export default function AnalyticsPage() {
                 )}
                 {d.showWalmart && d.wmRevC > 0 && (
                   <ChartCard title="Walmart Sales" subtitle="Daily revenue from Walmart">
-                    <ChannelSalesChart data={channelData.map(c => ({ date: c.date, sales: c.walmart }))} color="#0071ce" />
+                    <ChannelSalesChart data={channelData.map(c => ({ date: c.date, sales: c.walmart }))} color="#007a48" />
                   </ChartCard>
                 )}
               </div>

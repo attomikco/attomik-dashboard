@@ -41,7 +41,7 @@ export default function SalesByChannelChart({ data }: Props) {
         <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
         <Bar dataKey="shopify" stackId="a" fill="#00ff97" radius={topBar === 'shopify' ? [3,3,0,0] : [0,0,0,0]} barSize={14} />
         {hasAmazon  && <Bar dataKey="amazon"  stackId="a" fill="#00cc78" radius={topBar === 'amazon'  ? [3,3,0,0] : [0,0,0,0]} barSize={14} />}
-        {hasWalmart && <Bar dataKey="walmart" stackId="a" fill="#0071ce" radius={topBar === 'walmart' ? [3,3,0,0] : [0,0,0,0]} barSize={14} />}
+        {hasWalmart && <Bar dataKey="walmart" stackId="a" fill="#007a48" radius={topBar === 'walmart' ? [3,3,0,0] : [0,0,0,0]} barSize={14} />}
       </BarChart>
     </ResponsiveContainer>
   )
