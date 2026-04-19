@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Send, RefreshCw } from 'lucide-react'
+import { Send, RefreshCw, Sparkles } from 'lucide-react'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -13,6 +13,8 @@ interface Props {
   orgName: string
   period: string
   periodLabel?: string
+  preset?: string
+  platform?: 'ecommerce' | 'meta'
   userName: string
   timezone?: string
   dark?: boolean
@@ -53,17 +55,42 @@ const DEFAULT_SUGGESTIONS = [
 ]
 
 export default function AskAttomik({
-  metrics, orgName, period, periodLabel, userName, timezone = 'America/New_York',
+  metrics, orgName, period, periodLabel, preset, platform = 'ecommerce',
+  userName, timezone = 'America/New_York',
   dark = false, suggestions, connectedAbove = false,
 }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [insightsLoading, setInsightsLoading] = useState(false)
 
   const firstName = userName?.split(' ')[0] || 'there'
   const greeting = getGreeting(timezone)
   const contextLine = getContextLine(metrics, orgName, period)
   const questionPills = suggestions && suggestions.length > 0 ? suggestions : DEFAULT_SUGGESTIONS
+
+  const generateInsights = async () => {
+    if (insightsLoading || loading) return
+    setInsightsLoading(true)
+    const userPrompt = `Generate insights for ${periodLabel ?? period}`
+    setMessages(prev => [...prev, { role: 'user', text: userPrompt }])
+    try {
+      const res = await fetch('/api/insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ metrics, period, preset: preset ?? periodLabel ?? 'custom', orgName, platform }),
+      })
+      const data = await res.json()
+      if (res.status === 429) {
+        setMessages(prev => [...prev, { role: 'assistant', text: data.error ?? 'Daily limit reached. Try again tomorrow.' }])
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', text: data.insight ?? data.error ?? 'No insights available.' }])
+      }
+    } catch {
+      setMessages(prev => [...prev, { role: 'assistant', text: 'Failed to generate insights. Please try again.' }])
+    }
+    setInsightsLoading(false)
+  }
 
   const ask = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -169,6 +196,26 @@ export default function AskAttomik({
           {periodLabel && periodLabel !== period && <span style={{ color: T.muted, fontWeight: 500 }}> ({period})</span>}
           <span style={{ color: T.muted }}> · Change the date range above to analyze a different period</span>
         </div>
+        <div style={{ marginTop: 12 }}>
+          <button
+            onClick={generateInsights}
+            disabled={insightsLoading || loading}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '9px 16px', borderRadius: 8, border: 'none',
+              background: insightsLoading ? (dark ? 'rgba(255,255,255,0.08)' : '#f2f2f2') : '#00ff97',
+              color: insightsLoading ? T.muted : '#000',
+              fontFamily: 'Barlow, sans-serif', fontSize: '0.85rem', fontWeight: 700,
+              cursor: insightsLoading || loading ? 'not-allowed' : 'pointer',
+              transition: '0.15s',
+            }}
+          >
+            {insightsLoading
+              ? <><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Analyzing {periodLabel ?? period}…</>
+              : <><Sparkles size={14} /> Generate insights for {periodLabel ?? period}</>
+            }
+          </button>
+        </div>
         {messages.length === 0 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
             {questionPills.map(q => (
@@ -211,12 +258,14 @@ export default function AskAttomik({
               </div>
             </div>
           ))}
-          {loading && (
+          {(loading || insightsLoading) && (
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12 }}>
               <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#000', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                 <RefreshCw size={10} color="#00ff97" style={{ animation: 'spin 1s linear infinite' }} />
               </div>
-              <div style={{ fontSize: '0.8rem', color: T.muted, fontFamily: 'Barlow, sans-serif' }}>Thinking...</div>
+              <div style={{ fontSize: '0.8rem', color: T.muted, fontFamily: 'Barlow, sans-serif' }}>
+                {insightsLoading ? 'Analyzing period data…' : 'Thinking...'}
+              </div>
             </div>
           )}
         </div>

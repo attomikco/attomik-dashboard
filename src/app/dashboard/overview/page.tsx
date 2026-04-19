@@ -776,20 +776,6 @@ export default function OverviewPage() {
                                 <span style={{ fontWeight: 800, fontSize: '0.95rem', fontFamily: 'Barlow, sans-serif' }}>{fmt$(org.revenue)}</span>
                                 <DeltaBadge value={pct(org.revenue, org.prevRevenue)} />
                               </div>
-                              {org.revenue > 0 && (
-                                <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-                                  {org.shopifyRev > 0 && (
-                                    <span className="badge badge-shopify" style={{ fontSize: '0.68rem', whiteSpace: 'nowrap' }}>
-                                      Shopify {fmt$(org.shopifyRev)} · {(org.shopifyRev / org.revenue * 100).toFixed(0)}%
-                                    </span>
-                                  )}
-                                  {org.amazonRev > 0 && (
-                                    <span className="badge badge-amazon" style={{ fontSize: '0.68rem', whiteSpace: 'nowrap' }}>
-                                      Amazon {fmt$(org.amazonRev)} · {(org.amazonRev / org.revenue * 100).toFixed(0)}%
-                                    </span>
-                                  )}
-                                </div>
-                              )}
                             </>
                         }
                       </td>

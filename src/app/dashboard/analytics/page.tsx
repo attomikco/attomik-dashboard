@@ -14,7 +14,6 @@ import DayOfWeekHeatmap from '@/components/DayOfWeekHeatmap'
 import CacTrendChart from '@/components/CacTrendChart'
 import RetentionChart from '@/components/RetentionChart'
 import ReturnGrowthChart from '@/components/ReturnGrowthChart'
-import AIInsights from '@/components/AIInsights'
 import EmailInsights from '@/components/EmailInsights'
 import AskAttomik from '@/components/AskAttomik'
 import ChannelSalesChart from '@/components/ChannelSalesChart'
@@ -767,6 +766,10 @@ export default function AnalyticsPage() {
 
     const wmRevC   = wmC.reduce((s, o) => s + Number(o.total_price), 0)
     const wmRevP   = wmP.reduce((s, o) => s + Number(o.total_price), 0)
+    const wmUnitC  = wmC.reduce((s, o) => s + (Number(o.units)||0), 0)
+    const wmUnitP  = wmP.reduce((s, o) => s + (Number(o.units)||0), 0)
+    const wmAovC   = wmUnitC > 0 ? wmRevC / wmUnitC : 0
+    const wmAovP   = wmUnitP > 0 ? wmRevP / wmUnitP : 0
 
     const metaImprC = cSpend.filter(o => o.platform === 'meta').reduce((s, o) => s + Number(o.impressions), 0)
     const metaClkC  = cSpend.filter(o => o.platform === 'meta').reduce((s, o) => s + Number(o.clicks), 0)
@@ -1039,7 +1042,7 @@ export default function AnalyticsPage() {
       shRetCustC, shRetCustP, shRcrC, shRcrP, shRoasC, shRoasP,
       shDiscRateC, shDiscRateP, shRefRateC, shRefRateP,
       amzRevC, amzRevP, amzUnitC, amzUnitP, amzDaysC: amzC.length, amzDaysP: amzP.length, amzAovC, amzAovP,
-      wmRevC, wmRevP,
+      wmRevC, wmRevP, wmUnitC, wmUnitP, wmDaysC: wmC.length, wmDaysP: wmP.length, wmAovC, wmAovP,
       metaSpC, metaSpP, metaImprC, metaImprP, metaClkC, metaClkP, metaConvC, metaConvP, metaRoasC, metaRoasP,
       weekRevs, weekSpend, weekOrders, weekCac, weekAov, weekRoas, weekNewCusts, weekRetCusts, weekRetRate,
       monthlyRetention,
@@ -1168,9 +1171,10 @@ export default function AnalyticsPage() {
                   timezone={timezone}
                   period={`${fmtDate(range.start)} – ${fmtDate(range.end)}`}
                   periodLabel={range.label ?? undefined}
+                  preset={range.label ?? 'custom'}
                   suggestions={suggestions}
                   metrics={{
-                    totalRev: fmt$(d.totalRevC), totalRevChg: pct(d.totalRevC, d.totalRevP).toFixed(1),
+                    totalRev: fmt$(d.totalRevC), totalRevP: fmt$(d.totalRevP), totalRevChg: pct(d.totalRevC, d.totalRevP).toFixed(1),
                     totalSp: fmt$(d.totalSpC), totalSpChg: pct(d.totalSpC, d.totalSpP).toFixed(1),
                     roas: d.roasC.toFixed(2), roasP: d.roasP.toFixed(2),
                     orders: d.ordC, ordersChg: pct(d.ordC, d.ordP).toFixed(1),
@@ -1178,17 +1182,26 @@ export default function AnalyticsPage() {
                     cac: fmt$(d.cacC), cacChg: pct(d.cacC, d.cacP).toFixed(1),
                     newCust: d.newCustC, retCust: d.retCustC, retRate: d.shRcrC.toFixed(1),
                     shopifyRev: d.showShopify ? fmt$(d.shTotalC) : null,
+                    shopifyRevP: d.showShopify ? fmt$(d.shTotalP) : null,
                     shopifyPctOfTotal: d.totalRevC > 0 ? (d.shTotalC / d.totalRevC * 100).toFixed(1) : null,
                     shopifyRevChg: d.shTotalP > 0 ? pct(d.shTotalC, d.shTotalP).toFixed(1) : null,
+                    shopifyGross: d.showShopify ? fmt$(d.shGrossC) : null,
+                    shopifyNet: d.showShopify ? fmt$(d.shNetC) : null,
                     shopifyOrders: d.shOrdC, shopifyCust: d.shCustC, shopifyAov: fmt$(d.shAovC),
+                    shopifyRoas: d.shRoasC > 0 ? d.shRoasC.toFixed(2) : null,
                     discountRate: d.shDiscRateC.toFixed(1), refundRate: d.shRefRateC.toFixed(1),
                     amazonRev: d.amzRevC > 0 ? fmt$(d.amzRevC) : null,
+                    amazonRevP: d.showAmazon && d.amzRevP > 0 ? fmt$(d.amzRevP) : null,
                     amazonPctOfTotal: d.totalRevC > 0 && d.amzRevC > 0 ? (d.amzRevC / d.totalRevC * 100).toFixed(1) : null,
                     amazonRevChg: d.amzRevP > 0 ? pct(d.amzRevC, d.amzRevP).toFixed(1) : null,
+                    amazonUnits: d.amzUnitC,
+                    amazonAov: d.amzAovC > 0 ? fmt$(d.amzAovC) : null,
                     cltv: d.cltvC > 0 ? fmt$(d.cltvC) : null,
+                    cltvP: d.cltvP > 0 ? fmt$(d.cltvP) : null,
                     cltvChg: d.cltvP > 0 ? pct(d.cltvC, d.cltvP).toFixed(1) : null,
                     cltvCacRatio: d.cltvC > 0 && d.cacC > 0 ? (d.cltvC / d.cacC).toFixed(2) : null,
                     metaSp: d.showMeta ? fmt$(d.metaSpC) : null,
+                    metaSpChg: d.metaSpP > 0 ? pct(d.metaSpC, d.metaSpP).toFixed(1) : null,
                     metaRoas: d.metaRoasC > 0 ? d.metaRoasC.toFixed(2) : null,
                     metaImpr: d.metaImprC, metaClicks: d.metaClkC, metaConv: d.metaConvC,
                     trafficSessions: trafficData?.sessions ?? null,
@@ -1197,12 +1210,17 @@ export default function AnalyticsPage() {
                     trafficUsersP: trafficData?.usersP ?? null,
                     trafficNewUsers: trafficData?.newUsers ?? null,
                     trafficNewUsersP: trafficData?.newUsersP ?? null,
+                    convRate: trafficData && trafficData.users > 0 ? (d.shopOrdC / trafficData.users * 100).toFixed(2) : null,
+                    convRateP: trafficData && trafficData.usersP > 0 && d.shopOrdP > 0 ? (d.shopOrdP / trafficData.usersP * 100).toFixed(2) : null,
                     convRateSessions: trafficData && trafficData.sessions > 0 ? (d.shopOrdC / trafficData.sessions * 100).toFixed(2) : null,
                     convRateUsers: trafficData && trafficData.users > 0 ? (d.shopOrdC / trafficData.users * 100).toFixed(2) : null,
                     convRateNewUsers: trafficData && trafficData.newUsers > 0 ? (d.shopOrdC / trafficData.newUsers * 100).toFixed(2) : null,
+                    gaUsers: trafficData?.users ?? null,
+                    gaSessions: trafficData?.sessions ?? null,
                     subRev: d.subRevC > 0 ? fmt$(d.subRevC) : null,
                     subRevChg: d.subRevP > 0 ? pct(d.subRevC, d.subRevP).toFixed(1) : null,
                     subOrders: d.subCountC,
+                    subOrdersChg: d.subCountP > 0 ? pct(d.subCountC, d.subCountP).toFixed(1) : null,
                     subCusts: d.subCustsC,
                     subPctRev: d.subPctRevC > 0 ? d.subPctRevC.toFixed(1) : null,
                   }}
@@ -1211,59 +1229,6 @@ export default function AnalyticsPage() {
               </>
             )
           })()}
-
-          {/* ── AI INSIGHTS ── */}
-          <AIInsights
-            period={`${fmtDate(range.start)} – ${fmtDate(range.end)}`}
-            preset={range.label ?? 'custom'}
-            orgName={orgName}
-            metrics={{
-              totalRev: fmt$(d.totalRevC), totalRevP: fmt$(d.totalRevP), totalRevChg: pct(d.totalRevC, d.totalRevP).toFixed(1),
-              totalSp: fmt$(d.totalSpC), totalSpChg: pct(d.totalSpC, d.totalSpP).toFixed(1),
-              roas: d.roasC.toFixed(2), roasP: d.roasP.toFixed(2),
-              orders: d.ordC, ordersChg: pct(d.ordC, d.ordP).toFixed(1),
-              aov: fmt$(d.aovC), aovChg: pct(d.aovC, d.aovP).toFixed(1),
-              cac: fmt$(d.cacC), cacChg: pct(d.cacC, d.cacP).toFixed(1),
-              newCust: d.newCustC, retCust: d.retCustC,
-              retRate: d.shRcrC.toFixed(1),
-              shopifyRev: d.showShopify ? fmt$(d.shTotalC) : null,
-              shopifyRevP: d.showShopify ? fmt$(d.shTotalP) : null,
-              shopifyRevChg: d.shTotalP > 0 ? pct(d.shTotalC, d.shTotalP).toFixed(1) : null,
-              shopifyPctOfTotal: d.totalRevC > 0 ? (d.shTotalC / d.totalRevC * 100).toFixed(1) : null,
-              shopifyGross: d.showShopify ? fmt$(d.shGrossC) : null,
-              shopifyNet: d.showShopify ? fmt$(d.shNetC) : null,
-              shopifyOrders: d.shOrdC,
-              shopifyCust: d.shCustC,
-              shopifyAov: fmt$(d.shAovC),
-              shopifyRoas: d.shRoasC > 0 ? d.shRoasC.toFixed(2) : null,
-              discountRate: d.shDiscRateC.toFixed(1),
-              refundRate: d.shRefRateC.toFixed(1),
-              amazonRev: d.showAmazon && d.amzRevC > 0 ? fmt$(d.amzRevC) : null,
-              amazonRevP: d.showAmazon && d.amzRevP > 0 ? fmt$(d.amzRevP) : null,
-              amazonRevChg: d.amzRevP > 0 ? pct(d.amzRevC, d.amzRevP).toFixed(1) : null,
-              amazonPctOfTotal: d.totalRevC > 0 && d.amzRevC > 0 ? (d.amzRevC / d.totalRevC * 100).toFixed(1) : null,
-              amazonUnits: d.amzUnitC,
-              amazonAov: d.amzAovC > 0 ? fmt$(d.amzAovC) : null,
-              metaSp: d.showMeta ? fmt$(d.metaSpC) : null,
-              metaSpChg: d.metaSpP > 0 ? pct(d.metaSpC, d.metaSpP).toFixed(1) : null,
-              metaRoas: d.metaRoasC > 0 ? d.metaRoasC.toFixed(2) : null,
-              metaImpr: d.metaImprC, metaClicks: d.metaClkC, metaConv: d.metaConvC,
-              cltv: d.cltvC > 0 ? fmt$(d.cltvC) : null,
-              cltvP: d.cltvP > 0 ? fmt$(d.cltvP) : null,
-              cltvChg: d.cltvP > 0 ? pct(d.cltvC, d.cltvP).toFixed(1) : null,
-              cltvCacRatio: d.cltvC > 0 && d.cacC > 0 ? (d.cltvC / d.cacC).toFixed(2) : null,
-              subRev: d.subRevC > 0 ? fmt$(d.subRevC) : null,
-              subRevChg: d.subRevP > 0 ? pct(d.subRevC, d.subRevP).toFixed(1) : null,
-              subOrders: d.subCountC,
-              subOrdersChg: d.subCountP > 0 ? pct(d.subCountC, d.subCountP).toFixed(1) : null,
-              subCusts: d.subCustsC,
-              subPctRev: d.subPctRevC > 0 ? d.subPctRevC.toFixed(1) : null,
-              convRate: trafficData && trafficData.users > 0 ? (d.shopOrdC / trafficData.users * 100).toFixed(2) : null,
-              convRateP: trafficData && trafficData.usersP > 0 && d.shopOrdP > 0 ? (d.shopOrdP / trafficData.usersP * 100).toFixed(2) : null,
-              gaUsers: trafficData?.users ?? null,
-              gaSessions: trafficData?.sessions ?? null,
-            }}
-          />
 
           {/* ── YESTERDAY ── */}
           {insightFetched && <YesterdayInsightCard insight={yesterdayInsight} />}
@@ -1518,6 +1483,18 @@ export default function AnalyticsPage() {
             { label: 'Total Order Items', value: fmtN(d.amzUnitC), sub: chg(d.amzUnitC, d.amzUnitP) },
             { label: 'Days Reported',     value: fmtN(d.amzDaysC) },
             { label: 'AOV',           value: fmt$(d.amzAovC),  sub: chg(d.amzAovC, d.amzAovP) },
+          ]} />
+
+          </> }
+
+          {/* ── WALMART ── */}
+          {d.showWalmart && d.wmRevC > 0 && <SectionHeader title={sec('Walmart')} color="#0071ce" platform="walmart" />}
+          {d.showWalmart && d.wmRevC > 0 && <>
+          <MetricRow items={[
+            { label: 'Gross Sales',       value: fmt$(d.wmRevC),  sub: chg(d.wmRevC, d.wmRevP) },
+            { label: 'Total Order Items', value: fmtN(d.wmUnitC), sub: chg(d.wmUnitC, d.wmUnitP) },
+            { label: 'Days Reported',     value: fmtN(d.wmDaysC) },
+            { label: 'AOV',               value: fmt$(d.wmAovC),  sub: chg(d.wmAovC, d.wmAovP) },
           ]} />
 
           </> }
