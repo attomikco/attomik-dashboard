@@ -31,18 +31,32 @@ function getGreeting(tz: string): string {
   return 'Hey'
 }
 
-function getContextLine(metrics: any, orgName: string, period: string): string {
+// Produce a natural sentence fragment like "month to date", "in the last 30 days",
+// or the raw date range in parens if no preset is active.
+function renderPeriodPhrase(period: string, periodLabel?: string): string {
+  if (!periodLabel) return `(${period})`
+  const l = periodLabel.toLowerCase()
+  const needsArticle: Record<string, string> = {
+    'last 7 days': 'in the last 7 days',
+    'last 30 days': 'in the last 30 days',
+    'last 90 days': 'in the last 90 days',
+  }
+  return needsArticle[l] ?? l
+}
+
+function getContextLine(metrics: any, orgName: string, period: string, periodLabel?: string): string {
   if (!metrics) return 'what do you want to explore?'
   const revChg = parseFloat(metrics.totalRevChg)
   const ordChg = parseFloat(metrics.ordersChg)
   const roas = parseFloat(metrics.roas)
+  const p = renderPeriodPhrase(period, periodLabel)
 
-  if (!isNaN(revChg) && revChg > 5) return `${orgName} revenue is up ${revChg}% (${period}) — want to dig into what's driving the growth?`
-  if (!isNaN(roas) && roas >= 3) return `${orgName} ROAS is sitting at ${roas}x (${period}). Curious which channels are pulling the most weight?`
-  if (!isNaN(ordChg) && ordChg > 5) return `${orgName} orders are up ${ordChg}% (${period}). Want to see where the momentum is coming from?`
-  if (!isNaN(revChg) && revChg > 0) return `${orgName} revenue is trending up (${period}). Ready to explore what's working?`
+  if (!isNaN(revChg) && revChg > 5) return `${orgName} revenue is up ${revChg}% ${p} — want to dig into what's driving the growth?`
+  if (!isNaN(roas) && roas >= 3) return `${orgName} ROAS is sitting at ${roas}x ${p}. Curious which channels are pulling the most weight?`
+  if (!isNaN(ordChg) && ordChg > 5) return `${orgName} orders are up ${ordChg}% ${p}. Want to see where the momentum is coming from?`
+  if (!isNaN(revChg) && revChg > 0) return `${orgName} revenue is trending up ${p}. Ready to explore what's working?`
 
-  if (metrics.totalRev) return `${orgName} has done ${metrics.totalRev} in revenue ${period}. Want to find opportunities to grow?`
+  if (metrics.totalRev) return `${orgName} has done ${metrics.totalRev} in revenue ${p}. Want to find opportunities to grow?`
   return 'what do you want to explore?'
 }
 
@@ -69,7 +83,7 @@ export default function AskAttomik({
 
   const firstName = userName?.split(' ')[0] || 'there'
   const greeting = getGreeting(timezone)
-  const contextLine = getContextLine(metrics, orgName, period)
+  const contextLine = getContextLine(metrics, orgName, period, periodLabel)
   const questionPills = suggestions && suggestions.length > 0 ? suggestions : DEFAULT_SUGGESTIONS
 
   const generateInsights = async () => {
