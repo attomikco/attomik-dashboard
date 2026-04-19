@@ -1055,6 +1055,8 @@ export default function AnalyticsPage() {
   const fmtDate = (s: string) => new Date(s + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   const { prevStart, prevEnd: prevEndLabel } = getPrevPeriod(range.start, range.end, range.compareMode, range.customCompareStart, range.customCompareEnd)
   const prevLabel = `${fmtDate(prevStart)} – ${fmtDate(prevEndLabel)}`
+  const periodLabel = range.label ?? `${fmtDate(range.start)} – ${fmtDate(range.end)}`
+  const sec = (title: string) => `${periodLabel} — ${title}`
 
   return (
     <div style={{ background: C.paper, minHeight: '100vh' }}>
@@ -1266,7 +1268,7 @@ export default function AnalyticsPage() {
           {insightFetched && <YesterdayInsightCard insight={yesterdayInsight} />}
 
           {/* ── OVERVIEW KPIs ── */}
-          <SectionHeader title={`${range.label ?? `${fmtDate(range.start)} – ${fmtDate(range.end)}`} — Overview`} />
+          <SectionHeader title={sec('Overview')} />
           <div className="kpi-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
             <KpiCard label="Total Sales"    value={fmt$(d.totalRevC)} change={pct(d.totalRevC, d.totalRevP)} subtitle="Blended revenue"
               target={monthlyTarget?.sales_target ? { value: monthlyTarget.sales_target, current: d.totalRevC, label: 'target' } : undefined} />
@@ -1348,7 +1350,7 @@ export default function AnalyticsPage() {
           })()}
 
           {/* ── PERFORMANCE ── */}
-          <SectionHeader title="Performance" />
+          <SectionHeader title={sec('Performance')} />
 
           {/* ── CHARTS ROW 1 ── */}
           <div className="chart-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
@@ -1419,7 +1421,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* ── CUSTOMER REVENUE ── */}
-          <SectionHeader title="Customer Revenue" />
+          <SectionHeader title={sec('Customer Revenue')} />
           <div className="kpi-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 16 }}>
             <KpiCard label="New Customer Rev."       value={fmt$(d.newRevC)} subtitle={d.totalRevC > 0 ? `${((d.newRevC/d.totalRevC)*100).toFixed(1)}% of total` : ''} />
             <KpiCard label="Returning Customer Rev." value={fmt$(d.retRevC)} subtitle={d.totalRevC > 0 ? `${((d.retRevC/d.totalRevC)*100).toFixed(1)}% of total` : ''} />
@@ -1443,7 +1445,7 @@ export default function AnalyticsPage() {
           {/* ── TRAFFIC (GA4) ── */}
           {trafficData && (
             <>
-              <SectionHeader title="Traffic" color="#4285f4" platform="google analytics" />
+              <SectionHeader title={sec('Traffic')} color="#4285f4" platform="google analytics" />
               <MetricRow items={[
                 { label: 'Sessions', value: fmtN(trafficData.sessions), sub: trafficData.sessionsP > 0 ? chg(trafficData.sessions, trafficData.sessionsP) : '' },
                 { label: 'Users', value: fmtN(trafficData.users), sub: trafficData.usersP > 0 ? chg(trafficData.users, trafficData.usersP) : '' },
@@ -1458,7 +1460,7 @@ export default function AnalyticsPage() {
           )}
 
           {/* ── SHOPIFY ── */}
-          {d.showShopify && <SectionHeader title="Shopify" color="#96bf48" platform="shopify" />}
+          {d.showShopify && <SectionHeader title={sec('Shopify')} color="#96bf48" platform="shopify" />}
           {d.showShopify && <>
           <div style={{ fontSize: '0.8rem', fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'var(--font-barlow), Barlow, sans-serif', marginBottom: 8 }}>Finance</div>
           <FinanceBreakdown rows={[
@@ -1484,7 +1486,7 @@ export default function AnalyticsPage() {
 
           {/* ── SUBSCRIPTIONS ── */}
           {d.showShopify && d.subCountC > 0 && <>
-          <SectionHeader title="Subscriptions" color="#7c3aed" platform="paywhirl" />
+          <SectionHeader title={sec('Subscriptions')} color="#7c3aed" platform="paywhirl" />
           <MetricRow items={[
             { label: 'Sub. Revenue', value: fmt$(d.subRevC), sub: d.subRevP > 0 ? chg(d.subRevC, d.subRevP) : '' },
             { label: '% of Total Revenue', value: fmtPct(d.subPctRevC), sub: d.subPctRevP > 0 ? chg(d.subPctRevC, d.subPctRevP) : '' },
@@ -1508,7 +1510,7 @@ export default function AnalyticsPage() {
           </> }
 
           {/* ── AMAZON ── */}
-          {d.showAmazon && <SectionHeader title="Amazon" color="#00cc78" platform="amazon" />}
+          {d.showAmazon && <SectionHeader title={sec('Amazon')} color="#00cc78" platform="amazon" />}
           {d.showAmazon && <>
           <MetricRow items={[
             { label: 'Gross Sales',       value: fmt$(d.amzRevC),  sub: chg(d.amzRevC, d.amzRevP) },
@@ -1520,7 +1522,7 @@ export default function AnalyticsPage() {
           </> }
 
           {/* ── AD SPEND ── */}
-          {d.showAds && <SectionHeader title="Ad Spend" color="#000" />}
+          {d.showAds && <SectionHeader title={sec('Ad Spend')} color="#000" />}
           {d.showAds && <>
           <MetricRow items={[
             { label: 'Total Spend', value: fmt$(d.totalSpC),  sub: chg(d.totalSpC, d.totalSpP), invertColors: true },
@@ -1533,7 +1535,7 @@ export default function AnalyticsPage() {
           </> }
 
           {/* ── SCOREBOARD ── */}
-          <SectionHeader title="Scoreboard" />
+          <SectionHeader title={sec('Scoreboard')} />
           <MoMSummaryTable
             currentLabel={range.label}
             previousLabel={prevLabel}
