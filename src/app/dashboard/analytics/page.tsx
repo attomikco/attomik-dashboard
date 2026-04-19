@@ -352,7 +352,7 @@ export default function AnalyticsPage() {
   const [estEOM, setEstEOM] = useState<number | null>(null)
   const [activeOrgId, setActiveOrgId] = useState<string>('')
   const [isSuperadmin, setIsSuperadmin] = useState(false)
-  const [syncTimestamps, setSyncTimestamps] = useState<Record<string, string | null>>({ shopify: null, amazon: null, meta: null })
+  const [syncTimestamps, setSyncTimestamps] = useState<Record<string, string | null>>({ shopify: null, amazon: null, walmart: null, meta: null })
   const [monthlyTarget, setMonthlyTarget] = useState<any>(null)
   const [yesterdayInsight, setYesterdayInsight] = useState<any | null>(null)
   const [insightFetched, setInsightFetched] = useState(false)
@@ -411,11 +411,11 @@ export default function AnalyticsPage() {
     fetch(`/api/sync/timestamps?org_id=${orgId}&_t=${Date.now()}`, { cache: 'no-store' as RequestCache })
       .then(r => r.ok ? r.json() : [])
       .then((rows: { source: string; last_synced_at: string }[]) => {
-        const ts: Record<string, string | null> = { shopify: null, amazon: null, meta: null }
+        const ts: Record<string, string | null> = { shopify: null, amazon: null, walmart: null, meta: null }
         for (const row of rows) ts[row.source] = row.last_synced_at
         setSyncTimestamps(ts)
       })
-      .catch(() => setSyncTimestamps({ shopify: null, amazon: null, meta: null }))
+      .catch(() => setSyncTimestamps({ shopify: null, amazon: null, walmart: null, meta: null }))
 
     // Fetch yesterday's metrics for the Yesterday card (DoD comparison)
     fetch(`/api/insights/yesterday?org_id=${orgId}&_t=${Date.now()}`, { cache: 'no-store' as RequestCache })
@@ -481,6 +481,7 @@ export default function AnalyticsPage() {
     const isConfigured = Object.keys(ch).length > 0
     const showShopify = !isConfigured || ch.shopify !== false
     const showAmazon  = !isConfigured || ch.amazon  !== false
+    const showWalmart = !isConfigured || ch.walmart !== false
     const showMeta    = !isConfigured || ch.meta    !== false
     const showGoogle  = !isConfigured || ch.google  !== false
     const showAds     = showMeta || showGoogle
@@ -609,12 +610,14 @@ export default function AnalyticsPage() {
     const enabledOrders = cur.filter(o =>
       (showShopify && o.source === 'shopify') ||
       (showAmazon  && o.source === 'amazon')  ||
-      (showShopify && !['shopify','amazon'].includes(o.source)) // fallback for uncategorized
+      (showWalmart && o.source === 'walmart') ||
+      (showShopify && !['shopify','amazon','walmart'].includes(o.source)) // fallback for uncategorized
     )
     const enabledOrdersP = prev.filter(o =>
       (showShopify && o.source === 'shopify') ||
       (showAmazon  && o.source === 'amazon')  ||
-      (showShopify && !['shopify','amazon'].includes(o.source))
+      (showWalmart && o.source === 'walmart') ||
+      (showShopify && !['shopify','amazon','walmart'].includes(o.source))
     )
     const totalRevC = enabledOrders.reduce((s, o) => s + Number(o.total_price), 0)
     const totalRevP = enabledOrdersP.reduce((s, o) => s + Number(o.total_price), 0)
@@ -624,7 +627,7 @@ export default function AnalyticsPage() {
     const roasP = totalSpP > 0 ? totalRevP / totalSpP : 0
     // Order count: for Amazon daily aggregates, use units field; for Shopify, count 1 per row
     const countOrders = (orders: any[]) => orders.reduce((s, o) =>
-      s + (o.source === 'amazon' ? (Number(o.units) || 1) : 1), 0)
+      s + ((o.source === 'amazon' || o.source === 'walmart') ? (Number(o.units) || 1) : 1), 0)
     const ordC  = countOrders(enabledOrders)
     const ordP  = countOrders(enabledOrdersP)
     // Shopify-only PAID order counts for conversion rate (GA4 traffic is Shopify-only)
@@ -913,7 +916,7 @@ export default function AnalyticsPage() {
       const d = new Date(o.created_at)
       const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
       if (!monthMap[key]) monthMap[key] = { customers: new Set(), spend: 0, orders: 0 }
-      monthMap[key].orders += o.source === 'amazon' ? (Number(o.units) || 1) : 1
+      monthMap[key].orders += (o.source === 'amazon' || o.source === 'walmart') ? (Number(o.units) || 1) : 1
       if (o.customer_email) monthMap[key].customers.add(o.customer_email)
     })
     allSp.forEach(s => { const key = s.date.slice(0,7); if (monthMap[key]) monthMap[key].spend += Number(s.spend) })
@@ -954,7 +957,7 @@ export default function AnalyticsPage() {
 
       const wOrds = allOrd.filter(o => o.created_at >= wStartISO && o.created_at < wEndISO)
       const wRev  = wOrds.reduce((s, o) => s + Number(o.total_price), 0)
-      const wOrdCount = wOrds.reduce((s, o) => s + (o.source === 'amazon' ? (Number(o.units) || 1) : 1), 0)
+      const wOrdCount = wOrds.reduce((s, o) => s + ((o.source === 'amazon' || o.source === 'walmart') ? (Number(o.units) || 1) : 1), 0)
 
       const wSp = allSp.filter((s: any) => s.date >= wStart.toISOString().split('T')[0] && s.date < wEnd.toISOString().split('T')[0])
       const wSpend = wSp.reduce((s: any, o: any) => s + Number(o.spend), 0)
@@ -1044,6 +1047,7 @@ export default function AnalyticsPage() {
             {([
               { key: 'shopify', label: 'Shopify' },
               { key: 'amazon',  label: 'Amazon'  },
+              { key: 'walmart', label: 'Walmart' },
               { key: 'meta',    label: 'Meta'    },
             ] as const).map(({ key, label }, i) => {
               const ts = syncTimestamps[key]

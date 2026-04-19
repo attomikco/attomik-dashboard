@@ -237,12 +237,14 @@ export default function OverviewPage() {
         const isConfigured = Object.keys(ch).length > 0
         const showShopify = !isConfigured || ch.shopify !== false
         const showAmazon  = !isConfigured || ch.amazon  !== false
+        const showWalmart = !isConfigured || ch.walmart !== false
 
         const filterEnabled = (orders: any[]) => orders.filter(o =>
           o.status !== 'refunded' && (
             (showShopify && o.source === 'shopify') ||
             (showAmazon  && o.source === 'amazon')  ||
-            (showShopify && !['shopify','amazon'].includes(o.source))
+            (showWalmart && o.source === 'walmart') ||
+            (showShopify && !['shopify','amazon','walmart'].includes(o.source))
           )
         )
 
@@ -251,7 +253,7 @@ export default function OverviewPage() {
 
         const revenue     = cur.reduce((s, o)  => s + Number(o.total_price || 0), 0)
         const prevRevenue = prev.reduce((s, o) => s + Number(o.total_price || 0), 0)
-        const countOrd = (ords: any[]) => ords.reduce((s: number, o: any) => s + (o.source === 'amazon' ? (Number(o.units) || 1) : 1), 0)
+        const countOrd = (ords: any[]) => ords.reduce((s: number, o: any) => s + ((o.source === 'amazon' || o.source === 'walmart') ? (Number(o.units) || 1) : 1), 0)
         const orders      = countOrd(cur)
         const prevOrdCnt  = countOrd(prev)
         // AOV uses subtotal (net after discounts) to match analytics exactly

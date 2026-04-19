@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { CheckCircle, XCircle, RefreshCw, Unplug, ShoppingBag, Mail, Send } from 'lucide-react'
+import Link from 'next/link'
+import { CheckCircle, XCircle, RefreshCw, Unplug, ShoppingBag, Mail, Send, Upload } from 'lucide-react'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -46,7 +47,11 @@ export default function SettingsPage() {
   const [metaMsg, setMetaMsg]                 = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [syncingMeta, setSyncingMeta]         = useState(false)
   const [metaSyncResult, setMetaSyncResult]   = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [syncTimestamps, setSyncTimestamps]   = useState<Record<string, string | null>>({ shopify: null, amazon: null, meta: null })
+  const [syncTimestamps, setSyncTimestamps]   = useState<Record<string, string | null>>({ shopify: null, amazon: null, walmart: null, meta: null })
+
+  const [walmartSellerId, setWalmartSellerId] = useState('')
+  const [savingWalmart, setSavingWalmart]     = useState(false)
+  const [walmartMsg, setWalmartMsg]           = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const [targetYear, setTargetYear]   = useState(new Date().getFullYear())
   const [targetMonth, setTargetMonth] = useState(new Date().getMonth() + 1)
@@ -92,6 +97,7 @@ export default function SettingsPage() {
       else setMetaAdAccountId('')
       setMetaTokenSet(!!activeOrg?.meta_access_token)
       setMetaAccessToken('')
+      setWalmartSellerId(activeOrg?.walmart_seller_id ?? '')
       loadTargets(targetYear, targetMonth)
       loadAmzSpend(amzYear, amzMonth)
       loadWeeklyMembers(activeOrgId)
@@ -168,7 +174,7 @@ export default function SettingsPage() {
       const res = await fetch(`/api/sync/timestamps?org_id=${id}`)
       if (!res.ok) return
       const rows: { source: string; last_synced_at: string }[] = await res.json()
-      const ts: Record<string, string | null> = { shopify: null, amazon: null, meta: null }
+      const ts: Record<string, string | null> = { shopify: null, amazon: null, walmart: null, meta: null }
       for (const row of rows) ts[row.source] = row.last_synced_at
       setSyncTimestamps(ts)
     } catch {}
@@ -664,6 +670,75 @@ export default function SettingsPage() {
               <span style={{ fontWeight: 600 }}>{metaSyncResult.text}</span>
             </div>
           )}
+        </Section>
+
+        <Section title="Walmart">
+          {(() => {
+            const walmartConnected = !!syncTimestamps.walmart
+            return (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 8, background: '#0071ce', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                    <span style={{ color: '#fff', fontWeight: 700, fontSize: '0.75rem' }}>W</span>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Walmart</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
+                      {walmartConnected ? 'Connected · CSV import' : 'Not connected'}
+                    </div>
+                  </div>
+                  <span className={`badge ${walmartConnected ? 'badge-paid' : 'badge-failed'}`}>
+                    {walmartConnected ? '● Connected' : '○ Not connected'}
+                  </span>
+                </div>
+
+                {walmartMsg && (
+                  <div className={`alert ${walmartMsg.type === 'success' ? 'alert-success' : 'alert-error'}`} style={{ marginBottom: 16 }}>
+                    {walmartMsg.type === 'success' ? <CheckCircle size={16} /> : <XCircle size={16} />}
+                    <span style={{ fontWeight: 600 }}>{walmartMsg.text}</span>
+                  </div>
+                )}
+
+                <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
+                  <div>
+                    <label className="form-label" style={{ display: 'block', marginBottom: 4 }}>Walmart Seller ID (optional)</label>
+                    <input type="text" placeholder="e.g. 10000012345" value={walmartSellerId} onChange={e => setWalmartSellerId(e.target.value)}
+                      style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', outline: 'none' }} />
+                    <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 6, lineHeight: 1.5 }}>
+                      Saved for future API integration. Today the dashboard imports via CSV.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+                  <button className="btn btn-dark" onClick={async () => {
+                    setSavingWalmart(true); setWalmartMsg(null)
+                    const id = orgId()
+                    if (!id) { setWalmartMsg({ type: 'error', text: 'No active org found' }); setSavingWalmart(false); return }
+                    const { error } = await supabase.from('organizations')
+                      .update({ walmart_seller_id: walmartSellerId.trim() || null }).eq('id', id)
+                    setSavingWalmart(false)
+                    if (error) setWalmartMsg({ type: 'error', text: error.message })
+                    else setWalmartMsg({ type: 'success', text: walmartSellerId.trim() ? 'Walmart Seller ID saved' : 'Walmart Seller ID cleared' })
+                    loadData()
+                  }} disabled={savingWalmart}>
+                    {savingWalmart ? 'Saving…' : 'Save Seller ID'}
+                  </button>
+
+                  <Link href="/dashboard/import" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <Upload size={14} />
+                    Import CSV
+                  </Link>
+                </div>
+
+                {syncTimestamps.walmart && (
+                  <p style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
+                    Last imported: {new Date(syncTimestamps.walmart).toLocaleString()}
+                  </p>
+                )}
+              </>
+            )
+          })()}
         </Section>
 
         <Section title="Amazon Ad Spend">
