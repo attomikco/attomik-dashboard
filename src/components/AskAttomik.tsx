@@ -152,6 +152,21 @@ export default function AskAttomik({
         <div style={{ fontSize: dark ? '1rem' : '1.3rem', fontWeight: dark ? 700 : 800, color: T.headingColor, fontFamily: 'Barlow, sans-serif', letterSpacing: dark ? '-0.01em' : '-0.03em', lineHeight: 1.4 }}>
           {greeting} {firstName} — {contextLine}
         </div>
+        <div style={{
+          marginTop: 10,
+          padding: '8px 12px',
+          background: dark ? 'rgba(0,255,151,0.08)' : '#f2f2f2',
+          border: `1px solid ${dark ? 'rgba(0,255,151,0.2)' : '#e0e0e0'}`,
+          borderLeft: `3px solid #00ff97`,
+          borderRadius: 6,
+          fontSize: '0.8rem',
+          color: T.bodyColor,
+          fontFamily: 'Barlow, sans-serif',
+          lineHeight: 1.5,
+        }}>
+          Answers based on selected period: <strong style={{ fontWeight: 700, color: T.headingColor }}>{period}</strong>
+          <span style={{ color: T.muted }}> · Change the date range above to analyze a different period</span>
+        </div>
         {messages.length === 0 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
             {questionPills.map(q => (
@@ -234,16 +249,6 @@ export default function AskAttomik({
           <Send size={14} />
         </button>
       </form>
-      <div style={{
-        padding: '0 20px 14px',
-        fontSize: '0.72rem',
-        color: T.muted,
-        fontFamily: 'Barlow, sans-serif',
-        lineHeight: 1.4,
-      }}>
-        Answers based on selected period: <strong style={{ fontWeight: 600 }}>{period}</strong>
-        <span style={{ opacity: 0.7 }}> · Change the date range above to analyze a different period</span>
-      </div>
     </div>
   )
 }
