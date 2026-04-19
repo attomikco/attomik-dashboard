@@ -99,7 +99,7 @@ function KpiCard({ label, value, change, invertColors, subtitle, children, targe
         <div style={{ marginTop: 8, width: '100%' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: tIsBad ? '#b91c1c' : C.muted, marginBottom: 4, fontFamily: 'Barlow, sans-serif' }}>
             <span style={{ fontWeight: tIsBad ? 700 : 400 }}>
-              {tIsBad ? `over ${target.label || 'target'} · ${tRatio.toFixed(0)}%` : `${tRatio.toFixed(0)}% of ${target.label || 'target'}`}
+              {tIsBad ? `over ${target.label || 'target'} · +${(tRatio - 100).toFixed(0)}%` : `${tRatio.toFixed(0)}% of ${target.label || 'target'}`}
             </span>
             <span>{tFmt(target.value)}</span>
           </div>
