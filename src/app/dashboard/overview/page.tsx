@@ -36,7 +36,11 @@ function timeAgo(iso: string | null): string {
   return `${Math.floor(hrs / 24)}d ago`
 }
 function fmtTs(iso: string) {
-  return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  const d = new Date(iso)
+  const today = new Date().toDateString() === d.toDateString()
+  return today
+    ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 const defaultRange: DateRange = {
@@ -462,7 +466,7 @@ export default function OverviewPage() {
       <div className="overview-topbar topbar">
         <div className="topbar-title" style={{ minWidth: 0, flex: 1 }}>
           <h1>Overview</h1>
-          <div className="overview-subtitle" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
+          <div className="overview-subtitle" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
             <p className="caption" style={{ whiteSpace: 'nowrap', margin: 0 }}>
               {loadingOrgs ? '…' : `${orgs.length} project${orgs.length !== 1 ? 's' : ''}`} · vs {fmtDate(prevStartLabel)} – {fmtDate(prevEndLabel)}
             </p>
@@ -738,7 +742,7 @@ export default function OverviewPage() {
               <table style={{ minWidth: 980 }}>
                 <thead>
                   <tr>
-                    {['Project', 'Total Sales', 'ROAS', 'Ad Spend', 'CAC', 'AOV', 'Orders', 'Conv. Rate', ''].map((h, i) => (
+                    {['Project', 'Total Sales', 'Orders', 'ROAS', 'Ad Spend', 'AOV', 'CAC', 'Conv. Rate', ''].map((h, i) => (
                       <th key={i} style={{
                         textAlign: h === '' ? 'right' : 'left',
                       }}>{h}</th>
@@ -780,6 +784,19 @@ export default function OverviewPage() {
                         }
                       </td>
 
+                      {/* Orders */}
+                      <td style={{ padding: '16px 20px', minWidth: 110 }}>
+                        {org.loading
+                          ? <Skeleton height={14} width={60} />
+                          : <>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                                <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>{fmtN(org.orders)}</span>
+                                <DeltaBadge value={pct(org.orders, org.prevOrders)} />
+                              </div>
+                            </>
+                        }
+                      </td>
+
                       {/* ROAS */}
                       <td style={{ padding: '16px 20px', minWidth: 90 }}>
                         {org.loading
@@ -808,19 +825,6 @@ export default function OverviewPage() {
                         }
                       </td>
 
-                      {/* CAC */}
-                      <td style={{ padding: '16px 20px', minWidth: 100 }}>
-                        {org.loading
-                          ? <Skeleton height={14} width={50} />
-                          : org.cac > 0
-                            ? <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>{fmt$(org.cac)}</span>
-                                {org.prevCac > 0 && <DeltaBadge value={pct(org.cac, org.prevCac)} invert />}
-                              </div>
-                            : <span style={{ fontSize: '0.8rem', color: '#ccc', fontFamily: 'Barlow, sans-serif' }}>—</span>
-                        }
-                      </td>
-
                       {/* AOV */}
                       <td style={{ padding: '16px 20px', minWidth: 100 }}>
                         {org.loading
@@ -832,16 +836,16 @@ export default function OverviewPage() {
                         }
                       </td>
 
-                      {/* Orders */}
-                      <td style={{ padding: '16px 20px', minWidth: 110 }}>
+                      {/* CAC */}
+                      <td style={{ padding: '16px 20px', minWidth: 100 }}>
                         {org.loading
-                          ? <Skeleton height={14} width={60} />
-                          : <>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                                <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>{fmtN(org.orders)}</span>
-                                <DeltaBadge value={pct(org.orders, org.prevOrders)} />
+                          ? <Skeleton height={14} width={50} />
+                          : org.cac > 0
+                            ? <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>{fmt$(org.cac)}</span>
+                                {org.prevCac > 0 && <DeltaBadge value={pct(org.cac, org.prevCac)} invert />}
                               </div>
-                            </>
+                            : <span style={{ fontSize: '0.8rem', color: '#ccc', fontFamily: 'Barlow, sans-serif' }}>—</span>
                         }
                       </td>
 
@@ -899,10 +903,10 @@ export default function OverviewPage() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       {[
                         { label: 'Total Sales', value: fmt$(org.revenue),  delta: pct(org.revenue, org.prevRevenue), invert: false },
-                        { label: 'ROAS',    value: org.roas > 0 ? `${org.roas.toFixed(2)}x` : '—', delta: org.roas > 0 ? pct(org.roas, org.prevRoas) : null, invert: false },
-                        { label: 'CAC',     value: org.cac > 0 ? fmt$(org.cac) : '—', delta: org.cac > 0 && org.prevCac > 0 ? pct(org.cac, org.prevCac) : null, invert: true },
-                        { label: 'AOV',     value: org.aov > 0 ? fmt$(org.aov) : '—', delta: org.aov > 0 ? pct(org.aov, org.prevAov) : null, invert: false },
                         { label: 'Orders',  value: fmtN(org.orders),   delta: pct(org.orders, org.prevOrders), invert: false },
+                        { label: 'ROAS',    value: org.roas > 0 ? `${org.roas.toFixed(2)}x` : '—', delta: org.roas > 0 ? pct(org.roas, org.prevRoas) : null, invert: false },
+                        { label: 'AOV',     value: org.aov > 0 ? fmt$(org.aov) : '—', delta: org.aov > 0 ? pct(org.aov, org.prevAov) : null, invert: false },
+                        { label: 'CAC',     value: org.cac > 0 ? fmt$(org.cac) : '—', delta: org.cac > 0 && org.prevCac > 0 ? pct(org.cac, org.prevCac) : null, invert: true },
                         { label: 'Conv. Rate', value: org.convRate > 0 ? `${org.convRate.toFixed(2)}%` : '—', delta: org.convRate > 0 && org.prevConvRate > 0 ? pct(org.convRate, org.prevConvRate) : null, invert: false },
                       ].map(k => (
                         <div key={k.label} style={{ background: C.cream, borderRadius: 8, padding: '10px 12px' }}>
@@ -939,14 +943,15 @@ export default function OverviewPage() {
         @media (max-width: 680px) {
           .summary-grid     { grid-template-columns: 1fr 1fr !important; min-width: 0 !important; gap: 8px !important; }
           .summary-grid .kpi-card { padding: 14px 14px !important; }
-          .overview-topbar  { flex-wrap: wrap !important; padding: 14px 16px 14px 60px !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 100 !important; }
-          .overview-content { padding-top: 84px !important; }
-          .overview-subtitle { flex-direction: column !important; align-items: flex-start !important; gap: 4px !important; }
-          .overview-sync-row { flex-direction: row !important; flex-wrap: wrap !important; gap: 8px !important; align-items: stretch !important; margin-bottom: 16px !important; }
+          .overview-topbar  { flex-wrap: wrap !important; padding: 12px 14px 10px 58px !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 100 !important; }
+          .overview-topbar h1 { line-height: 1.1 !important; }
+          .overview-content { padding: 14px 14px 80px !important; padding-top: 72px !important; }
+          .overview-subtitle { flex-direction: column !important; align-items: flex-start !important; gap: 2px !important; margin-top: 6px !important; }
+          .overview-sync-row { flex-direction: row !important; flex-wrap: wrap !important; gap: 6px !important; align-items: stretch !important; margin-bottom: 12px !important; margin-top: 0 !important; }
           .overview-sync-row .sync-item-all { flex: 1 1 100% !important; min-width: 0 !important; }
-          .overview-sync-row .sync-item { flex: 1 1 0 !important; min-width: 0 !important; }
-          .overview-sync-row .sync-item button { width: 100% !important; padding: 6px 10px !important; font-size: 0.72rem !important; }
-          .overview-sync-row .sync-item > div { font-size: 0.62rem !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          .overview-sync-row .sync-item { flex: 1 1 0 !important; min-width: 0 !important; gap: 2px !important; }
+          .overview-sync-row .sync-item button { width: 100% !important; padding: 6px 8px !important; font-size: 0.7rem !important; }
+          .overview-sync-row .sync-item > div { font-size: 0.6rem !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
           .overview-table { display: none !important; }
           .overview-cards { display: flex !important; }
         }
