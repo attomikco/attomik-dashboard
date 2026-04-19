@@ -421,6 +421,7 @@ function buildHtml(opts: {
           </table>
         </td></tr>
 
+        ${channel.shopifyPct > 0 && channel.amazonPct > 0 ? `
         <tr><td style="padding:12px 32px 0;">
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f8f8;border:1px solid #e0e0e0;border-radius:12px;">
             <tr><td style="padding:16px 18px;">
@@ -432,7 +433,7 @@ function buildHtml(opts: {
               </div>
             </td></tr>
           </table>
-        </td></tr>
+        </td></tr>` : ''}
 
         <tr><td align="center" style="padding:28px 32px 32px;">
           <a href="${dashboardUrl}" style="display:inline-block;background:#000000;color:#00ff97;text-decoration:none;font-weight:700;font-size:14px;padding:14px 28px;border-radius:999px;letter-spacing:0.02em;">View Dashboard →</a>
