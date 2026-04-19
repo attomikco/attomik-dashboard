@@ -2,11 +2,15 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const fetchCache = 'force-no-store'
 
 const NO_CACHE = {
   'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
   'CDN-Cache-Control': 'no-store',
   'Vercel-CDN-Cache-Control': 'no-store',
+  'Pragma': 'no-cache',
+  'Expires': '0',
 }
 
 export async function GET(request: Request) {
@@ -38,6 +42,7 @@ export async function GET(request: Request) {
     .from('sync_timestamps')
     .select('source, last_synced_at')
     .eq('org_id', orgId)
+    .order('last_synced_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(debug ? { rows: data ?? [], debug: debugInfo } : data ?? [], { headers: NO_CACHE })

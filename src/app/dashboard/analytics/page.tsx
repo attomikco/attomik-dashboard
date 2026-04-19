@@ -360,6 +360,32 @@ export default function AnalyticsPage() {
 
   useEffect(() => { fetchData() }, [range])
 
+  // Sync timestamps — fetched independently of the heavy fetchData flow so a
+  // stall upstream can't leave the topbar showing stale values. Fires on
+  // mount and whenever activeOrgId changes.
+  useEffect(() => {
+    const orgId = activeOrgId || localStorage.getItem('activeOrgId')
+    if (!orgId) return
+    let cancelled = false
+    fetch(`/api/sync/timestamps?org_id=${orgId}&_t=${Date.now()}`, {
+      cache: 'no-store' as RequestCache,
+      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then(rows => {
+        if (cancelled) return
+        const ts: Record<string, string | null> = { shopify: null, amazon: null, walmart: null, meta: null }
+        if (Array.isArray(rows)) {
+          for (const row of rows) {
+            if (row?.source && row?.last_synced_at) ts[row.source] = row.last_synced_at
+          }
+        }
+        setSyncTimestamps(ts)
+      })
+      .catch(() => { if (!cancelled) setSyncTimestamps({ shopify: null, amazon: null, walmart: null, meta: null }) })
+    return () => { cancelled = true }
+  }, [activeOrgId])
+
   // Topbar scroll shadow
   useEffect(() => {
     const handler = () => {
@@ -407,15 +433,7 @@ export default function AnalyticsPage() {
     if (orgData?.name) { setOrgName(orgData.name); document.title = `${orgData.name} Analytics | Attomik` }
     if (orgData?.shopify_synced_at) setLastSynced(orgData.shopify_synced_at)
 
-    // Fetch sync timestamps — DB is source of truth, no localStorage merge
-    fetch(`/api/sync/timestamps?org_id=${orgId}&_t=${Date.now()}`, { cache: 'no-store' as RequestCache })
-      .then(r => r.ok ? r.json() : [])
-      .then((rows: { source: string; last_synced_at: string }[]) => {
-        const ts: Record<string, string | null> = { shopify: null, amazon: null, walmart: null, meta: null }
-        for (const row of rows) ts[row.source] = row.last_synced_at
-        setSyncTimestamps(ts)
-      })
-      .catch(() => setSyncTimestamps({ shopify: null, amazon: null, walmart: null, meta: null }))
+    // Sync timestamps are fetched by a dedicated useEffect keyed on activeOrgId.
 
     // Fetch yesterday's metrics for the Yesterday card (DoD comparison)
     fetch(`/api/insights/yesterday?org_id=${orgId}&_t=${Date.now()}`, { cache: 'no-store' as RequestCache })
