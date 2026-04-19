@@ -48,10 +48,13 @@ function getContextLine(metrics: any, orgName: string, period: string): string {
 
 const DEFAULT_SUGGESTIONS = [
   'How are we trending this month?',
+  'Where did we lose revenue yesterday?',
   'Why did CAC change?',
   'How is Amazon vs Shopify?',
+  'What drove ROAS up or down?',
   'What\'s our best performing channel?',
   'Break down our conversion rates',
+  'Which day was the biggest?',
 ]
 
 export default function AskAttomik({
@@ -216,22 +219,20 @@ export default function AskAttomik({
             }
           </button>
         </div>
-        {messages.length === 0 && (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
-            {questionPills.map(q => (
-              <button key={q} onClick={() => { setInput(q); }} style={{
-                padding: '5px 12px', background: T.pillBg, border: `1px solid ${T.pillBorder}`, borderRadius: 20,
-                fontSize: '0.72rem', fontWeight: 500, color: T.pillColor, fontFamily: 'Barlow, sans-serif',
-                cursor: 'pointer', transition: '0.15s', whiteSpace: 'nowrap',
-              }}
-                onMouseEnter={e => { e.currentTarget.style.background = T.pillHoverBg; e.currentTarget.style.color = T.pillHoverColor; e.currentTarget.style.borderColor = T.pillHoverBg }}
-                onMouseLeave={e => { e.currentTarget.style.background = T.pillBg; e.currentTarget.style.color = T.pillColor; e.currentTarget.style.borderColor = T.pillBorder }}
-              >
-                {q}
-              </button>
-            ))}
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
+          {questionPills.map(q => (
+            <button key={q} onClick={() => { setInput(q); }} style={{
+              padding: '5px 12px', background: T.pillBg, border: `1px solid ${T.pillBorder}`, borderRadius: 20,
+              fontSize: '0.72rem', fontWeight: 500, color: T.pillColor, fontFamily: 'Barlow, sans-serif',
+              cursor: 'pointer', transition: '0.15s', whiteSpace: 'nowrap',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.background = T.pillHoverBg; e.currentTarget.style.color = T.pillHoverColor; e.currentTarget.style.borderColor = T.pillHoverBg }}
+              onMouseLeave={e => { e.currentTarget.style.background = T.pillBg; e.currentTarget.style.color = T.pillColor; e.currentTarget.style.borderColor = T.pillBorder }}
+            >
+              {q}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Messages */}
