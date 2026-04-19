@@ -479,86 +479,36 @@ export default function OverviewPage() {
 
       <div className={`overview-content page-content${isRefetching ? ' is-refetching' : ''}`} style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 40px) 80px' }}>
 
-        {/* Sync row — at the very top for quick access */}
+        {/* Sync row — single button, runs Shopify + Meta */}
         {isSuperadmin && !loadingOrgs && (
-          <div className="overview-sync-row" style={{
-            display: 'flex', alignItems: 'flex-start', gap: 16,
-            marginBottom: 20, flexWrap: 'wrap',
-          }}>
-            <div className="sync-item sync-item-all" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <button
-                onClick={handleSyncAll}
-                disabled={syncingShopify || syncingMeta}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  padding: '8px 16px', background: C.ink, border: `1px solid ${C.ink}`, borderRadius: 8,
-                  fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.8rem',
-                  color: (syncingShopify || syncingMeta) ? '#888' : C.accent,
-                  cursor: (syncingShopify || syncingMeta) ? 'not-allowed' : 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <RefreshCw size={12} style={{ animation: (syncingShopify && syncingMeta) ? 'spin 1s linear infinite' : 'none' }} />
-                {(syncingShopify && syncingMeta) ? 'Syncing all…' : 'Sync All'}
-              </button>
-              <div style={{ fontSize: '0.7rem', color: '#aaa', fontFamily: 'Barlow, sans-serif', lineHeight: 1.3 }}>
-                Shopify + Meta
-              </div>
-            </div>
-            <div className="sync-item" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <button
-                onClick={handleSyncShopify}
-                disabled={syncingShopify || syncingMeta}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  padding: '8px 14px', background: '#fff', border: `1px solid ${C.border}`, borderRadius: 8,
-                  fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.8rem',
-                  color: syncingShopify ? C.muted : '#007a48',
-                  cursor: syncingShopify || syncingMeta ? 'not-allowed' : 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <RefreshCw size={12} style={{ animation: syncingShopify ? 'spin 1s linear infinite' : 'none' }} />
-                {syncingShopify ? 'Syncing…' : 'Sync Shopify'}
-              </button>
-              <div style={{ fontSize: '0.7rem', color: '#aaa', fontFamily: 'Barlow, sans-serif', lineHeight: 1.3 }}>
-                {shopifySyncResult && (
-                  <span style={{ fontWeight: 600, color: shopifySyncResult.ok ? '#007a48' : '#b91c1c' }}>
-                    {shopifySyncResult.text}
-                  </span>
-                )}
-                {!shopifySyncResult && syncTimestamps.shopify && !syncingShopify && (
-                  <>{fmtTs(syncTimestamps.shopify)} ({timeAgo(syncTimestamps.shopify)})</>
-                )}
-              </div>
-            </div>
-
-            <div className="sync-item" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <button
-                onClick={handleSyncMeta}
-                disabled={syncingMeta || syncingShopify}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  padding: '8px 14px', background: '#fff', border: `1px solid ${C.border}`, borderRadius: 8,
-                  fontFamily: 'Barlow, sans-serif', fontWeight: 600, fontSize: '0.8rem',
-                  color: syncingMeta ? C.muted : '#1877f2',
-                  cursor: syncingMeta || syncingShopify ? 'not-allowed' : 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <RefreshCw size={12} style={{ animation: syncingMeta ? 'spin 1s linear infinite' : 'none' }} />
-                {syncingMeta ? 'Syncing…' : 'Sync Meta'}
-              </button>
-              <div style={{ fontSize: '0.7rem', color: '#aaa', fontFamily: 'Barlow, sans-serif', lineHeight: 1.3 }}>
-                {metaSyncResult && (
-                  <span style={{ fontWeight: 600, color: metaSyncResult.ok ? '#007a48' : '#b91c1c' }}>
-                    {metaSyncResult.text}
-                  </span>
-                )}
-                {!metaSyncResult && syncTimestamps.meta && !syncingMeta && (
-                  <>{fmtTs(syncTimestamps.meta)} ({timeAgo(syncTimestamps.meta)})</>
-                )}
-              </div>
+          <div className="overview-sync-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, marginBottom: 16 }}>
+            <button
+              className="overview-sync-all-btn"
+              onClick={handleSyncAll}
+              disabled={syncingShopify || syncingMeta}
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                padding: '9px 18px', background: C.ink, border: `1px solid ${C.ink}`, borderRadius: 8,
+                fontFamily: 'Barlow, sans-serif', fontWeight: 700, fontSize: '0.8rem',
+                color: (syncingShopify || syncingMeta) ? '#888' : C.accent,
+                cursor: (syncingShopify || syncingMeta) ? 'not-allowed' : 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <RefreshCw size={12} style={{ animation: (syncingShopify || syncingMeta) ? 'spin 1s linear infinite' : 'none' }} />
+              {(syncingShopify || syncingMeta) ? 'Syncing…' : 'Sync All'}
+            </button>
+            <div style={{ fontSize: '0.7rem', color: '#888', fontFamily: 'Barlow, sans-serif', lineHeight: 1.3 }}>
+              {(shopifySyncResult || metaSyncResult) ? (
+                <span style={{ fontWeight: 600, color: (shopifySyncResult?.ok !== false && metaSyncResult?.ok !== false) ? '#007a48' : '#b91c1c' }}>
+                  {[shopifySyncResult?.text, metaSyncResult?.text].filter(Boolean).join(' · ')}
+                </span>
+              ) : (syncTimestamps.shopify || syncTimestamps.meta) ? (
+                <>Last synced: {[
+                  syncTimestamps.shopify ? `Shopify ${fmtTs(syncTimestamps.shopify)}` : null,
+                  syncTimestamps.meta    ? `Meta ${fmtTs(syncTimestamps.meta)}`       : null,
+                ].filter(Boolean).join(' · ')}</>
+              ) : null}
             </div>
           </div>
         )}
@@ -943,15 +893,12 @@ export default function OverviewPage() {
         @media (max-width: 680px) {
           .summary-grid     { grid-template-columns: 1fr 1fr !important; min-width: 0 !important; gap: 8px !important; }
           .summary-grid .kpi-card { padding: 14px 14px !important; }
-          .overview-topbar  { flex-wrap: wrap !important; padding: 10px 14px 8px 58px !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 100 !important; }
+          .overview-topbar  { flex-wrap: wrap !important; padding: 10px 14px 10px 58px !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 100 !important; }
           .overview-topbar h1 { line-height: 1.1 !important; font-size: 1.35rem !important; }
-          .overview-content { padding: 8px 14px 80px !important; padding-top: 66px !important; }
-          .overview-subtitle { flex-direction: column !important; align-items: flex-start !important; gap: 2px !important; margin-top: 8px !important; }
-          .overview-sync-row { flex-direction: column !important; flex-wrap: nowrap !important; gap: 6px !important; align-items: stretch !important; margin-bottom: 10px !important; margin-top: 0 !important; }
-          .overview-sync-row .sync-item,
-          .overview-sync-row .sync-item-all { flex: 1 1 100% !important; min-width: 0 !important; display: flex !important; flex-direction: row !important; align-items: center !important; gap: 10px !important; }
-          .overview-sync-row .sync-item button { width: auto !important; min-width: 130px !important; padding: 7px 12px !important; font-size: 0.75rem !important; flex-shrink: 0 !important; }
-          .overview-sync-row .sync-item > div { font-size: 0.65rem !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto !important; margin: 0 !important; text-align: right; }
+          .overview-content { padding: 6px 14px 80px !important; padding-top: 64px !important; }
+          .overview-subtitle { flex-direction: column !important; align-items: flex-start !important; gap: 2px !important; margin-top: 10px !important; }
+          .overview-sync-row { gap: 4px !important; margin-bottom: 10px !important; margin-top: 0 !important; }
+          .overview-sync-all-btn { width: 100% !important; padding: 10px 16px !important; font-size: 0.8rem !important; }
           .overview-table { display: none !important; }
           .overview-cards { display: flex !important; }
         }
