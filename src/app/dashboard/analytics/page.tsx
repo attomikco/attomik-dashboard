@@ -1266,7 +1266,7 @@ export default function AnalyticsPage() {
           {insightFetched && <YesterdayInsightCard insight={yesterdayInsight} />}
 
           {/* ── OVERVIEW KPIs ── */}
-          <SectionHeader title="Overview" />
+          <SectionHeader title={`${range.label ?? `${fmtDate(range.start)} – ${fmtDate(range.end)}`} — Overview`} />
           <div className="kpi-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
             <KpiCard label="Total Sales"    value={fmt$(d.totalRevC)} change={pct(d.totalRevC, d.totalRevP)} subtitle="Blended revenue"
               target={monthlyTarget?.sales_target ? { value: monthlyTarget.sales_target, current: d.totalRevC, label: 'target' } : undefined} />
