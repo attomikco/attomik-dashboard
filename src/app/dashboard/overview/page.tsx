@@ -893,10 +893,10 @@ export default function OverviewPage() {
         @media (max-width: 680px) {
           .summary-grid     { grid-template-columns: 1fr 1fr !important; min-width: 0 !important; gap: 8px !important; }
           .summary-grid .kpi-card { padding: 14px 14px !important; }
-          .overview-topbar  { flex-wrap: wrap !important; padding: 8px 14px 8px 58px !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 100 !important; min-height: 0 !important; }
-          .overview-topbar h1 { line-height: 1.1 !important; font-size: 1.25rem !important; margin: 0 !important; }
+          .overview-topbar  { flex-wrap: wrap !important; padding: 8px 14px 8px 68px !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 100 !important; min-height: 0 !important; }
+          .overview-topbar h1 { line-height: 1.1 !important; font-size: 1.25rem !important; margin: 0 0 6px !important; }
           .overview-content { padding: 10px 14px 80px !important; }
-          .overview-subtitle { flex-direction: column !important; align-items: flex-start !important; gap: 2px !important; margin-top: 2px !important; }
+          .overview-subtitle { flex-direction: column !important; align-items: flex-start !important; gap: 2px !important; margin-top: 0 !important; }
           .overview-sync-row { gap: 4px !important; margin-bottom: 10px !important; margin-top: 0 !important; }
           .overview-sync-all-btn { width: 100% !important; padding: 10px 16px !important; font-size: 0.8rem !important; }
           .overview-table { display: none !important; }
