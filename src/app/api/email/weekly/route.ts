@@ -247,7 +247,7 @@ async function generateAISummary(ctx: {
   const pct = (n: number | null) => n === null ? 'N/A' : `${n > 0 ? '+' : ''}${n.toFixed(1)}%`
   const cacStr = ctx.cac === null ? 'N/A' : `$${ctx.cac.toFixed(0)}`
   const avgCacStr = ctx.avg.cac === null ? 'N/A' : `$${ctx.avg.cac.toFixed(0)}`
-  const prompt = `Write a 2-3 sentence weekly performance summary for ${ctx.orgName}. Be specific with numbers. Note what's up or down vs last week AND whether it's above or below the 4-week average where relevant. Help the reader understand if a decline is a blip or a trend. Founder-friendly tone, no fluff, no generic advice.
+  const prompt = `Write a weekly performance summary for ${ctx.orgName} in 2-3 complete sentences, between 60 and 110 words. Always finish your final sentence — never stop mid-thought. Be specific with numbers. Note what's up or down vs last week AND whether it's above or below the 4-week average where relevant. Help the reader understand if a decline is a blip or a trend. Founder-friendly tone, no fluff, no generic advice.
 
 This week:
 - Revenue: $${ctx.revenue.toFixed(0)} (${pct(ctx.revenueWow)} vs last week)
@@ -276,13 +276,18 @@ This week:
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 150,
+        max_tokens: 400,
         messages: [{ role: 'user', content: prompt }],
       }),
     })
     if (!res.ok) return ''
     const data = await res.json()
-    return (data.content?.[0]?.text ?? '').trim()
+    const text = (data.content?.[0]?.text ?? '').trim()
+    if (data.stop_reason === 'max_tokens') {
+      const lastEnd = Math.max(text.lastIndexOf('.'), text.lastIndexOf('!'), text.lastIndexOf('?'))
+      if (lastEnd > 0) return text.slice(0, lastEnd + 1)
+    }
+    return text
   } catch {
     return ''
   }
