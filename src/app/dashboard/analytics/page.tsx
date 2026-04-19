@@ -159,10 +159,11 @@ function YesterdayInsightCard({ insight }: { insight: any | null }) {
   const dateStr = insight?.date ?? ydate.toLocaleDateString('en-CA')
   const m = insight?.metrics ?? {}
   const pills = [
-    { label: 'Revenue',  value: fmtMoney(Number(m.revenue ?? 0)),  wow: typeof m.revenue_dod  === 'number' ? m.revenue_dod  : null },
-    { label: 'Orders',   value: Number(m.orders ?? 0).toLocaleString('en-US'), wow: typeof m.orders_dod === 'number' ? m.orders_dod : null },
-    { label: 'Ad Spend', value: fmtMoney(Number(m.ad_spend ?? 0)), wow: typeof m.ad_spend_dod === 'number' ? m.ad_spend_dod : null, invert: true },
-    { label: 'ROAS',     value: `${Number(m.roas ?? 0).toFixed(2)}x`, wow: typeof m.roas_dod === 'number' ? m.roas_dod : null },
+    { label: 'Total Sales', value: fmtMoney(Number(m.revenue ?? 0)),   wow: typeof m.revenue_dod  === 'number' ? m.revenue_dod  : null },
+    { label: 'Ad Spend',    value: fmtMoney(Number(m.ad_spend ?? 0)),  wow: typeof m.ad_spend_dod === 'number' ? m.ad_spend_dod : null, invert: true },
+    { label: 'ROAS',        value: `${Number(m.roas ?? 0).toFixed(2)}x`, wow: typeof m.roas_dod === 'number' ? m.roas_dod : null },
+    { label: 'CAC',         value: fmtMoney(Number(m.cac ?? 0)),       wow: typeof m.cac_dod === 'number' ? m.cac_dod : null, invert: true },
+    { label: 'AOV',         value: fmtMoney(Number(m.aov ?? 0)),       wow: typeof m.aov_dod === 'number' ? m.aov_dod : null },
   ]
 
   return (
@@ -175,11 +176,14 @@ function YesterdayInsightCard({ insight }: { insight: any | null }) {
         <span style={{ fontSize: '0.8rem', color: C.muted, fontFamily: 'var(--font-barlow), Barlow, sans-serif' }}>· {fmtDateLong(dateStr)}</span>
       </div>
       <div style={{ padding: '0 22px 20px' }}>
-        <div className="yesterday-pills" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+        <div className="yesterday-pills" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
           {pills.map(p => <YesterdayPill key={p.label} {...p} />)}
         </div>
       </div>
       <style>{`
+        @media (max-width: 900px) {
+          .yesterday-pills { grid-template-columns: repeat(3, 1fr) !important; }
+        }
         @media (max-width: 640px) {
           .yesterday-pills { grid-template-columns: repeat(2, 1fr) !important; }
         }
@@ -1072,23 +1076,28 @@ export default function AnalyticsPage() {
             {fmtDate(range.start)} – {fmtDate(range.end)} <span style={{ opacity: 0.6 }}>· vs {fmtDate(prevStart)} – {fmtDate(prevEndLabel)}</span>
           </p>
           <p className="caption" style={{ marginTop: 2, fontSize: '0.72rem', opacity: 0.75, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {([
-              { key: 'shopify', label: 'Shopify' },
-              { key: 'amazon',  label: 'Amazon'  },
-              { key: 'walmart', label: 'Walmart' },
-              { key: 'meta',    label: 'Meta'    },
-            ] as const).map(({ key, label }, i) => {
-              const ts = syncTimestamps[key]
-              const formatted = ts
-                ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-                : 'Never'
-              return (
-                <span key={key}>
-                  {i > 0 && <span style={{ margin: '0 10px', opacity: 0.5 }}>·</span>}
-                  {label} · {formatted}
-                </span>
-              )
-            })}
+            {(() => {
+              const isConfigured = Object.keys(channels).length > 0
+              const showFor = (k: string) => !isConfigured || channels[k] !== false
+              const enabled = ([
+                { key: 'shopify', label: 'Shopify' },
+                { key: 'meta',    label: 'Meta'    },
+                { key: 'amazon',  label: 'Amazon'  },
+                { key: 'walmart', label: 'Walmart' },
+              ] as const).filter(c => showFor(c.key))
+              return enabled.map(({ key, label }, i) => {
+                const ts = syncTimestamps[key]
+                const formatted = ts
+                  ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                  : 'Never'
+                return (
+                  <span key={key}>
+                    {i > 0 && <span style={{ margin: '0 10px', opacity: 0.5 }}>·</span>}
+                    {label} · {formatted}
+                  </span>
+                )
+              })
+            })()}
           </p>
         </div>
         <div className="topbar-actions">

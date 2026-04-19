@@ -67,25 +67,31 @@ export async function GET(request: Request) {
   ])
 
   const sumRev = (rows: any[]) => rows.reduce((s, o) => s + Number(o.total_price || 0), 0)
-  const countOrd = (rows: any[]) => rows.reduce((s: number, o: any) => s + (o.source === 'amazon' ? (Number(o.units) || 1) : 1), 0)
+  const countOrd = (rows: any[]) => rows.reduce((s: number, o: any) => s + ((o.source === 'amazon' || o.source === 'walmart') ? (Number(o.units) || 1) : 1), 0)
   const sumSpend = (rows: any[]) => rows.reduce((s, r) => s + Number(r.spend || 0), 0)
 
   const revenue = sumRev(yOrders.data ?? [])
   const orders = countOrd(yOrders.data ?? [])
   const adSpend = sumSpend(ySpend.data ?? [])
   const roas = adSpend > 0 ? revenue / adSpend : 0
+  const aov = orders > 0 ? revenue / orders : 0
+  const cac = orders > 0 && adSpend > 0 ? adSpend / orders : 0
 
   const pRevenue = sumRev(pdOrders.data ?? [])
   const pOrders = countOrd(pdOrders.data ?? [])
   const pAdSpend = sumSpend(pdSpend.data ?? [])
   const pRoas = pAdSpend > 0 ? pRevenue / pAdSpend : 0
+  const pAov = pOrders > 0 ? pRevenue / pOrders : 0
+  const pCac = pOrders > 0 && pAdSpend > 0 ? pAdSpend / pOrders : 0
 
   const metrics = {
-    revenue, orders, ad_spend: adSpend, roas,
+    revenue, orders, ad_spend: adSpend, roas, aov, cac,
     revenue_dod: pRevenue > 0 ? pct(revenue, pRevenue) : null,
     orders_dod: pOrders > 0 ? pct(orders, pOrders) : null,
     ad_spend_dod: pAdSpend > 0 ? pct(adSpend, pAdSpend) : null,
     roas_dod: pRoas > 0 ? pct(roas, pRoas) : null,
+    aov_dod: pAov > 0 ? pct(aov, pAov) : null,
+    cac_dod: pCac > 0 && cac > 0 ? pct(cac, pCac) : null,
   }
 
   return NextResponse.json({ data: { date: yStr, metrics } }, { headers: NO_CACHE })
