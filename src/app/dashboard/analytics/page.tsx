@@ -1159,7 +1159,6 @@ export default function AnalyticsPage() {
               : undefined
             return (
               <>
-                <YesterdayInsightCard insight={yesterdayInsight} />
                 <div style={{ marginBottom: 16 }}>
                 <AskAttomik
                   userName={userName}
@@ -1262,6 +1261,9 @@ export default function AnalyticsPage() {
               gaSessions: trafficData?.sessions ?? null,
             }}
           />
+
+          {/* ── YESTERDAY ── */}
+          {insightFetched && <YesterdayInsightCard insight={yesterdayInsight} />}
 
           {/* ── OVERVIEW KPIs ── */}
           <SectionHeader title="Overview" />
