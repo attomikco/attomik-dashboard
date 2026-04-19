@@ -1245,15 +1245,15 @@ export default function AnalyticsPage() {
           {/* ── OVERVIEW KPIs ── */}
           <SectionHeader title={sec('Overview')} />
           <div className="kpi-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
-            <KpiCard label="Total Sales"    value={fmt$(d.totalRevC)} change={pct(d.totalRevC, d.totalRevP)} subtitle="Blended revenue"
+            <KpiCard label="Blended Revenue" value={fmt$(d.totalRevC)} change={pct(d.totalRevC, d.totalRevP)}
               target={monthlyTarget?.sales_target ? { value: monthlyTarget.sales_target, current: d.totalRevC, label: 'target' } : undefined} />
-            <KpiCard label="Total Ad Spend" value={fmt$(d.totalSpC)}  change={pct(d.totalSpC, d.totalSpP)} invertColors subtitle="Paid media"
+            <KpiCard label="Paid Media" value={fmt$(d.totalSpC)}  change={pct(d.totalSpC, d.totalSpP)} invertColors
               target={monthlyTarget?.ad_spend_budget ? { value: monthlyTarget.ad_spend_budget, current: d.totalSpC, label: 'budget' } : undefined} />
             <KpiCard label="ROAS"           value={fmtX(d.roasC)}     change={pct(d.roasC, d.roasP)} subtitle="Return on Ad Spend"
               target={monthlyTarget?.roas_target ? { value: monthlyTarget.roas_target, current: d.roasC, label: 'target', format: fmtX } : undefined} />
           </div>
           <div className="kpi-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
-            <KpiCard label="Orders" value={fmtN(d.ordC)} change={pct(d.ordC, d.ordP)} subtitle="Total orders · all channels" />
+            <KpiCard label="Total Orders - All Channels" value={fmtN(d.ordC)} change={pct(d.ordC, d.ordP)} />
             <KpiCard label="AOV"    value={fmt$(d.aovC)} change={pct(d.aovC, d.aovP)} subtitle="Average Order Value"
               target={monthlyTarget?.aov_target ? { value: monthlyTarget.aov_target, current: d.aovC, label: 'target' } : undefined} />
             {trafficData && trafficData.users > 0 ? (
@@ -1270,7 +1270,7 @@ export default function AnalyticsPage() {
               {d.cltvC > 0 && <KpiCard label="CLTV" value={fmt$(d.cltvC)} change={d.cltvP > 0 ? pct(d.cltvC, d.cltvP) : undefined} subtitle="ACL (2) × AOV × Freq" />}
               {trafficData && trafficData.users > 0 && <KpiCard label="CAC" value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors subtitle="Customer Acquisition Cost"
                 target={monthlyTarget?.cac_target ? { value: monthlyTarget.cac_target, current: d.cacC, label: 'target' } : undefined} />}
-              {d.cltvC > 0 && d.cacC > 0 && <KpiCard label="CLTV / CAC" value={`${(d.cltvC / d.cacC).toFixed(2)}x`} change={d.cltvP > 0 && d.cacP > 0 ? pct(d.cltvC / d.cacC, d.cltvP / d.cacP) : undefined} subtitle="Lifetime Value vs. Acquisition Cost" />}
+              {d.cltvC > 0 && d.cacC > 0 && <KpiCard label="Lifetime Value vs Acquisition Cost" value={`${(d.cltvC / d.cacC).toFixed(2)}x`} change={d.cltvP > 0 && d.cacP > 0 ? pct(d.cltvC / d.cacC, d.cltvP / d.cacP) : undefined} />}
             </div>
           )}
 
