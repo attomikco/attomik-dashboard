@@ -738,7 +738,7 @@ export default function OverviewPage() {
               <table style={{ minWidth: 980 }}>
                 <thead>
                   <tr>
-                    {['Project', 'Total Sales', 'Orders', 'AOV', 'Ad Spend', 'ROAS', 'CAC', 'Conv. Rate', ''].map((h, i) => (
+                    {['Project', 'Total Sales', 'ROAS', 'Ad Spend', 'CAC', 'AOV', 'Orders', 'Conv. Rate', ''].map((h, i) => (
                       <th key={i} style={{
                         textAlign: h === '' ? 'right' : 'left',
                       }}>{h}</th>
@@ -780,27 +780,16 @@ export default function OverviewPage() {
                         }
                       </td>
 
-                      {/* Orders */}
-                      <td style={{ padding: '16px 20px', minWidth: 110 }}>
+                      {/* ROAS */}
+                      <td style={{ padding: '16px 20px', minWidth: 90 }}>
                         {org.loading
-                          ? <Skeleton height={14} width={60} />
-                          : <>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                                <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>{fmtN(org.orders)}</span>
-                                <DeltaBadge value={pct(org.orders, org.prevOrders)} />
+                          ? <Skeleton height={14} width={50} />
+                          : org.roas > 0
+                            ? <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>{org.roas.toFixed(2)}x</span>
+                                <DeltaBadge value={pct(org.roas, org.prevRoas)} />
                               </div>
-                            </>
-                        }
-                      </td>
-
-                      {/* AOV */}
-                      <td style={{ padding: '16px 20px', minWidth: 100 }}>
-                        {org.loading
-                          ? <Skeleton height={14} width={60} />
-                          : <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>{org.aov > 0 ? fmt$(org.aov) : '—'}</span>
-                              {org.aov > 0 && <DeltaBadge value={pct(org.aov, org.prevAov)} />}
-                            </div>
+                            : <span style={{ fontSize: '0.8rem', color: '#ccc', fontFamily: 'Barlow, sans-serif' }}>—</span>
                         }
                       </td>
 
@@ -819,19 +808,6 @@ export default function OverviewPage() {
                         }
                       </td>
 
-                      {/* ROAS */}
-                      <td style={{ padding: '16px 20px', minWidth: 90 }}>
-                        {org.loading
-                          ? <Skeleton height={14} width={50} />
-                          : org.roas > 0
-                            ? <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>{org.roas.toFixed(2)}x</span>
-                                <DeltaBadge value={pct(org.roas, org.prevRoas)} />
-                              </div>
-                            : <span style={{ fontSize: '0.8rem', color: '#ccc', fontFamily: 'Barlow, sans-serif' }}>—</span>
-                        }
-                      </td>
-
                       {/* CAC */}
                       <td style={{ padding: '16px 20px', minWidth: 100 }}>
                         {org.loading
@@ -842,6 +818,30 @@ export default function OverviewPage() {
                                 {org.prevCac > 0 && <DeltaBadge value={pct(org.cac, org.prevCac)} invert />}
                               </div>
                             : <span style={{ fontSize: '0.8rem', color: '#ccc', fontFamily: 'Barlow, sans-serif' }}>—</span>
+                        }
+                      </td>
+
+                      {/* AOV */}
+                      <td style={{ padding: '16px 20px', minWidth: 100 }}>
+                        {org.loading
+                          ? <Skeleton height={14} width={60} />
+                          : <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>{org.aov > 0 ? fmt$(org.aov) : '—'}</span>
+                              {org.aov > 0 && <DeltaBadge value={pct(org.aov, org.prevAov)} />}
+                            </div>
+                        }
+                      </td>
+
+                      {/* Orders */}
+                      <td style={{ padding: '16px 20px', minWidth: 110 }}>
+                        {org.loading
+                          ? <Skeleton height={14} width={60} />
+                          : <>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                                <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Barlow, sans-serif' }}>{fmtN(org.orders)}</span>
+                                <DeltaBadge value={pct(org.orders, org.prevOrders)} />
+                              </div>
+                            </>
                         }
                       </td>
 
@@ -899,10 +899,10 @@ export default function OverviewPage() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       {[
                         { label: 'Total Sales', value: fmt$(org.revenue),  delta: pct(org.revenue, org.prevRevenue), invert: false },
-                        { label: 'Orders',  value: fmtN(org.orders),   delta: pct(org.orders, org.prevOrders), invert: false },
-                        { label: 'AOV',     value: org.aov > 0 ? fmt$(org.aov) : '—', delta: org.aov > 0 ? pct(org.aov, org.prevAov) : null, invert: false },
                         { label: 'ROAS',    value: org.roas > 0 ? `${org.roas.toFixed(2)}x` : '—', delta: org.roas > 0 ? pct(org.roas, org.prevRoas) : null, invert: false },
                         { label: 'CAC',     value: org.cac > 0 ? fmt$(org.cac) : '—', delta: org.cac > 0 && org.prevCac > 0 ? pct(org.cac, org.prevCac) : null, invert: true },
+                        { label: 'AOV',     value: org.aov > 0 ? fmt$(org.aov) : '—', delta: org.aov > 0 ? pct(org.aov, org.prevAov) : null, invert: false },
+                        { label: 'Orders',  value: fmtN(org.orders),   delta: pct(org.orders, org.prevOrders), invert: false },
                         { label: 'Conv. Rate', value: org.convRate > 0 ? `${org.convRate.toFixed(2)}%` : '—', delta: org.convRate > 0 && org.prevConvRate > 0 ? pct(org.convRate, org.prevConvRate) : null, invert: false },
                       ].map(k => (
                         <div key={k.label} style={{ background: C.cream, borderRadius: 8, padding: '10px 12px' }}>
