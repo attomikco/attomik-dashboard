@@ -444,6 +444,8 @@ export default function OverviewPage() {
   const prevRoas      = totalPrevSp > 0 ? totalPrevRev / totalPrevSp : 0
   const blendedCac    = totalSpend > 0 && totalOrders > 0 ? totalSpend / totalOrders : 0
   const prevBlendedCac = totalPrevSp > 0 && totalPrevOrd > 0 ? totalPrevSp / totalPrevOrd : 0
+  const blendedAov    = totalOrders > 0 ? totalRevenue / totalOrders : 0
+  const prevBlendedAov = totalPrevOrd > 0 ? totalPrevRev / totalPrevOrd : 0
 
   const { prevStart: prevStartLabel, prevEnd: prevEndLabel } = getComparisonPeriod(range.start, range.end, range.compareMode, range.customCompareStart, range.customCompareEnd)
   const fmtDate = (s: string) => new Date(s + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -516,11 +518,12 @@ export default function OverviewPage() {
         {/* Summary strip — only meaningful with 2+ orgs */}
         {!loadingOrgs && orgs.length > 1 && (
           <div style={{ marginBottom: 20 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12 }}
                className="summary-grid">
             {[
-              { label: 'Total Sales',  value: fmt$(totalRevenue), delta: pct(totalRevenue, totalPrevRev) },
+              { label: 'Total Sales',    value: fmt$(totalRevenue), delta: pct(totalRevenue, totalPrevRev) },
               { label: 'Total Orders',   value: fmtN(totalOrders),  delta: pct(totalOrders, totalPrevOrd) },
+              { label: 'Blended AOV',    value: blendedAov > 0 ? fmt$(blendedAov) : '—', delta: prevBlendedAov > 0 ? pct(blendedAov, prevBlendedAov) : 0 },
               { label: 'Total Ad Spend', value: fmt$(totalSpend),   delta: pct(totalSpend, totalPrevSp), invert: true },
               { label: 'Blended ROAS',   value: blendedRoas > 0 ? `${blendedRoas.toFixed(2)}x` : '—', delta: pct(blendedRoas, prevRoas) },
               { label: 'Blended CAC',    value: blendedCac > 0 ? fmt$(blendedCac) : '—', delta: prevBlendedCac > 0 ? pct(blendedCac, prevBlendedCac) : 0, invert: true },
@@ -661,8 +664,8 @@ export default function OverviewPage() {
 
         {loadingOrgs ? (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 20 }} className="summary-grid">
-              {[0, 1, 2, 3, 4].map(i => <SkeletonKpiCard key={i} />)}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, marginBottom: 20 }} className="summary-grid">
+              {[0, 1, 2, 3, 4, 5].map(i => <SkeletonKpiCard key={i} />)}
             </div>
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
               {[0, 1, 2, 3, 4].map(i => (
