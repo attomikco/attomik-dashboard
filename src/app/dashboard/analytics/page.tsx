@@ -1246,6 +1246,7 @@ export default function AnalyticsPage() {
 
           {/* ── OVERVIEW KPIs ── */}
           <SectionHeader title={sec('Overview')} />
+          {/* Row 1: Total Sales · Total Ad Spend · ROAS */}
           <div className="kpi-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
             <KpiCard label="Total Sales"    value={fmt$(d.totalRevC)} change={pct(d.totalRevC, d.totalRevP)} subtitle="Blended Revenue"
               target={monthlyTarget?.sales_target ? { value: monthlyTarget.sales_target, current: d.totalRevC, label: 'target' } : undefined} />
@@ -1254,24 +1255,21 @@ export default function AnalyticsPage() {
             <KpiCard label="ROAS"           value={fmtX(d.roasC)}     change={pct(d.roasC, d.roasP)} subtitle="Return on Ad Spend"
               target={monthlyTarget?.roas_target ? { value: monthlyTarget.roas_target, current: d.roasC, label: 'target', format: fmtX } : undefined} />
           </div>
+          {/* Row 2: CAC · AOV · Orders */}
           <div className="kpi-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
-            <KpiCard label="Orders" value={fmtN(d.ordC)} change={pct(d.ordC, d.ordP)} subtitle="Total Orders - All Channels" />
+            <KpiCard label="CAC" value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors subtitle="Customer Acquisition Cost"
+              target={monthlyTarget?.cac_target ? { value: monthlyTarget.cac_target, current: d.cacC, label: 'target' } : undefined} />
             <KpiCard label="AOV"    value={fmt$(d.aovC)} change={pct(d.aovC, d.aovP)} subtitle="Average Order Value"
               target={monthlyTarget?.aov_target ? { value: monthlyTarget.aov_target, current: d.aovC, label: 'target' } : undefined} />
-            {trafficData && trafficData.users > 0 ? (
-              <KpiCard label="Conv. Rate (Users)" value={fmtPct(d.shopOrdC / trafficData.users * 100)} change={trafficData.usersP > 0 && d.shopOrdP > 0 ? pct(d.shopOrdC / trafficData.users * 100, d.shopOrdP / trafficData.usersP * 100) : undefined} subtitle="Shopify Orders ÷ Users" />
-            ) : (
-              <KpiCard label="CAC" value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors subtitle="Customer Acquisition Cost"
-                target={monthlyTarget?.cac_target ? { value: monthlyTarget.cac_target, current: d.cacC, label: 'target' } : undefined} />
-            )}
+            <KpiCard label="Orders" value={fmtN(d.ordC)} change={pct(d.ordC, d.ordP)} subtitle="Total Orders - All Channels" />
           </div>
-
-          {/* ── CLTV, CAC & CLTV/CAC ── */}
-          {(d.cltvC > 0 || (trafficData && trafficData.users > 0 && d.cacC > 0)) && (
+          {/* Row 3: Conv. Rate · CLTV · CLTV / CAC (conditional) */}
+          {((trafficData && trafficData.users > 0) || d.cltvC > 0) && (
             <div className="kpi-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
+              {trafficData && trafficData.users > 0 && (
+                <KpiCard label="Conv. Rate (Users)" value={fmtPct(d.shopOrdC / trafficData.users * 100)} change={trafficData.usersP > 0 && d.shopOrdP > 0 ? pct(d.shopOrdC / trafficData.users * 100, d.shopOrdP / trafficData.usersP * 100) : undefined} subtitle="Shopify Orders ÷ Users" />
+              )}
               {d.cltvC > 0 && <KpiCard label="CLTV" value={fmt$(d.cltvC)} change={d.cltvP > 0 ? pct(d.cltvC, d.cltvP) : undefined} subtitle="ACL (2) × AOV × Freq" />}
-              {trafficData && trafficData.users > 0 && <KpiCard label="CAC" value={d.cacC > 0 ? fmt$(d.cacC) : '—'} change={d.cacP > 0 ? pct(d.cacC, d.cacP) : undefined} invertColors subtitle="Customer Acquisition Cost"
-                target={monthlyTarget?.cac_target ? { value: monthlyTarget.cac_target, current: d.cacC, label: 'target' } : undefined} />}
               {d.cltvC > 0 && d.cacC > 0 && <KpiCard label="CLTV / CAC" value={`${(d.cltvC / d.cacC).toFixed(2)}x`} change={d.cltvP > 0 && d.cacP > 0 ? pct(d.cltvC / d.cacC, d.cltvP / d.cacP) : undefined} subtitle="Lifetime Value vs Acquisition Cost" />}
             </div>
           )}
