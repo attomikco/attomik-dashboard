@@ -1167,6 +1167,7 @@ export default function AnalyticsPage() {
                   orgName={orgName}
                   timezone={timezone}
                   period={`${fmtDate(range.start)} – ${fmtDate(range.end)}`}
+                  periodLabel={range.label ?? undefined}
                   suggestions={suggestions}
                   metrics={{
                     totalRev: fmt$(d.totalRevC), totalRevChg: pct(d.totalRevC, d.totalRevP).toFixed(1),

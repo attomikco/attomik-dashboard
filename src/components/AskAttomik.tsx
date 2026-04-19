@@ -12,6 +12,7 @@ interface Props {
   metrics: any
   orgName: string
   period: string
+  periodLabel?: string
   userName: string
   timezone?: string
   dark?: boolean
@@ -52,7 +53,7 @@ const DEFAULT_SUGGESTIONS = [
 ]
 
 export default function AskAttomik({
-  metrics, orgName, period, userName, timezone = 'America/New_York',
+  metrics, orgName, period, periodLabel, userName, timezone = 'America/New_York',
   dark = false, suggestions, connectedAbove = false,
 }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
@@ -164,7 +165,8 @@ export default function AskAttomik({
           fontFamily: 'Barlow, sans-serif',
           lineHeight: 1.5,
         }}>
-          Answers based on selected period: <strong style={{ fontWeight: 700, color: T.headingColor }}>{period}</strong>
+          Answers based on selected period: <strong style={{ fontWeight: 700, color: T.headingColor }}>{periodLabel ?? period}</strong>
+          {periodLabel && periodLabel !== period && <span style={{ color: T.muted, fontWeight: 500 }}> ({period})</span>}
           <span style={{ color: T.muted }}> · Change the date range above to analyze a different period</span>
         </div>
         {messages.length === 0 && (
