@@ -1068,8 +1068,8 @@ export default function AnalyticsPage() {
         <div className="topbar-title" style={{ minWidth: 0, flex: 1 }}>
           <h1 className="analytics-title">{orgName}<span className="analytics-title-sep"> — </span><span className="analytics-title-sub">Analytics</span></h1>
           <p className="caption" style={{ marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {fmtDate(range.start)} – {fmtDate(range.end)} · vs {fmtDate(prevStart)} – {fmtDate(prevEndLabel)}
-            {lastSynced && <span style={{ color: '#ccc' }}> · Synced {new Date(lastSynced).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>}
+            {range.label && <span style={{ fontWeight: 700 }}>{range.label}: </span>}
+            {fmtDate(range.start)} – {fmtDate(range.end)} <span style={{ opacity: 0.6 }}>· vs {fmtDate(prevStart)} – {fmtDate(prevEndLabel)}</span>
           </p>
           <p className="caption" style={{ marginTop: 2, fontSize: '0.72rem', opacity: 0.75, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {([
