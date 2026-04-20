@@ -1591,14 +1591,33 @@ export default function AnalyticsPage() {
             top: 0 !important;
             left: 0 !important;
             right: 0 !important;
-            padding-left: 60px !important;
+            padding: 10px 16px 10px 60px !important;
+            min-height: 56px !important;
+            height: auto !important;
             z-index: 100 !important;
             border-bottom: 1px solid #e0e0e0 !important;
+            align-items: center !important;
           }
-          .analytics-content { padding-top: 90px !important; }
-          .analytics-title { white-space: normal !important; line-height: 1.2 !important; }
+          .analytics-content { padding-top: 72px !important; }
+          .analytics-title {
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            font-size: 1.05rem !important;
+            line-height: 1.2 !important;
+          }
           .analytics-title-sep { display: none !important; }
-          .analytics-title-sub { display: block !important; font-size: 0.75rem !important; font-weight: 600 !important; color: #999 !important; letter-spacing: 0.04em !important; text-transform: uppercase !important; margin-top: 2px !important; }
+          .analytics-title-sub {
+            display: block !important;
+            font-size: 0.65rem !important;
+            font-weight: 600 !important;
+            color: #999 !important;
+            letter-spacing: 0.06em !important;
+            text-transform: uppercase !important;
+            margin-top: 1px !important;
+          }
+          /* Hide date caption and sync timestamps on mobile — date range is already in the calendar button */
+          .analytics-topbar .topbar-title p.caption { display: none !important; }
           .kpi-grid-3 { grid-template-columns: 1fr 1fr !important; }
           .kpi-grid-4 { grid-template-columns: 1fr 1fr !important; }
           .chart-grid { grid-template-columns: 1fr !important; }
