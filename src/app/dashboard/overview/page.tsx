@@ -849,18 +849,18 @@ export default function OverviewPage() {
 
                   {org.loading ? (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                      {[1,2,3,4,5,6].map(i => <Skeleton key={i} height={52} radius={6} />)}
+                      {[1,2,3,4,5,6,7].map(i => <Skeleton key={i} height={52} radius={6} />)}
                     </div>
                   ) : (
-                    <>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       {[
                         { label: 'Total Sales', value: fmt$(org.revenue),  delta: pct(org.revenue, org.prevRevenue), invert: false },
-                        { label: 'Orders',  value: fmtN(org.orders),   delta: pct(org.orders, org.prevOrders), invert: false },
-                        { label: 'ROAS',    value: org.roas > 0 ? `${org.roas.toFixed(2)}x` : '—', delta: org.roas > 0 ? pct(org.roas, org.prevRoas) : null, invert: false },
-                        { label: 'AOV',     value: org.aov > 0 ? fmt$(org.aov) : '—', delta: org.aov > 0 ? pct(org.aov, org.prevAov) : null, invert: false },
-                        { label: 'CAC',     value: org.cac > 0 ? fmt$(org.cac) : '—', delta: org.cac > 0 && org.prevCac > 0 ? pct(org.cac, org.prevCac) : null, invert: true },
-                        { label: 'Conv. Rate', value: org.convRate > 0 ? `${org.convRate.toFixed(2)}%` : '—', delta: org.convRate > 0 && org.prevConvRate > 0 ? pct(org.convRate, org.prevConvRate) : null, invert: false },
+                        { label: 'Orders',      value: fmtN(org.orders),   delta: pct(org.orders, org.prevOrders), invert: false },
+                        { label: 'AOV',         value: org.aov > 0 ? fmt$(org.aov) : '—', delta: org.aov > 0 ? pct(org.aov, org.prevAov) : null, invert: false },
+                        { label: 'Ad Spend',    value: org.adSpend > 0 ? fmt$(org.adSpend) : '—', delta: org.adSpend > 0 && org.prevAdSpend > 0 ? pct(org.adSpend, org.prevAdSpend) : null, invert: true },
+                        { label: 'ROAS',        value: org.roas > 0 ? `${org.roas.toFixed(2)}x` : '—', delta: org.roas > 0 ? pct(org.roas, org.prevRoas) : null, invert: false },
+                        { label: 'CAC',         value: org.cac > 0 ? fmt$(org.cac) : '—', delta: org.cac > 0 && org.prevCac > 0 ? pct(org.cac, org.prevCac) : null, invert: true },
+                        { label: 'Conv. Rate',  value: org.convRate > 0 ? `${org.convRate.toFixed(2)}%` : '—', delta: org.convRate > 0 && org.prevConvRate > 0 ? pct(org.convRate, org.prevConvRate) : null, invert: false },
                       ].map(k => (
                         <div key={k.label} style={{ background: C.cream, borderRadius: 8, padding: '10px 12px' }}>
                           <div className="kpi-label" style={{ marginBottom: 4 }}>{k.label}</div>
@@ -869,21 +869,6 @@ export default function OverviewPage() {
                         </div>
                       ))}
                     </div>
-                    {org.revenue > 0 && (org.shopifyRev > 0 || org.amazonRev > 0) && (
-                      <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-                        {org.shopifyRev > 0 && (
-                          <span className="badge badge-shopify" style={{ fontSize: '0.68rem' }}>
-                            Shopify {fmt$(org.shopifyRev)} · {(org.shopifyRev / org.revenue * 100).toFixed(0)}%
-                          </span>
-                        )}
-                        {org.amazonRev > 0 && (
-                          <span className="badge badge-amazon" style={{ fontSize: '0.68rem' }}>
-                            Amazon {fmt$(org.amazonRev)} · {(org.amazonRev / org.revenue * 100).toFixed(0)}%
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    </>
                   )}
                 </div>
               ))}
