@@ -186,20 +186,21 @@ function wowPct(cur: number, prev: number) {
   return ((cur - prev) / prev) * 100
 }
 
-function changeBadge(pct: number | null) {
+function changeBadge(pct: number | null, lowerIsBetter = false) {
   if (pct === null) return `<span style="font-size:11px;font-weight:600;color:#666666 !important;">—</span>`
   const up = pct >= 0
-  const bg = up ? '#dcfce7' : '#fee2e2'
-  const color = up ? '#16a34a' : '#dc2626'
+  const isGood = lowerIsBetter ? !up : up
+  const bg = isGood ? '#dcfce7' : '#fee2e2'
+  const color = isGood ? '#16a34a' : '#dc2626'
   const arrow = up ? '▲' : '▼'
   const val = Math.abs(pct).toFixed(1)
   return `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background-color:${bg} !important;color:${color} !important;font-size:11px;font-weight:700;letter-spacing:0.02em;">${arrow} ${val}%</span>`
 }
 
-function kpiCell(label: string, value: string, pct: number | null | undefined) {
+function kpiCell(label: string, value: string, pct: number | null | undefined, lowerIsBetter = false) {
   const badge = pct === undefined
     ? `<span style="display:inline-block;font-size:11px;font-weight:600;color:#999999;">&nbsp;</span>`
-    : changeBadge(pct)
+    : changeBadge(pct, lowerIsBetter)
   return `
     <td width="50%" valign="top" style="padding:6px;">
       <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f8f8;border:1px solid #e0e0e0;border-radius:12px;">
@@ -249,7 +250,14 @@ async function generateAISummary(ctx: {
   const pct = (n: number | null) => n === null ? 'N/A' : `${n > 0 ? '+' : ''}${n.toFixed(1)}%`
   const cacStr = ctx.cac === null ? 'N/A' : `$${ctx.cac.toFixed(0)}`
   const avgCacStr = ctx.avg.cac === null ? 'N/A' : `$${ctx.avg.cac.toFixed(0)}`
-  const prompt = `Write a weekly performance summary for ${ctx.orgName} in 2-3 complete sentences, between 60 and 110 words. Always finish your final sentence — never stop mid-thought. Be specific with numbers. Note what's up or down vs last week AND whether it's above or below the 4-week average where relevant. Help the reader understand if a decline is a blip or a trend. Founder-friendly tone, no fluff, no generic advice.
+  const prompt = `Write a weekly performance summary for ${ctx.orgName} in 2-3 complete sentences, between 60 and 110 words. Always finish your final sentence — never stop mid-thought.
+
+Tone & framing rules (important):
+- Stick to the facts and the numbers provided. Do NOT speculate on causes, suggest actions, or assign blame.
+- You are a reporting layer with no visibility into intentional strategy — a low ROAS week, a spend spike, or a soft-revenue stretch may be a deliberate test, launch ramp, or planned pullback. Never imply something is "wrong" or "concerning."
+- Lead with the strongest positive signal that's actually true. Where things are flat or down, state it plainly and neutrally without dramatizing — one week is one week, not a trend on its own.
+- For declines, prefer neutral language ("revenue came in at X, below last week's Y") over alarm words like "drop," "plunge," "weak," "concerning," "trouble." Don't manufacture a silver lining either — if there isn't one, just stop after the facts.
+- Be specific with numbers. Note what's up or down vs last week and, where relevant, vs the 4-week average so the reader can tell a blip from a trend. Founder-friendly tone, no fluff, no generic advice.
 
 This week:
 - Revenue: $${ctx.revenue.toFixed(0)} (${pct(ctx.revenueWow)} vs last week)
@@ -377,11 +385,11 @@ function buildHtml(opts: {
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
               ${kpiCell('Total Sales', kpis.revenue.value, kpis.revenue.pct)}
-              ${kpiCell('Ad Spend', kpis.adSpend.value, kpis.adSpend.pct)}
+              ${kpiCell('Ad Spend', kpis.adSpend.value, kpis.adSpend.pct, true)}
             </tr>
             <tr>
               ${kpiCell('ROAS', kpis.roas.value, kpis.roas.pct)}
-              ${kpiCell('CAC', kpis.cac.value, kpis.cac.pct)}
+              ${kpiCell('CAC', kpis.cac.value, kpis.cac.pct, true)}
             </tr>
             <tr>
               ${kpiCell('AOV', kpis.aov.value, kpis.aov.pct)}
