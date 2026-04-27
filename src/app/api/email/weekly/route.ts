@@ -250,11 +250,12 @@ async function generateAISummary(ctx: {
   const pct = (n: number | null) => n === null ? 'N/A' : `${n > 0 ? '+' : ''}${n.toFixed(1)}%`
   const cacStr = ctx.cac === null ? 'N/A' : `$${ctx.cac.toFixed(0)}`
   const avgCacStr = ctx.avg.cac === null ? 'N/A' : `$${ctx.avg.cac.toFixed(0)}`
-  const prompt = `Write a weekly performance summary for ${ctx.orgName} in 2-3 complete sentences, between 60 and 110 words. Always finish your final sentence — never stop mid-thought.
+  const prompt = `You are writing on behalf of the Attomik team to ${ctx.orgName} (a client). Write a weekly performance summary in 2-3 complete sentences, between 60 and 110 words. Always finish your final sentence — never stop mid-thought.
 
-Tone & framing rules (important):
-- Stick to the facts and the numbers provided. Do NOT speculate on causes, suggest actions, or assign blame.
-- You are a reporting layer with no visibility into intentional strategy — a low ROAS week, a spend spike, or a soft-revenue stretch may be a deliberate test, launch ramp, or planned pullback. Never imply something is "wrong" or "concerning."
+Voice & framing rules (important):
+- Use first-person plural ("we", "our team") to signal that Attomik is monitoring and working alongside the client. This is an automated weekly email, so DO NOT make personal-sounding promises like "we'll keep you posted," "we'll be in touch," "stay tuned," "let us know," or anything that implies a follow-up message — those read as fake when the email is clearly automated.
+- Stick to the facts and the numbers provided. Do NOT speculate on causes, suggest tactics, or assign blame.
+- You have no visibility into intentional strategy — a low ROAS week, a spend spike, or a soft-revenue stretch may be a deliberate test, launch ramp, or planned pullback. Never imply something is "wrong" or "concerning."
 - Lead with the strongest positive signal that's actually true. Where things are flat or down, state it plainly and neutrally without dramatizing — one week is one week, not a trend on its own.
 - For declines, prefer neutral language ("revenue came in at X, below last week's Y") over alarm words like "drop," "plunge," "weak," "concerning," "trouble." Don't manufacture a silver lining either — if there isn't one, just stop after the facts.
 - Be specific with numbers. Note what's up or down vs last week and, where relevant, vs the 4-week average so the reader can tell a blip from a trend. Founder-friendly tone, no fluff, no generic advice.
