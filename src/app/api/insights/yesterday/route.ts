@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { unstable_cache } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
@@ -32,67 +33,75 @@ function pct(cur: number, prev: number) {
   return ((cur - prev) / prev) * 100
 }
 
+const computeYesterday = unstable_cache(
+  async (orgId: string) => {
+    const supabase = createServiceClient()
+
+    const { data: org } = await supabase
+      .from('organizations')
+      .select('timezone')
+      .eq('id', orgId)
+      .single() as { data: { timezone: string | null } | null }
+
+    const tz = org?.timezone ?? 'America/New_York'
+    const nowInTz = new Date().toLocaleDateString('en-CA', { timeZone: tz })
+    const todayDate = new Date(nowInTz + 'T12:00:00')
+    const yesterday = new Date(todayDate); yesterday.setDate(yesterday.getDate() - 1)
+    const prevDay = new Date(todayDate); prevDay.setDate(prevDay.getDate() - 2)
+    const yStr = yesterday.toLocaleDateString('en-CA')
+    const pdStr = prevDay.toLocaleDateString('en-CA')
+
+    const yRange = toUTCRange(yStr, tz)
+    const pdRange = toUTCRange(pdStr, tz)
+
+    const [yOrders, pdOrders, ySpend, pdSpend] = await Promise.all([
+      supabase.from('orders').select('total_price, source, status, units')
+        .eq('org_id', orgId).gte('created_at', yRange.start).lte('created_at', yRange.end).neq('status', 'refunded'),
+      supabase.from('orders').select('total_price, source, status, units')
+        .eq('org_id', orgId).gte('created_at', pdRange.start).lte('created_at', pdRange.end).neq('status', 'refunded'),
+      supabase.from('ad_spend').select('spend').eq('org_id', orgId).eq('date', yStr),
+      supabase.from('ad_spend').select('spend').eq('org_id', orgId).eq('date', pdStr),
+    ])
+
+    const sumRev = (rows: any[]) => rows.reduce((s, o) => s + Number(o.total_price || 0), 0)
+    const countOrd = (rows: any[]) => rows.reduce((s: number, o: any) => s + ((o.source === 'amazon' || o.source === 'walmart') ? (Number(o.units) || 1) : 1), 0)
+    const sumSpend = (rows: any[]) => rows.reduce((s, r) => s + Number(r.spend || 0), 0)
+
+    const revenue = sumRev(yOrders.data ?? [])
+    const orders = countOrd(yOrders.data ?? [])
+    const adSpend = sumSpend(ySpend.data ?? [])
+    const roas = adSpend > 0 ? revenue / adSpend : 0
+    const aov = orders > 0 ? revenue / orders : 0
+    const cac = orders > 0 && adSpend > 0 ? adSpend / orders : 0
+
+    const pRevenue = sumRev(pdOrders.data ?? [])
+    const pOrders = countOrd(pdOrders.data ?? [])
+    const pAdSpend = sumSpend(pdSpend.data ?? [])
+    const pRoas = pAdSpend > 0 ? pRevenue / pAdSpend : 0
+    const pAov = pOrders > 0 ? pRevenue / pOrders : 0
+    const pCac = pOrders > 0 && pAdSpend > 0 ? pAdSpend / pOrders : 0
+
+    const metrics = {
+      revenue, orders, ad_spend: adSpend, roas, aov, cac,
+      revenue_dod: pRevenue > 0 ? pct(revenue, pRevenue) : null,
+      orders_dod: pOrders > 0 ? pct(orders, pOrders) : null,
+      ad_spend_dod: pAdSpend > 0 ? pct(adSpend, pAdSpend) : null,
+      roas_dod: pRoas > 0 ? pct(roas, pRoas) : null,
+      aov_dod: pAov > 0 ? pct(aov, pAov) : null,
+      cac_dod: pCac > 0 && cac > 0 ? pct(cac, pCac) : null,
+    }
+
+    return { date: yStr, metrics }
+  },
+  ['insights-yesterday'],
+  { revalidate: 60 }
+)
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const orgId = searchParams.get('org_id')
   if (!orgId) return NextResponse.json({ error: 'org_id required' }, { status: 400 })
 
-  const supabase = createServiceClient()
-
-  const { data: org } = await supabase
-    .from('organizations')
-    .select('timezone')
-    .eq('id', orgId)
-    .single() as { data: { timezone: string | null } | null }
-
-  const tz = org?.timezone ?? 'America/New_York'
-  const nowInTz = new Date().toLocaleDateString('en-CA', { timeZone: tz })
-  const todayDate = new Date(nowInTz + 'T12:00:00')
-  // Yesterday = today-1, Day-before-yesterday = today-2 (for day-over-day comparison)
-  const yesterday = new Date(todayDate); yesterday.setDate(yesterday.getDate() - 1)
-  const prevDay = new Date(todayDate); prevDay.setDate(prevDay.getDate() - 2)
-  const yStr = yesterday.toLocaleDateString('en-CA')
-  const pdStr = prevDay.toLocaleDateString('en-CA')
-
-  const yRange = toUTCRange(yStr, tz)
-  const pdRange = toUTCRange(pdStr, tz)
-
-  const [yOrders, pdOrders, ySpend, pdSpend] = await Promise.all([
-    supabase.from('orders').select('total_price, source, status, units')
-      .eq('org_id', orgId).gte('created_at', yRange.start).lte('created_at', yRange.end).neq('status', 'refunded'),
-    supabase.from('orders').select('total_price, source, status, units')
-      .eq('org_id', orgId).gte('created_at', pdRange.start).lte('created_at', pdRange.end).neq('status', 'refunded'),
-    supabase.from('ad_spend').select('spend').eq('org_id', orgId).eq('date', yStr),
-    supabase.from('ad_spend').select('spend').eq('org_id', orgId).eq('date', pdStr),
-  ])
-
-  const sumRev = (rows: any[]) => rows.reduce((s, o) => s + Number(o.total_price || 0), 0)
-  const countOrd = (rows: any[]) => rows.reduce((s: number, o: any) => s + ((o.source === 'amazon' || o.source === 'walmart') ? (Number(o.units) || 1) : 1), 0)
-  const sumSpend = (rows: any[]) => rows.reduce((s, r) => s + Number(r.spend || 0), 0)
-
-  const revenue = sumRev(yOrders.data ?? [])
-  const orders = countOrd(yOrders.data ?? [])
-  const adSpend = sumSpend(ySpend.data ?? [])
-  const roas = adSpend > 0 ? revenue / adSpend : 0
-  const aov = orders > 0 ? revenue / orders : 0
-  const cac = orders > 0 && adSpend > 0 ? adSpend / orders : 0
-
-  const pRevenue = sumRev(pdOrders.data ?? [])
-  const pOrders = countOrd(pdOrders.data ?? [])
-  const pAdSpend = sumSpend(pdSpend.data ?? [])
-  const pRoas = pAdSpend > 0 ? pRevenue / pAdSpend : 0
-  const pAov = pOrders > 0 ? pRevenue / pOrders : 0
-  const pCac = pOrders > 0 && pAdSpend > 0 ? pAdSpend / pOrders : 0
-
-  const metrics = {
-    revenue, orders, ad_spend: adSpend, roas, aov, cac,
-    revenue_dod: pRevenue > 0 ? pct(revenue, pRevenue) : null,
-    orders_dod: pOrders > 0 ? pct(orders, pOrders) : null,
-    ad_spend_dod: pAdSpend > 0 ? pct(adSpend, pAdSpend) : null,
-    roas_dod: pRoas > 0 ? pct(roas, pRoas) : null,
-    aov_dod: pAov > 0 ? pct(aov, pAov) : null,
-    cac_dod: pCac > 0 && cac > 0 ? pct(cac, pCac) : null,
-  }
-
-  return NextResponse.json({ data: { date: yStr, metrics } }, { headers: NO_CACHE })
+  const data = await computeYesterday(orgId)
+  return NextResponse.json({ data }, { headers: NO_CACHE })
 }
