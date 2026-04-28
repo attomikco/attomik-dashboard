@@ -6,5 +6,5 @@
 -- source. The existing orders_org_email_created index doesn't cover source.
 --
 -- CONCURRENTLY so the build never holds a write lock; must run outside a txn.
-create index concurrently if not exists orders_org_created_source
-  on orders(org_id, created_at, source);
+create index concurrently if not exists orders_org_source_created
+  on orders(org_id, source, created_at);

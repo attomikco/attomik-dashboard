@@ -50,6 +50,8 @@ const defaultRange: DateRange = {
   compareMode: 'previous_month',
 }
 
+const SHOW_YESTERDAY_TABLE = false
+
 interface OrgKpi {
   id: string
   name: string
@@ -136,7 +138,7 @@ export default function OverviewPage() {
       if (!user || cancelled) return
 
       const { data: prof } = await supabase.from('profiles').select('is_superadmin').eq('id', user.id).single()
-      if (!cancelled) setIsSuperadmin(prof?.is_superadmin ?? false)
+      if (!cancelled) setIsSuperadmin(!!(prof as any)?.is_superadmin)
 
       let orgList: any[]
       if (isFirstLoad) {
@@ -199,8 +201,8 @@ export default function OverviewPage() {
         default:               return { start: currentRange.start, end: currentRange.end }
       }
     }
-    await Promise.all(orgList.map(async (org) => {
-      try {
+    try {
+      const requests = orgList.map((org) => {
         const tz = (org as any).timezone ?? 'America/New_York'
         const { start: orgCurStart, end: orgCurEnd } = resolveOrgRange(tz)
         const { prevStart, prevEnd } = getComparisonPeriod(orgCurStart, orgCurEnd, currentRange.compareMode, currentRange.customCompareStart, currentRange.customCompareEnd)
@@ -218,10 +220,13 @@ export default function OverviewPage() {
           const diffMs = targetLocal.getTime() - localAtUTCMidnight.getTime()
           return new Date(utcMidnight.getTime() + diffMs).toISOString()
         }
-        const res = await fetch('/api/overview', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        return {
+          org,
+          orgCurStart,
+          orgCurEnd,
+          prevStart,
+          prevEnd,
+          payload: {
             org_id: org.id,
             start: toUTC(orgCurStart, false),
             end: toUTC(orgCurEnd, true),
@@ -232,39 +237,71 @@ export default function OverviewPage() {
             adSpendEnd: orgCurEnd,
             adSpendPrevStart: prevStart,
             adSpendPrevEnd: prevEnd,
-          }),
-        })
-        const k = await res.json()
-        if (!res.ok) throw new Error(k.error)
+          },
+        }
+      })
 
-        const revenue = k.revenue ?? 0
-        const prevRevenue = k.prevRevenue ?? 0
-        const orders = k.orders ?? 0
-        const prevOrdCnt = k.prevOrders ?? 0
-        const netRev = k.netRev ?? 0
-        const prevNetRev = k.prevNetRev ?? 0
-        const aov = orders > 0 ? netRev / orders : 0
-        const prevAov = prevOrdCnt > 0 ? prevNetRev / prevOrdCnt : 0
-        const adSpend = k.adSpend ?? 0
-        const prevAdSpend = k.prevAdSpend ?? 0
-        const roas = adSpend > 0 ? revenue / adSpend : 0
-        const prevRoas = prevAdSpend > 0 ? prevRevenue / prevAdSpend : 0
-        const cac = adSpend > 0 && orders > 0 ? adSpend / orders : 0
-        const prevCac = prevAdSpend > 0 && prevOrdCnt > 0 ? prevAdSpend / prevOrdCnt : 0
-        const shopifyRev = k.shopifyRev ?? 0
-        const amazonRev = k.amazonRev ?? 0
-        const shopifyOrders = k.shopifyOrders ?? 0
-        const prevShopifyOrders = k.prevShopifyOrders ?? 0
+      if (requests.length === 0) return
 
-        // Mark loading=false NOW so the row renders the moment KPIs land —
-        // the GA4 conv-rate fetch below is best-effort and must not block paint.
-        if (!cancelled) setOrgs(prev => prev.map(o => o.id === org.id
-          ? { ...o, revenue, prevRevenue, orders, prevOrders: prevOrdCnt, aov, prevAov, adSpend, prevAdSpend, roas, prevRoas, cac, prevCac, shopifyRev, amazonRev, shopifyOrders, prevShopifyOrders, loading: false }
-          : o
-        ))
+      const res = await fetch('/api/overview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: requests.map(r => r.payload) }),
+      })
+      const payload = await res.json()
+      if (!res.ok) throw new Error(payload.error)
 
-        // Background-fill conv rate when GA is wired up. Updates in-place once it lands.
+      const byOrgId = new Map<string, any>((payload.orgs ?? []).map((k: any) => [k.org_id, k]))
+
+      if (!cancelled) {
+        setOrgs(prev => prev.map(o => {
+          const k = byOrgId.get(o.id)
+          if (!k) return { ...o, loading: false }
+
+          const revenue = k.revenue ?? 0
+          const prevRevenue = k.prevRevenue ?? 0
+          const orders = k.orders ?? 0
+          const prevOrdCnt = k.prevOrders ?? 0
+          const netRev = k.netRev ?? 0
+          const prevNetRev = k.prevNetRev ?? 0
+          const aov = orders > 0 ? netRev / orders : 0
+          const prevAov = prevOrdCnt > 0 ? prevNetRev / prevOrdCnt : 0
+          const adSpend = k.adSpend ?? 0
+          const prevAdSpend = k.prevAdSpend ?? 0
+          const roas = adSpend > 0 ? revenue / adSpend : 0
+          const prevRoas = prevAdSpend > 0 ? prevRevenue / prevAdSpend : 0
+          const cac = adSpend > 0 && orders > 0 ? adSpend / orders : 0
+          const prevCac = prevAdSpend > 0 && prevOrdCnt > 0 ? prevAdSpend / prevOrdCnt : 0
+
+          return {
+            ...o,
+            revenue,
+            prevRevenue,
+            orders,
+            prevOrders: prevOrdCnt,
+            aov,
+            prevAov,
+            adSpend,
+            prevAdSpend,
+            roas,
+            prevRoas,
+            cac,
+            prevCac,
+            shopifyRev: k.shopifyRev ?? 0,
+            amazonRev: k.amazonRev ?? 0,
+            shopifyOrders: k.shopifyOrders ?? 0,
+            prevShopifyOrders: k.prevShopifyOrders ?? 0,
+            loading: false,
+          }
+        }))
+      }
+
+      // Background-fill conv rate when GA is wired up. Updates in-place once it lands.
+      requests.forEach(({ org, orgCurStart, orgCurEnd, prevStart, prevEnd }) => {
+        const k = byOrgId.get(org.id)
         const gaId = (org as any).ga_property_id
+        const shopifyOrders = k?.shopifyOrders ?? 0
+        const prevShopifyOrders = k?.prevShopifyOrders ?? 0
         if (gaId && shopifyOrders > 0) {
           Promise.all([
             fetch('/api/analytics/traffic', {
@@ -285,10 +322,10 @@ export default function OverviewPage() {
             setOrgs(prev => prev.map(o => o.id === org.id ? { ...o, convRate, prevConvRate } : o))
           }).catch(() => {})
         }
-      } catch {
-        if (!cancelled) setOrgs(prev => prev.map(o => o.id === org.id ? { ...o, loading: false } : o))
-      }
-    }))
+      })
+    } catch {
+      if (!cancelled) setOrgs(prev => prev.map(o => ({ ...o, loading: false })))
+    }
   }
 
   const refreshTimestamps = async (orgIds?: string[]) => {
@@ -405,6 +442,7 @@ export default function OverviewPage() {
 
   // Fetch compact yesterday table for all orgs on mount
   useEffect(() => {
+    if (!SHOW_YESTERDAY_TABLE) return
     const viewAsUserId = localStorage.getItem('viewAsUserId')
     const url = `/api/insights/yesterday-all${viewAsUserId ? `?viewAs=${viewAsUserId}` : ''}`
     fetch(url, { cache: 'no-store' })
@@ -520,14 +558,16 @@ export default function OverviewPage() {
         )}
 
         {/* ── Yesterday table — hidden per product decision ── */}
-        {false && yesterdayTable && yesterdayTable.data.length > 0 && (() => {
-          const rows = yesterdayTable.data
+        {SHOW_YESTERDAY_TABLE && (() => {
+          const table = yesterdayTable as NonNullable<typeof yesterdayTable>
+          if (!table || table.data.length === 0) return null
+          const rows = table.data
           const totalRev = rows.reduce((s, r) => s + r.revenue, 0)
           const totalOrd = rows.reduce((s, r) => s + r.orders, 0)
           const totalSp  = rows.reduce((s, r) => s + r.ad_spend, 0)
           const blendRoas = totalSp > 0 ? totalRev / totalSp : 0
-          const headerLabel = yesterdayTable.date
-            ? new Date(yesterdayTable.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+          const headerLabel = table.date
+            ? new Date(table.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
             : ''
 
           const dodBadge = (v: number | null, invert = false) => {

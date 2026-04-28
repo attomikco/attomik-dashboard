@@ -93,6 +93,10 @@ export async function GET(request: Request) {
     const { data: prof } = await supabase
       .from('profiles').select('is_superadmin').eq('id', user.id).single() as { data: { is_superadmin: boolean | null } | null }
 
+    if (viewAsUserId && !prof?.is_superadmin) {
+      return NextResponse.json({ error: 'Superadmin required for viewAs' }, { status: 403 })
+    }
+
     const service = createServiceClient()
 
     // Resolve accessible orgs (same pattern as /api/overview).
