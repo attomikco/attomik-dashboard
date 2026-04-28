@@ -23,6 +23,7 @@ interface Profile { full_name: string | null; role: string; is_superadmin: boole
 
 const ORGS_CACHE_KEY = 'attomik:orgs-cache'
 const ACTIVE_ORG_CACHE_KEY = 'attomik:active-org-cache'
+const PROFILE_CACHE_KEY = 'attomik:profile-cache'
 
 function readCachedOrgs(): { orgs: Org[]; active: Org | null } {
   if (typeof window === 'undefined') return { orgs: [], active: null }
@@ -38,6 +39,16 @@ function readCachedOrgs(): { orgs: Org[]; active: Org | null } {
   }
 }
 
+function readCachedProfile(): Profile | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(PROFILE_CACHE_KEY)
+    return raw ? JSON.parse(raw) as Profile : null
+  } catch {
+    return null
+  }
+}
+
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
@@ -48,7 +59,7 @@ export default function Sidebar() {
   const cached = useRef(readCachedOrgs()).current
   const [orgs, setOrgs] = useState<Org[]>(cached.orgs)
   const [activeOrg, setActiveOrg] = useState<Org | null>(cached.active)
-  const [profile, setProfile] = useState<Profile | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(readCachedProfile())
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [viewAsName, setViewAsName] = useState<string | null>(null)
@@ -73,7 +84,8 @@ export default function Sidebar() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     const { data: prof } = await supabase.from('profiles').select('full_name, role, is_superadmin').eq('id', user.id).single()
-    setProfile(prof)
+    setProfile(prof as any)
+    try { if (prof) localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(prof)) } catch {}
     const viewAsUserId = localStorage.getItem('viewAsUserId')
     const viewAsUserNameStored = localStorage.getItem('viewAsUserName')
     if (viewAsUserId && viewAsUserNameStored) setViewAsName(viewAsUserNameStored)
@@ -118,7 +130,11 @@ export default function Sidebar() {
         try { localStorage.setItem(ACTIVE_ORG_CACHE_KEY, JSON.stringify(defaultOrg)) } catch {}
       }
       // Use viewer role for nav filtering in view-as mode
-      setProfile(prev => prev ? { ...prev, memberRole: 'viewer', is_superadmin: false } : prev)
+      setProfile(prev => {
+        const next = prev ? { ...prev, memberRole: 'viewer', is_superadmin: false } : prev
+        try { if (next) localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(next)) } catch {}
+        return next
+      })
     } else {
       // Regular user: load their memberships
       const { data: memberships } = await supabase
@@ -154,7 +170,11 @@ export default function Sidebar() {
       const highestRole = (memberships ?? []).reduce((best: string, m: any) => {
         return (ROLE_RANK[m.role] ?? 0) > (ROLE_RANK[best] ?? 0) ? m.role : best
       }, 'viewer')
-      setProfile(prev => prev ? { ...prev, memberRole: highestRole } : prev)
+      setProfile(prev => {
+        const next = prev ? { ...prev, memberRole: highestRole } : prev
+        try { if (next) localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(next)) } catch {}
+        return next
+      })
     }
   }
 
@@ -174,6 +194,9 @@ export default function Sidebar() {
   const handleSignOut = async () => {
     localStorage.removeItem('viewAsUserId')
     localStorage.removeItem('viewAsUserName')
+    localStorage.removeItem(PROFILE_CACHE_KEY)
+    localStorage.removeItem(ORGS_CACHE_KEY)
+    localStorage.removeItem(ACTIVE_ORG_CACHE_KEY)
     await supabase.auth.signOut()
     router.push('/auth/login')
   }
