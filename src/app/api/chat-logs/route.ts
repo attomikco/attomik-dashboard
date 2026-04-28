@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { getAuthEmailsByIds } from '@/lib/supabase/auth-users'
 
 export async function GET() {
   try {
@@ -18,11 +19,10 @@ export async function GET() {
       .order('created_at', { ascending: false })
       .limit(200)
 
-    // Get user emails
-    const { data: { users: authUsers } } = await serviceClient.auth.admin.listUsers()
-    const userMap = new Map((authUsers ?? []).map(u => [u.id, u.email]))
+    const userIds = Array.from(new Set((logs ?? []).map((l: any) => l.user_id).filter(Boolean)))
+    const userMap = await getAuthEmailsByIds(serviceClient, userIds)
 
-    const enriched = (logs ?? []).map(l => ({
+    const enriched = (logs ?? []).map((l: any) => ({
       ...l,
       email: userMap.get(l.user_id) ?? 'Unknown',
     }))

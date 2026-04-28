@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { getAuthEmailsByIds, getAuthUserById } from '@/lib/supabase/auth-users'
 
 export async function GET(request: Request) {
   try {
@@ -24,21 +25,18 @@ export async function GET(request: Request) {
     }
 
     const userIds = memberships.map(m => m.user_id)
-    const { data: profiles } = await serviceClient
-      .from('profiles')
-      .select('id, full_name, is_superadmin')
-      .in('id', userIds)
-
-    // Also get emails from auth.users via admin API
-    const { data: { users: authUsers } } = await serviceClient.auth.admin.listUsers()
+    const [profilesRes, emailMap] = await Promise.all([
+      serviceClient.from('profiles').select('id, full_name, is_superadmin').in('id', userIds),
+      getAuthEmailsByIds(serviceClient, userIds),
+    ])
+    const profiles = profilesRes.data
 
     const members = memberships.map(m => {
       const profile = profiles?.find(p => p.id === m.user_id)
-      const authUser = authUsers?.find(u => u.id === m.user_id)
       return {
         id: m.user_id,
         full_name: profile?.full_name ?? null,
-        email: authUser?.email ?? null,
+        email: emailMap.get(m.user_id) ?? null,
         is_superadmin: profile?.is_superadmin ?? false,
         role: m.role,
         status: m.status ?? 'joined',
@@ -70,8 +68,7 @@ export async function PUT(request: Request) {
     const now = new Date().toISOString()
 
     // Check if user has actually signed in before
-    const { data: { users } } = await serviceClient.auth.admin.listUsers()
-    const targetUser = users?.find(u => u.id === user_id)
+    const targetUser = await getAuthUserById(serviceClient, user_id)
     const hasSignedIn = !!targetUser?.last_sign_in_at
 
     await serviceClient.from('org_memberships').upsert({
@@ -107,8 +104,7 @@ export async function DELETE(request: Request) {
       const { data: remaining } = await serviceClient.from('org_memberships').select('id').eq('user_id', user_id).limit(1)
       if (!remaining || remaining.length === 0) {
         // No memberships left — clean up profile, invites, and auth user
-        const { data: { users } } = await serviceClient.auth.admin.listUsers()
-        const authUser = users?.find(u => u.id === user_id)
+        const authUser = await getAuthUserById(serviceClient, user_id)
         if (authUser?.email) {
           await serviceClient.from('invites').delete().eq('email', authUser.email)
         }

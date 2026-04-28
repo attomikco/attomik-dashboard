@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { getAuthUserByEmail } from '@/lib/supabase/auth-users'
 
 export async function POST(request: Request) {
   try {
@@ -9,8 +10,7 @@ export async function POST(request: Request) {
     const serviceClient = createServiceClient()
 
     // Check if user exists in auth
-    const { data: { users } } = await serviceClient.auth.admin.listUsers()
-    const user = users?.find(u => u.email === email)
+    const user = await getAuthUserByEmail(serviceClient, email)
 
     if (!user) {
       // Brand new email — no access

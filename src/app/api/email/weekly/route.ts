@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { getAuthEmailsByIds } from '@/lib/supabase/auth-users'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -477,8 +478,7 @@ async function getRecipients(sb: any, orgId: string): Promise<string[]> {
   const { data: memberships } = await sb.from('org_memberships').select('user_id').eq('org_id', orgId)
   const userIds: string[] = (memberships ?? []).map((m: any) => m.user_id)
   if (userIds.length === 0) return []
-  const { data: { users } } = await sb.auth.admin.listUsers()
-  const byId = new Map((users ?? []).map((u: any) => [u.id, u.email]))
+  const byId = await getAuthEmailsByIds(sb, userIds)
   return userIds.map(id => byId.get(id)).filter((e: any): e is string => !!e)
 }
 

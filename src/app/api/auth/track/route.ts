@@ -8,18 +8,20 @@ export async function POST() {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const now = new Date().toISOString()
-    const serviceClient = createServiceClient()
+    const sb = createServiceClient()
 
-    // Mark any 'invited' memberships as joined
-    await serviceClient.from('org_memberships')
-      .update({ status: 'joined', joined_at: now, last_seen_at: now })
-      .eq('user_id', user.id)
-      .eq('status', 'invited')
-
-    // Always update last_seen_at
-    await serviceClient.from('org_memberships')
-      .update({ last_seen_at: now })
-      .eq('user_id', user.id)
+    // Two disjoint updates run in parallel: promote any 'invited' rows to
+    // 'joined' (and stamp last_seen_at) AND bump last_seen_at on the rest.
+    // Previously these ran sequentially and double-wrote last_seen_at on
+    // invited rows.
+    await Promise.all([
+      sb.from('org_memberships')
+        .update({ status: 'joined', joined_at: now, last_seen_at: now })
+        .eq('user_id', user.id).eq('status', 'invited'),
+      sb.from('org_memberships')
+        .update({ last_seen_at: now })
+        .eq('user_id', user.id).neq('status', 'invited'),
+    ])
 
     return NextResponse.json({ success: true })
   } catch (err: any) {

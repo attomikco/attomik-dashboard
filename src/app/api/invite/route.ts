@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { getAuthUserByEmail } from '@/lib/supabase/auth-users'
 
 async function sendResendEmail(to: string, subject: string, html: string) {
   const res = await fetch('https://api.resend.com/emails', {
@@ -153,8 +154,7 @@ export async function POST(request: Request) {
       .from('organizations').select('name').eq('id', org_id).single()
     const orgName = orgData?.name ?? 'a project'
 
-    const { data: { users } } = await serviceClient.auth.admin.listUsers()
-    const existingUser = users?.find(u => u.email === email)
+    const existingUser = await getAuthUserByEmail(serviceClient, email)
 
     if (existingUser) {
       // Check if already a member
@@ -239,8 +239,7 @@ export async function POST(request: Request) {
     }
 
     if (full_name) {
-      const { data: { users: updated } } = await serviceClient.auth.admin.listUsers()
-      const created = updated?.find(u => u.email === email)
+      const created = await getAuthUserByEmail(serviceClient, email)
       if (created) {
         await serviceClient.from('profiles').upsert(
           { id: created.id, full_name },
