@@ -4,12 +4,32 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
+const BLAST_CONCURRENCY = 5
+
 // Superadmin-only test helper: send a weekly email for every org to a single
 // recipient. Useful for previewing what each client's email looks like without
 // having to trigger them one by one from the settings page.
 //
-// Hit this from a logged-in browser tab as a superadmin:
-//   /api/email/weekly/blast?to=pablo@attomik.co
+// POST as a logged-in superadmin with:
+//   { "to": "pablo@attomik.co", "confirm": "send" }
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let next = 0
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const index = next++
+      if (index >= items.length) return
+      results[index] = await worker(items[index], index)
+    }
+  })
+  await Promise.all(workers)
+  return results
+}
+
 async function blast(request: Request) {
   const user_sb = createClient()
   const { data: { user } } = await user_sb.auth.getUser()
@@ -21,8 +41,15 @@ async function blast(request: Request) {
   }
 
   const url = new URL(request.url)
-  const to = url.searchParams.get('to')?.trim()
-  if (!to) return NextResponse.json({ error: '`to` query param required' }, { status: 400 })
+  const body = await request.json().catch(() => ({})) as { to?: string; confirm?: boolean | string }
+  const to = (body.to ?? url.searchParams.get('to') ?? '').trim()
+  if (!to) return NextResponse.json({ error: '`to` required' }, { status: 400 })
+
+  const confirm = body.confirm ?? url.searchParams.get('confirm')
+  const confirmed = confirm === true || String(confirm).toLowerCase() === 'send'
+  if (!confirmed) {
+    return NextResponse.json({ error: 'Send confirmation required: confirm must be "send"' }, { status: 400 })
+  }
 
   const sb = createServiceClient()
   const { data: orgs } = await sb.from('organizations').select('id, name').order('name')
@@ -31,21 +58,19 @@ async function blast(request: Request) {
   const cookieHeader = request.headers.get('cookie') ?? ''
   const baseUrl = url.origin
 
-  // Fire all sends in parallel — each is its own serverless invocation, so the
-  // wrapper only waits for them to all return.
-  const settled = await Promise.allSettled(orgList.map(async (org) => {
-    const res = await fetch(`${baseUrl}/api/email/weekly`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', cookie: cookieHeader },
-      body: JSON.stringify({ org_id: org.id, recipientOverride: to }),
-    })
-    const body = await res.json().catch(() => ({}))
-    return { org: org.name, status: res.status, ok: res.ok, ...body }
-  }))
-
-  const results = settled.map((r, i) => r.status === 'fulfilled'
-    ? r.value
-    : { org: orgList[i]?.name, ok: false, error: (r.reason as Error)?.message ?? 'unknown' })
+  const results = await mapWithConcurrency(orgList, BLAST_CONCURRENCY, async (org) => {
+    try {
+      const res = await fetch(`${baseUrl}/api/email/weekly`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', cookie: cookieHeader },
+        body: JSON.stringify({ org_id: org.id, recipientOverride: to }),
+      })
+      const body = await res.json().catch(() => ({}))
+      return { org: org.name, status: res.status, ok: res.ok, ...body }
+    } catch (err: any) {
+      return { org: org.name, ok: false, error: err?.message ?? 'unknown' }
+    }
+  })
   const sent = results.filter(r => r.ok).length
 
   return NextResponse.json({
@@ -57,8 +82,11 @@ async function blast(request: Request) {
   })
 }
 
-export async function GET(request: Request) {
-  return blast(request)
+export async function GET() {
+  return NextResponse.json(
+    { error: 'Method not allowed. Use POST with { to, confirm: "send" }.' },
+    { status: 405, headers: { Allow: 'POST' } }
+  )
 }
 
 export async function POST(request: Request) {

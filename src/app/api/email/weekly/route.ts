@@ -492,21 +492,31 @@ export async function POST(request: Request) {
     if (!org_id) return NextResponse.json({ error: 'org_id required' }, { status: 400 })
 
     const sb = createServiceClient()
+    const { data: prof } = await user_sb.from('profiles').select('is_superadmin').eq('id', user.id).single()
+    const isSuperadmin = !!(prof as any)?.is_superadmin
 
     // recipientOverride lets a superadmin redirect the entire send to a single
     // address (used by /api/email/weekly/blast for test sends). Gate it.
-    if (recipientOverride) {
-      const { data: prof } = await user_sb.from('profiles').select('is_superadmin').eq('id', user.id).single()
-      if (!(prof as any)?.is_superadmin) {
-        return NextResponse.json({ error: 'Superadmin required for recipientOverride' }, { status: 403 })
-      }
+    if (recipientOverride && !isSuperadmin) {
+      return NextResponse.json({ error: 'Superadmin required for recipientOverride' }, { status: 403 })
+    }
+
+    if (!isSuperadmin) {
+      const { data: membership } = await sb.from('org_memberships')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .eq('org_id', org_id)
+        .maybeSingle()
+      if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const { data: org, error: orgError } = await sb.from('organizations')
       .select('id, name, slug, timezone').eq('id', org_id).maybeSingle()
     if (orgError) return NextResponse.json({ error: `Org lookup failed: ${orgError.message}` }, { status: 500 })
     if (!org) return NextResponse.json({ error: 'Org not found' }, { status: 404 })
-    const tz = (((org as any).timezone as string | null) ?? 'America/New_York')
+    const orgRow = org as any
+    const orgName = String(orgRow.name ?? 'Project')
+    const tz = ((orgRow.timezone as string | null) ?? 'America/New_York')
 
     // Pull the unsubscribe list separately so a missing column (migration
     // not yet applied) degrades gracefully instead of failing the whole fetch.
@@ -581,7 +591,7 @@ export async function POST(request: Request) {
     const avgCac = avgAgg.orders > 0 ? avgAdSpendTotal / avgAgg.orders : null
 
     const aiSummary = await generateAISummary({
-      orgName: org.name,
+      orgName,
       revenue: cur.revenue, orders: cur.orders, adSpend: curAdSpend, roas: curRoas, aov: curAov, cac: curCac,
       revenueWow: wowPct(cur.revenue, prev.revenue),
       ordersWow: wowPct(cur.orders, prev.orders),
@@ -598,13 +608,13 @@ export async function POST(request: Request) {
       },
     })
 
-    const orgSlug = ((org as any).slug ?? null) as string | null
+    const orgSlug = (orgRow.slug ?? null) as string | null
     const dashboardUrl = orgSlug
       ? `https://dashboard.attomik.co/dashboard/analytics?org=${encodeURIComponent(orgSlug)}`
       : `https://dashboard.attomik.co/dashboard/analytics`
 
     const html = buildHtml({
-      orgName: org.name,
+      orgName,
       rangeLabel: fmtRangeKeys(lastMonKey, lastSunKey),
       aiSummary,
       dashboardUrl,
@@ -632,7 +642,7 @@ export async function POST(request: Request) {
       channel: { shopify: fmtMoney(cur.shopify), shopifyPct, amazon: fmtMoney(cur.amazon), amazonPct, walmart: fmtMoney(cur.walmart), walmartPct },
     })
 
-    const subject = `${org.name} — Weekly Performance · ${fmtRangeKeys(lastMonKey, lastSunKey)}`
+    const subject = `${orgName} — Weekly Performance · ${fmtRangeKeys(lastMonKey, lastSunKey)}`
     const sentTo: string[] = []
     const errors: string[] = []
 
