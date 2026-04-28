@@ -337,6 +337,7 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true)
   const [isRefetching, setIsRefetching] = useState(false)
   const hasLoadedOnce = useRef(false)
+  const inFlightFetchKey = useRef<string | null>(null)
   const [data, setData] = useState<any>(null)
   const [revenueRoasData, setRevenueRoasData] = useState<any[]>([])
   const [spendSalesData, setSpendSalesData] = useState<any[]>([])
@@ -361,7 +362,14 @@ export default function AnalyticsPage() {
   const [insightFetched, setInsightFetched] = useState(false)
   const supabase = createClient()
 
-  useEffect(() => { fetchData() }, [range])
+  useEffect(() => {
+    fetchData().catch(err => {
+      console.error('[analytics] fetchData failed:', err)
+      inFlightFetchKey.current = null
+      setLoading(false)
+      setIsRefetching(false)
+    })
+  }, [range])
 
   // Sync timestamps — fetched independently of the heavy fetchData flow so a
   // stall upstream can't leave the topbar showing stale values. Fires on
@@ -399,6 +407,23 @@ export default function AnalyticsPage() {
   }, [])
 
   const fetchData = async () => {
+    const fetchKey = JSON.stringify({
+      start: range.start,
+      end: range.end,
+      label: range.label,
+      compareMode: range.compareMode,
+      customCompareStart: range.customCompareStart,
+      customCompareEnd: range.customCompareEnd,
+    })
+    if (inFlightFetchKey.current === fetchKey) {
+      console.log('[analytics] skipping duplicate in-flight fetch', { fetchKey })
+      return
+    }
+    inFlightFetchKey.current = fetchKey
+    const clearInFlightFetch = () => {
+      if (inFlightFetchKey.current === fetchKey) inFlightFetchKey.current = null
+    }
+    const startedAt = performance.now()
     if (hasLoadedOnce.current) setIsRefetching(true)
     else setLoading(true)
     let orgId = localStorage.getItem('activeOrgId')
@@ -414,7 +439,7 @@ export default function AnalyticsPage() {
         }
       }
     }
-    if (!orgId) { setLoading(false); setIsRefetching(false); return }
+    if (!orgId) { setLoading(false); setIsRefetching(false); clearInFlightFetch(); return }
     setActiveOrgId(orgId)
 
     // Fetch user name for personalized greeting (use view-as name if active)
@@ -532,27 +557,35 @@ export default function AnalyticsPage() {
     const { prevStart, prevEnd } = getPrevPeriod(resolvedRange.start, resolvedRange.end, range.compareMode, range.customCompareStart, range.customCompareEnd)
     const prevStartISO = toUTC(prevStart, false)
     const prevEndISO   = toUTC(prevEnd, true)
-    const sixMonthsAgo = '2020-01-01T00:00:00.000Z' // fetch full history for accurate returning customer calc
 
     // Paginated fetch to bypass Supabase 1000 row default limit
     const fetchAllOrders = async (gteDate: string, lteDate: string, cols: string) => {
+      const queryStartedAt = performance.now()
       const size = 1000
       let from = 0, all: any[] = []
+      let pages = 0
       while (true) {
         const { data, error } = await supabase.from('orders').select(cols)
           .eq('org_id', orgId).gte('created_at', gteDate).lte('created_at', lteDate)
           .order('created_at', { ascending: true }).range(from, from + size - 1)
         if (error) { console.error('[fetchAllOrders] Supabase error:', error, { from, gteDate, lteDate }); break }
         if (!data || data.length === 0) break
+        pages += 1
         all = all.concat(data)
         if (data.length < size) break
         from += size
       }
+      console.log('[analytics] orders fetch complete', {
+        gteDate,
+        lteDate,
+        rows: all.length,
+        pages,
+        durationMs: Math.round(performance.now() - queryStartedAt),
+      })
       return all
     }
 
     const orderCols = 'total_price,status,source,customer_email,created_at,units,subtotal,discount_amount,shipping_amount,tax_amount,refunded_amount,is_subscription'
-    const orderColsLight = 'total_price,source,customer_email,created_at,units,is_subscription'
 
     // Amazon orders are stored at midnight UTC — fetch them with plain date boundaries
     // so timezone offsets don't cause them to be missed
@@ -561,10 +594,32 @@ export default function AnalyticsPage() {
     const amazonPrevStart = `${prevStart}T00:00:00.000Z`
     const amazonPrevEnd   = `${prevEnd}T23:59:59.999Z`
 
-    const fetchNonAmazon = (gte: string, lte: string, cols: string) =>
-      fetchAllOrders(gte, lte, cols).then(orders => orders.filter(o => o.source !== 'amazon'))
-    const fetchAmazon = (gte: string, lte: string, cols: string) =>
-      fetchAllOrders(gte, lte, cols).then(orders => orders.filter(o => o.source === 'amazon'))
+    const minIso = (...values: string[]) => values.reduce((min, value) => value < min ? value : min)
+    const maxIso = (...values: string[]) => values.reduce((max, value) => value > max ? value : max)
+    const fetchPeriodOrders = async (
+      nonAmazonStart: string,
+      nonAmazonEnd: string,
+      amazonStart: string,
+      amazonEnd: string,
+      cols: string
+    ) => {
+      const nonAmazonStartMs = new Date(nonAmazonStart).getTime()
+      const nonAmazonEndMs = new Date(nonAmazonEnd).getTime()
+      const amazonStartMs = new Date(amazonStart).getTime()
+      const amazonEndMs = new Date(amazonEnd).getTime()
+      const rows = await fetchAllOrders(
+        minIso(nonAmazonStart, amazonStart),
+        maxIso(nonAmazonEnd, amazonEnd),
+        cols
+      )
+      return rows.filter(o => {
+        if (!o.created_at) return false
+        const createdAtMs = new Date(o.created_at).getTime()
+        if (Number.isNaN(createdAtMs)) return false
+        if (o.source === 'amazon') return createdAtMs >= amazonStartMs && createdAtMs <= amazonEndMs
+        return createdAtMs >= nonAmazonStartMs && createdAtMs <= nonAmazonEndMs
+      })
+    }
 
     // Fetch ad_spend via API route (uses service client to bypass RLS)
     const fetchAllAdSpend = async (cols: string, gteDate: string, lteDate: string) => {
@@ -588,22 +643,38 @@ export default function AnalyticsPage() {
       }
     }
 
-    const [curNonAmazon, curAmazon, prevNonAmazon, prevAmazon, curS, prevS, allOrdRaw, allSpRaw] = await Promise.all([
-      fetchNonAmazon(thisStart, thisEnd, orderCols),
-      fetchAmazon(amazonCurStart, amazonCurEnd, orderCols),
-      fetchNonAmazon(prevStartISO, prevEndISO, orderCols),
-      fetchAmazon(amazonPrevStart, amazonPrevEnd, orderCols),
+    const fetchHistorySummary = async (payload: any) => {
+      const res = await fetch('/api/analytics/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const json = await res.json().catch(() => null)
+      if (!res.ok) {
+        console.error('[analytics/history] API error:', res.status, json)
+        throw new Error(json?.error || 'Failed to load analytics history summary')
+      }
+      console.log('[analytics/history] summary:', json?.debug ?? null)
+      return json
+    }
+
+    const [cur, prev, curS, prevS] = await Promise.all([
+      fetchPeriodOrders(thisStart, thisEnd, amazonCurStart, amazonCurEnd, orderCols),
+      fetchPeriodOrders(prevStartISO, prevEndISO, amazonPrevStart, amazonPrevEnd, orderCols),
       fetchAllAdSpend('spend,platform,impressions,clicks,conversions,date', resolvedRange.start, resolvedRange.end),
       fetchAllAdSpend('spend,platform,impressions,clicks,conversions', prevStart, prevEnd),
-      fetchAllOrders(sixMonthsAgo, new Date().toISOString(), orderColsLight),
-      fetchAllAdSpend('spend,date', sixMonthsAgo.split('T')[0], resolvedRange.end),
     ])
 
-    const cur  = [...curNonAmazon, ...curAmazon]
-    const prev = [...prevNonAmazon, ...prevAmazon]
     const cSpend = curS.data ?? [], pSpend = prevS.data ?? []
-    const allOrd = allOrdRaw ?? []
-    const allSp = allSpRaw?.data ?? []
+    console.log('[analytics] data fetch summary', {
+      durationMs: Math.round(performance.now() - startedAt),
+      rows: {
+        currentOrders: cur.length,
+        previousOrders: prev.length,
+        currentAdSpend: cSpend.length,
+        previousAdSpend: pSpend.length,
+      },
+    })
 
     // Debug: log ad spend query results
     const metaRows = cSpend.filter((o: any) => o.platform === 'meta')
@@ -659,22 +730,41 @@ export default function AnalyticsPage() {
     const netRevP = enabledOrdersP.reduce((s, o) => s + Number(o.subtotal || o.total_price || 0), 0)
     const aovC  = ordC > 0 ? netRevC / ordC : 0
     const aovP  = ordP > 0 ? netRevP / ordP : 0
-    // Returning = ordered ANY time before the current period (uses full history)
-    const allEmailsBeforeCur = new Set(allOrd.filter(o => o.created_at < thisStart).map(o => o.customer_email).filter(Boolean))
-    const allEmailsBeforePrev = new Set(allOrd.filter(o => o.created_at < prevStartISO).map(o => o.customer_email).filter(Boolean))
-    const curEmails  = [...new Set(enabledOrders.map(o => o.customer_email).filter(Boolean))]
+
+    const revenueByCustomer = enabledOrders.reduce<Record<string, number>>((acc, o) => {
+      if (!o.customer_email) return acc
+      acc[o.customer_email] = (acc[o.customer_email] ?? 0) + Number(o.total_price || 0)
+      return acc
+    }, {})
     const prevEmailsList = [...new Set(enabledOrdersP.map(o => o.customer_email).filter(Boolean))]
-    const retCustC   = curEmails.filter(e => allEmailsBeforeCur.has(e)).length
-    const newCustC   = curEmails.filter(e => !allEmailsBeforeCur.has(e)).length
-    const totalCustC = curEmails.length
-    const retCustP   = prevEmailsList.filter(e => allEmailsBeforePrev.has(e)).length
-    const newCustP   = prevEmailsList.filter(e => !allEmailsBeforePrev.has(e)).length
+    const shopCurrentEmails = [...new Set(shopC.map(o => o.customer_email).filter(Boolean))]
+    const shopPreviousEmails = [...new Set(shopP.map(o => o.customer_email).filter(Boolean))]
+    const history = await fetchHistorySummary({
+      org_id: orgId,
+      thisStart,
+      prevStart: prevStartISO,
+      rangeEnd: resolvedRange.end,
+      nowIso: new Date().toISOString(),
+      clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || orgTimezone,
+      currentCustomerRevenue: Object.entries(revenueByCustomer).map(([email, revenue]) => ({ email, revenue })),
+      previousCustomerEmails: prevEmailsList,
+      shopifyCurrentEmails: shopCurrentEmails,
+      shopifyPreviousEmails: shopPreviousEmails,
+    })
+
+    // Returning = ordered ANY time before the current period. The expensive
+    // prior-customer lookup now happens server-side in /api/analytics/history.
+    const retCustC   = Number(history.retCustC ?? 0)
+    const newCustC   = Number(history.newCustC ?? 0)
+    const totalCustC = Number(history.totalCustC ?? Object.keys(revenueByCustomer).length)
+    const retCustP   = Number(history.retCustP ?? 0)
+    const newCustP   = Number(history.newCustP ?? 0)
     const rcrC = totalCustC > 0 ? (retCustC / totalCustC) * 100 : 0
     const rcrP = prevEmailsList.length > 0 ? (retCustP / prevEmailsList.length) * 100 : 0
     const cacC = ordC > 0 ? totalSpC / ordC : 0
     const cacP = ordP > 0 ? totalSpP / ordP : 0
-    const retRevC = enabledOrders.filter(o => o.customer_email && allEmailsBeforeCur.has(o.customer_email)).reduce((s, o) => s + Number(o.total_price), 0)
-    const newRevC  = enabledOrders.filter(o => o.customer_email && !allEmailsBeforeCur.has(o.customer_email)).reduce((s, o) => s + Number(o.total_price), 0)
+    const retRevC = Number(history.retRevC ?? 0)
+    const newRevC = Number(history.newRevC ?? 0)
 
     const shGrossC    = shopC.reduce((s, o) => s + (Number(o.subtotal)||0) + (Number(o.discount_amount)||0), 0)
     const shGrossP    = shopP.reduce((s, o) => s + (Number(o.subtotal)||0) + (Number(o.discount_amount)||0), 0)
@@ -696,17 +786,8 @@ export default function AnalyticsPage() {
     const shCustP     = new Set(shopP.map(o => o.customer_email).filter(Boolean)).size
     const shAovC      = shOrdC > 0 ? shNetC / shOrdC : 0
     const shAovP      = shOrdP > 0 ? shNetP / shOrdP : 0
-    // Shopify defines returning = customer has ANY prior order in history (not just prev period)
-    const allHistoricalEmails = new Set(allOrd.filter(o => o.source === 'shopify').map(o => o.customer_email).filter(Boolean))
-    // For current period: returning = ordered before the period start
-    const ordersBeforeCur = allOrd.filter(o => o.source === 'shopify' && o.created_at < thisStart)
-    const emailsBeforeCur = new Set(ordersBeforeCur.map(o => o.customer_email).filter(Boolean))
-    const shRetCustC = new Set(shopC.filter(o => o.customer_email && emailsBeforeCur.has(o.customer_email)).map(o => o.customer_email)).size
-    // For prev period: returning = ordered before the prev period start
-    const ordersBeforePrev = allOrd.filter(o => o.source === 'shopify' && o.created_at < prevStartISO)
-    const emailsBeforePrev = new Set(ordersBeforePrev.map(o => o.customer_email).filter(Boolean))
-    const shRetCustP = new Set(shopP.filter(o => o.customer_email && emailsBeforePrev.has(o.customer_email)).map(o => o.customer_email)).size
-    const shCurEmails = new Set(shopC.map(o => o.customer_email).filter(Boolean))
+    const shRetCustC = Number(history.shRetCustC ?? 0)
+    const shRetCustP = Number(history.shRetCustP ?? 0)
     const shRcrC = shCustC > 0 ? (shRetCustC / shCustC) * 100 : 0
     const shRcrP = shCustP > 0 ? (shRetCustP / shCustP) * 100 : 0
 
@@ -746,20 +827,7 @@ export default function AnalyticsPage() {
     const subLtvC = 2 * subAovC * subFreqC
     const subLtvP = 2 * subAovP * subFreqP
 
-    // Monthly subscription data (last 6 months) — use UTC boundaries
-    const monthlySubscribers: { month: string; subscribers: number; revenue: number; pctOfRev: number }[] = []
-    for (let m = 5; m >= 0; m--) {
-      const dt = new Date(); dt.setMonth(dt.getMonth() - m)
-      const y = dt.getFullYear(), mo = dt.getMonth()
-      const mStart = `${y}-${String(mo + 1).padStart(2, '0')}-01T00:00:00.000Z`
-      const mEnd = mo === 11 ? `${y + 1}-01-01T00:00:00.000Z` : `${y}-${String(mo + 2).padStart(2, '0')}-01T00:00:00.000Z`
-      const mLabel = new Date(y, mo).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-      const mOrd = allOrd.filter(o => o.source === 'shopify' && o.is_subscription && o.created_at >= mStart && o.created_at < mEnd)
-      const mSubs = new Set(mOrd.map(o => o.customer_email).filter(Boolean)).size
-      const mRev = mOrd.reduce((s, o) => s + Number(o.total_price || 0), 0)
-      const mAllRev = allOrd.filter(o => o.created_at >= mStart && o.created_at < mEnd).reduce((s, o) => s + Number(o.total_price || 0), 0)
-      monthlySubscribers.push({ month: mLabel, subscribers: mSubs, revenue: mRev, pctOfRev: mAllRev > 0 ? (mRev / mAllRev) * 100 : 0 })
-    }
+    const monthlySubscribers: { month: string; subscribers: number; revenue: number; pctOfRev: number }[] = history.monthlySubscribers ?? []
 
     const amzRevC  = amzC.reduce((s, o) => s + Number(o.total_price), 0)
     const amzRevP  = amzP.reduce((s, o) => s + Number(o.total_price), 0)
@@ -941,98 +1009,18 @@ export default function AnalyticsPage() {
     })
     setDowData(Object.entries(dowMap).map(([dow, v]) => ({ dayOfWeek: Number(dow), revenue: v.revenue, orders: v.orders, weeks: Math.max(v.weeks.size, 1) })))
 
-    // allOrd and allSp already defined above
-    const monthMap: Record<string, { customers: Set<string>; spend: number; orders: number }> = {}
-    allOrd.forEach(o => {
-      const d = new Date(o.created_at)
-      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
-      if (!monthMap[key]) monthMap[key] = { customers: new Set(), spend: 0, orders: 0 }
-      monthMap[key].orders += (o.source === 'amazon' || o.source === 'walmart') ? (Number(o.units) || 1) : 1
-      if (o.customer_email) monthMap[key].customers.add(o.customer_email)
-    })
-    allSp.forEach(s => { const key = s.date.slice(0,7); if (monthMap[key]) monthMap[key].spend += Number(s.spend) })
-    const sortedMonths = Object.keys(monthMap).sort()
-    // Use same CAC formula as KPI card: new = never ordered in any prior month
-    // Only show last 6 months relative to selected range end
-    const rangeEndMonth = resolvedRange.end.slice(0, 7)
-    const last6Months = sortedMonths.filter(k => k <= rangeEndMonth).slice(-6)
+    setCacData(history.cacData ?? [])
 
-    setCacData(last6Months.map((key) => {
-      const [year, month] = key.split('-')
-      const orders = monthMap[key].orders
-      const spend = monthMap[key].spend
-      return {
-        period: new Date(Number(year), Number(month)-1, 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-        cac: orders > 0 ? spend / orders : 0,
-        orders,
-        spend,
-      }
-    }).filter(d => d.spend > 0))
-
-    // Weekly sparklines for scoreboard
-    const weekRevs: number[] = []
-    const weekSpend: number[] = []
-    const weekOrders: number[] = []
-    const weekCac: number[] = []
-    const weekAov: number[] = []
-    const weekRoas: number[] = []
-    const weekNewCusts: number[] = []
-    const weekRetCusts: number[] = []
-    const weekRetRate: number[] = []
-
-    for (let w = 7; w >= 0; w--) {
-      const wStart = new Date(Date.now() - (w+1)*7*864e5)
-      const wEnd   = new Date(Date.now() - w*7*864e5)
-      const wStartISO = wStart.toISOString()
-      const wEndISO   = wEnd.toISOString()
-
-      const wOrds = allOrd.filter(o => o.created_at >= wStartISO && o.created_at < wEndISO)
-      const wRev  = wOrds.reduce((s, o) => s + Number(o.total_price), 0)
-      const wOrdCount = wOrds.reduce((s, o) => s + ((o.source === 'amazon' || o.source === 'walmart') ? (Number(o.units) || 1) : 1), 0)
-
-      const wSp = allSp.filter((s: any) => s.date >= wStart.toISOString().split('T')[0] && s.date < wEnd.toISOString().split('T')[0])
-      const wSpend = wSp.reduce((s: any, o: any) => s + Number(o.spend), 0)
-
-      const wRoas = wSpend > 0 ? wRev / wSpend : 0
-      const wShopOrds = wOrds.filter(o => o.source === 'shopify')
-      const wAllCusts = new Set(wOrds.map(o => o.customer_email).filter(Boolean))
-      const wPriorEmails = new Set(allOrd.filter(o => o.created_at < wStartISO).map(o => o.customer_email).filter(Boolean))
-      const wNewCusts = [...wAllCusts].filter(e => !wPriorEmails.has(e)).length
-      const wRetCusts = [...wAllCusts].filter(e => wPriorEmails.has(e)).length
-      const wRetRate = wAllCusts.size > 0 ? (wRetCusts / wAllCusts.size) * 100 : 0
-
-      weekRevs.push(wRev)
-      weekSpend.push(wSpend)
-      weekOrders.push(wOrdCount)
-      weekCac.push(wOrdCount > 0 && wSpend > 0 ? wSpend / wOrdCount : 0)
-      weekAov.push(wOrdCount > 0 ? wRev / wOrdCount : 0)
-      weekRoas.push(wRoas)
-      weekNewCusts.push(wNewCusts)
-      weekRetCusts.push(wRetCusts)
-      weekRetRate.push(wRetRate)
-    }
-
-    // Monthly retention data (last 6 months)
-    const monthlyRetention: { month: string; total: number; returning: number; new: number; retRate: number }[] = []
-    for (let m = 5; m >= 0; m--) {
-      const dt = new Date()
-      dt.setMonth(dt.getMonth() - m)
-      const y = dt.getFullYear(), mo = dt.getMonth()
-      // Use UTC boundaries to match how created_at is stored
-      const mStartISO = `${y}-${String(mo + 1).padStart(2, '0')}-01T00:00:00.000Z`
-      const mEndISO = mo === 11
-        ? `${y + 1}-01-01T00:00:00.000Z`
-        : `${y}-${String(mo + 2).padStart(2, '0')}-01T00:00:00.000Z`
-      const mLabel = new Date(y, mo).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-
-      const mOrds = allOrd.filter(o => o.created_at >= mStartISO && o.created_at < mEndISO)
-      const mCusts = new Set(mOrds.map(o => o.customer_email).filter(Boolean))
-      const mPrior = new Set(allOrd.filter(o => o.created_at < mStartISO).map(o => o.customer_email).filter(Boolean))
-      const mRet = [...mCusts].filter(e => mPrior.has(e)).length
-      const mNew = [...mCusts].filter(e => !mPrior.has(e)).length
-      const mTotal = mCusts.size
-      monthlyRetention.push({ month: mLabel, total: mTotal, returning: mRet, new: mNew, retRate: mTotal > 0 ? (mRet / mTotal) * 100 : 0 })
-    }
+    const weekRevs: number[] = history.weekRevs ?? []
+    const weekSpend: number[] = history.weekSpend ?? []
+    const weekOrders: number[] = history.weekOrders ?? []
+    const weekCac: number[] = history.weekCac ?? []
+    const weekAov: number[] = history.weekAov ?? []
+    const weekRoas: number[] = history.weekRoas ?? []
+    const weekNewCusts: number[] = history.weekNewCusts ?? []
+    const weekRetCusts: number[] = history.weekRetCusts ?? []
+    const weekRetRate: number[] = history.weekRetRate ?? []
+    const monthlyRetention: { month: string; total: number; returning: number; new: number; retRate: number }[] = history.monthlyRetention ?? []
 
     // If only Shopify enabled, use Shopify-specific calcs for accuracy
     const finalAovC = (showShopify && !showAmazon) ? shAovC : aovC
@@ -1057,6 +1045,7 @@ export default function AnalyticsPage() {
     })
     setLoading(false)
     setIsRefetching(false)
+    clearInFlightFetch()
     hasLoadedOnce.current = true
   }
 
