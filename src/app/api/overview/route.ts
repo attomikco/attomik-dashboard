@@ -42,6 +42,53 @@ export async function GET(request: Request) {
   }
 }
 
+type OrderRow = { total_price: number | string; subtotal: number | string | null; status: string | null; source: string | null; units: number | null }
+type SpendRow = { spend: number | string }
+
+type Aggregates = {
+  revenue: number
+  netRev: number
+  orders: number
+  shopifyRev: number
+  amazonRev: number
+  walmartRev: number
+  shopifyOrders: number
+}
+
+// Mirrors the client-side filterEnabled in overview/page.tsx exactly:
+// - drop refunded
+// - keep order if its source is enabled in org.channels (default-on if channels not set)
+// - unknown sources are bucketed with shopify
+function aggregate(rows: OrderRow[], ch: { showShopify: boolean; showAmazon: boolean; showWalmart: boolean }): Aggregates {
+  let revenue = 0, netRev = 0, orders = 0
+  let shopifyRev = 0, amazonRev = 0, walmartRev = 0, shopifyOrders = 0
+  for (const o of rows) {
+    if (o.status === 'refunded') continue
+    const src = o.source
+    const isShopify = src === 'shopify'
+    const isAmazon  = src === 'amazon'
+    const isWalmart = src === 'walmart'
+    const isUnknown = !isShopify && !isAmazon && !isWalmart
+    const include =
+      (ch.showShopify && isShopify) ||
+      (ch.showAmazon  && isAmazon)  ||
+      (ch.showWalmart && isWalmart) ||
+      (ch.showShopify && isUnknown)
+    if (!include) continue
+    const price = Number(o.total_price) || 0
+    const sub = o.subtotal == null ? price : Number(o.subtotal) || price
+    const unitMult = (isAmazon || isWalmart) ? (Number(o.units) || 1) : 1
+    revenue += price
+    netRev += sub
+    orders += unitMult
+    if (isAmazon) amazonRev += price
+    else if (isWalmart) walmartRev += price
+    else shopifyRev += price
+    if (isShopify) shopifyOrders += 1
+  }
+  return { revenue, netRev, orders, shopifyRev, amazonRev, walmartRev, shopifyOrders }
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = createClient()
@@ -62,10 +109,10 @@ export async function POST(request: Request) {
     const spendPrevEnd = adSpendPrevEnd ?? (prevEnd ? prevEnd.split('T')[0] : null)
 
     // Paginated fetch to get ALL orders (Supabase caps at 1000 per query)
-    const fetchAllOrders = async (gte: string, lte: string, source?: string) => {
+    const fetchAllOrders = async (gte: string, lte: string, source?: string): Promise<OrderRow[]> => {
       const size = 1000
       let from = 0
-      const all: any[] = []
+      const all: OrderRow[] = []
       while (true) {
         let query = serviceClient.from('orders')
           .select('total_price, subtotal, status, source, units')
@@ -74,53 +121,66 @@ export async function POST(request: Request) {
         if (source) query = query.eq('source', source)
         const { data } = await query.range(from, from + size - 1)
         if (!data || data.length === 0) break
-        all.push(...data)
+        all.push(...(data as any))
         if (data.length < size) break
         from += size
       }
       return all
     }
 
-    // Fetch non-Amazon orders with exact timezone-adjusted range
-    // Fetch Amazon orders separately using midnight UTC boundaries (they're stored at 00:00 UTC)
+    // Amazon orders are stored at midnight UTC, so they need a different range than
+    // shopify/walmart which are full timestamps timezone-shifted by the caller.
     const amazonStart = `${spendStart}T00:00:00.000Z`
     const amazonEnd = `${spendEnd}T23:59:59.999Z`
     const amazonPrevStart = spendPrevStart ? `${spendPrevStart}T00:00:00.000Z` : null
     const amazonPrevEnd = spendPrevEnd ? `${spendPrevEnd}T23:59:59.999Z` : null
 
-    // Paginated fetch for ad_spend (same pattern as orders)
-    const fetchAllAdSpend = async (gte: string, lte: string) => {
+    const fetchAllAdSpend = async (gte: string, lte: string): Promise<SpendRow[]> => {
       const size = 1000
       let from = 0
-      const all: any[] = []
+      const all: SpendRow[] = []
       while (true) {
         const { data } = await serviceClient.from('ad_spend').select('spend')
           .eq('org_id', org_id).gte('date', gte).lte('date', lte)
           .order('date', { ascending: true }).range(from, from + size - 1)
         if (!data || data.length === 0) break
-        all.push(...data)
+        all.push(...(data as any))
         if (data.length < size) break
         from += size
       }
       return all
     }
 
-    const [curNonAmazon, curAmazon, prevNonAmazon, prevAmazon, curSpend, prevSpend] = await Promise.all([
-      fetchAllOrders(start, end, undefined).then(orders => orders.filter(o => o.source !== 'amazon')),
+    const [orgRow, curNonAmazon, curAmazon, prevNonAmazon, prevAmazon, curSpend, prevSpend] = await Promise.all([
+      serviceClient.from('organizations').select('channels').eq('id', org_id).maybeSingle(),
+      fetchAllOrders(start, end, undefined).then(rows => rows.filter(o => o.source !== 'amazon')),
       fetchAllOrders(amazonStart, amazonEnd, 'amazon'),
-      prevStart ? fetchAllOrders(prevStart, prevEnd, undefined).then(orders => orders.filter(o => o.source !== 'amazon')) : Promise.resolve([]),
-      amazonPrevStart ? fetchAllOrders(amazonPrevStart, amazonPrevEnd!, 'amazon') : Promise.resolve([]),
+      prevStart ? fetchAllOrders(prevStart, prevEnd, undefined).then(rows => rows.filter(o => o.source !== 'amazon')) : Promise.resolve([] as OrderRow[]),
+      amazonPrevStart ? fetchAllOrders(amazonPrevStart, amazonPrevEnd!, 'amazon') : Promise.resolve([] as OrderRow[]),
       fetchAllAdSpend(spendStart, spendEnd),
-      spendPrevStart ? fetchAllAdSpend(spendPrevStart, spendPrevEnd!) : Promise.resolve([]),
+      spendPrevStart ? fetchAllAdSpend(spendPrevStart, spendPrevEnd!) : Promise.resolve([] as SpendRow[]),
     ])
-    const curOrders = [...curNonAmazon, ...curAmazon]
-    const prevOrders = [...prevNonAmazon, ...prevAmazon]
+
+    const channels = ((orgRow.data as any)?.channels ?? {}) as Record<string, boolean>
+    const isConfigured = Object.keys(channels).length > 0
+    const ch = {
+      showShopify: !isConfigured || channels.shopify !== false,
+      showAmazon:  !isConfigured || channels.amazon  !== false,
+      showWalmart: !isConfigured || channels.walmart !== false,
+    }
+
+    const cur  = aggregate([...curNonAmazon, ...curAmazon], ch)
+    const prev = aggregate([...prevNonAmazon, ...prevAmazon], ch)
+    const adSpend     = curSpend.reduce((s, r)  => s + (Number(r.spend) || 0), 0)
+    const prevAdSpend = prevSpend.reduce((s, r) => s + (Number(r.spend) || 0), 0)
 
     return NextResponse.json({
-      curOrders,
-      prevOrders,
-      curSpend,
-      prevSpend,
+      revenue: cur.revenue, prevRevenue: prev.revenue,
+      netRev: cur.netRev,   prevNetRev:  prev.netRev,
+      orders: cur.orders,   prevOrders:  prev.orders,
+      adSpend, prevAdSpend,
+      shopifyRev: cur.shopifyRev, amazonRev: cur.amazonRev, walmartRev: cur.walmartRev,
+      shopifyOrders: cur.shopifyOrders, prevShopifyOrders: prev.shopifyOrders,
     })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })

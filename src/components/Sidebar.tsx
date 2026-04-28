@@ -21,13 +21,33 @@ function canAccess(userRole: string, minRole: string) {
 interface Org { id: string; name: string; slug: string }
 interface Profile { full_name: string | null; role: string; is_superadmin: boolean; org_id: string | null; memberRole?: string }
 
+const ORGS_CACHE_KEY = 'attomik:orgs-cache'
+const ACTIVE_ORG_CACHE_KEY = 'attomik:active-org-cache'
+
+function readCachedOrgs(): { orgs: Org[]; active: Org | null } {
+  if (typeof window === 'undefined') return { orgs: [], active: null }
+  try {
+    const orgsRaw = window.localStorage.getItem(ORGS_CACHE_KEY)
+    const activeRaw = window.localStorage.getItem(ACTIVE_ORG_CACHE_KEY)
+    return {
+      orgs: orgsRaw ? JSON.parse(orgsRaw) as Org[] : [],
+      active: activeRaw ? JSON.parse(activeRaw) as Org : null,
+    }
+  } catch {
+    return { orgs: [], active: null }
+  }
+}
+
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
 
-  const [orgs, setOrgs] = useState<Org[]>([])
-  const [activeOrg, setActiveOrg] = useState<Org | null>(null)
+  // Hydrate from localStorage so the org switcher paints on the first frame
+  // instead of staying hidden until the auth round-trip + DB query finish.
+  const cached = useRef(readCachedOrgs()).current
+  const [orgs, setOrgs] = useState<Org[]>(cached.orgs)
+  const [activeOrg, setActiveOrg] = useState<Org | null>(cached.active)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -73,21 +93,30 @@ export default function Sidebar() {
     if (prof?.is_superadmin && !viewAsUserId) {
       // Superadmin sees all orgs
       const { data: allOrgs } = await supabase.from('organizations').select('id, name, slug').order('name')
-      setOrgs(allOrgs ?? [])
-      const found = resolveOrg(allOrgs ?? [])
-      const defaultOrg = found ?? allOrgs?.[0] ?? null
+      const list = allOrgs ?? []
+      setOrgs(list)
+      try { localStorage.setItem(ORGS_CACHE_KEY, JSON.stringify(list)) } catch {}
+      const found = resolveOrg(list)
+      const defaultOrg = found ?? list[0] ?? null
       setActiveOrg(defaultOrg)
-      if (defaultOrg) localStorage.setItem('activeOrgId', defaultOrg.id)
+      if (defaultOrg) {
+        localStorage.setItem('activeOrgId', defaultOrg.id)
+        try { localStorage.setItem(ACTIVE_ORG_CACHE_KEY, JSON.stringify(defaultOrg)) } catch {}
+      }
     } else if (prof?.is_superadmin && viewAsUserId) {
       // Superadmin in "View as" mode — fetch via API to bypass RLS
       const res = await fetch(`/api/overview?viewAs=${viewAsUserId}`)
       const data = await res.json()
       const memberOrgs = (data.orgs ?? []).sort((a: any, b: any) => a.name.localeCompare(b.name))
       setOrgs(memberOrgs)
+      try { localStorage.setItem(ORGS_CACHE_KEY, JSON.stringify(memberOrgs)) } catch {}
       const found = resolveOrg(memberOrgs)
       const defaultOrg = found ?? memberOrgs[0] ?? null
       setActiveOrg(defaultOrg)
-      if (defaultOrg) localStorage.setItem('activeOrgId', defaultOrg.id)
+      if (defaultOrg) {
+        localStorage.setItem('activeOrgId', defaultOrg.id)
+        try { localStorage.setItem(ACTIVE_ORG_CACHE_KEY, JSON.stringify(defaultOrg)) } catch {}
+      }
       // Use viewer role for nav filtering in view-as mode
       setProfile(prev => prev ? { ...prev, memberRole: 'viewer', is_superadmin: false } : prev)
     } else {
@@ -101,15 +130,19 @@ export default function Sidebar() {
         .filter(Boolean)
         .sort((a: any, b: any) => a.name.localeCompare(b.name))
       setOrgs(memberOrgs)
+      try { localStorage.setItem(ORGS_CACHE_KEY, JSON.stringify(memberOrgs)) } catch {}
       const savedOrgId = localStorage.getItem('activeOrgId')
       const found = resolveOrg(memberOrgs)
       const defaultOrg = found ?? memberOrgs[0] ?? null
       setActiveOrg(defaultOrg)
       if (defaultOrg) {
         localStorage.setItem('activeOrgId', defaultOrg.id)
+        try { localStorage.setItem(ACTIVE_ORG_CACHE_KEY, JSON.stringify(defaultOrg)) } catch {}
       } else {
         // No memberships — user was removed from all projects
         localStorage.removeItem('activeOrgId')
+        localStorage.removeItem(ACTIVE_ORG_CACHE_KEY)
+        localStorage.removeItem(ORGS_CACHE_KEY)
       }
       // If saved org was removed, clear it so dashboard doesn't show stale data
       if (savedOrgId && !found && defaultOrg) {
@@ -128,6 +161,7 @@ export default function Sidebar() {
   const switchOrg = (org: Org) => {
     setActiveOrg(org)
     localStorage.setItem('activeOrgId', org.id)
+    try { localStorage.setItem(ACTIVE_ORG_CACHE_KEY, JSON.stringify(org)) } catch {}
     setDropdownOpen(false)
     // Switching brands from Overview (multi-brand view) should land on that brand's analytics
     if (pathname === '/dashboard/overview') {

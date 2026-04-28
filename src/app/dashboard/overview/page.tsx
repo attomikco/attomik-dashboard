@@ -234,76 +234,57 @@ export default function OverviewPage() {
             adSpendPrevEnd: prevEnd,
           }),
         })
-        const fetched = await res.json()
-        if (!res.ok) throw new Error(fetched.error)
+        const k = await res.json()
+        if (!res.ok) throw new Error(k.error)
 
-        const ch = (org as any).channels ?? {}
-        const isConfigured = Object.keys(ch).length > 0
-        const showShopify = !isConfigured || ch.shopify !== false
-        const showAmazon  = !isConfigured || ch.amazon  !== false
-        const showWalmart = !isConfigured || ch.walmart !== false
+        const revenue = k.revenue ?? 0
+        const prevRevenue = k.prevRevenue ?? 0
+        const orders = k.orders ?? 0
+        const prevOrdCnt = k.prevOrders ?? 0
+        const netRev = k.netRev ?? 0
+        const prevNetRev = k.prevNetRev ?? 0
+        const aov = orders > 0 ? netRev / orders : 0
+        const prevAov = prevOrdCnt > 0 ? prevNetRev / prevOrdCnt : 0
+        const adSpend = k.adSpend ?? 0
+        const prevAdSpend = k.prevAdSpend ?? 0
+        const roas = adSpend > 0 ? revenue / adSpend : 0
+        const prevRoas = prevAdSpend > 0 ? prevRevenue / prevAdSpend : 0
+        const cac = adSpend > 0 && orders > 0 ? adSpend / orders : 0
+        const prevCac = prevAdSpend > 0 && prevOrdCnt > 0 ? prevAdSpend / prevOrdCnt : 0
+        const shopifyRev = k.shopifyRev ?? 0
+        const amazonRev = k.amazonRev ?? 0
+        const shopifyOrders = k.shopifyOrders ?? 0
+        const prevShopifyOrders = k.prevShopifyOrders ?? 0
 
-        const filterEnabled = (orders: any[]) => orders.filter(o =>
-          o.status !== 'refunded' && (
-            (showShopify && o.source === 'shopify') ||
-            (showAmazon  && o.source === 'amazon')  ||
-            (showWalmart && o.source === 'walmart') ||
-            (showShopify && !['shopify','amazon','walmart'].includes(o.source))
-          )
-        )
-
-        const cur  = filterEnabled(fetched.curOrders ?? [])
-        const prev = filterEnabled(fetched.prevOrders ?? [])
-
-        const revenue     = cur.reduce((s, o)  => s + Number(o.total_price || 0), 0)
-        const prevRevenue = prev.reduce((s, o) => s + Number(o.total_price || 0), 0)
-        const countOrd = (ords: any[]) => ords.reduce((s: number, o: any) => s + ((o.source === 'amazon' || o.source === 'walmart') ? (Number(o.units) || 1) : 1), 0)
-        const orders      = countOrd(cur)
-        const prevOrdCnt  = countOrd(prev)
-        // AOV uses subtotal (net after discounts) to match analytics exactly
-        const netRev      = cur.reduce((s, o)  => s + Number(o.subtotal || o.total_price || 0), 0)
-        const prevNetRev  = prev.reduce((s, o) => s + Number(o.subtotal || o.total_price || 0), 0)
-        const aov         = orders > 0 ? netRev / orders : 0
-        const prevAov     = prevOrdCnt > 0 ? prevNetRev / prevOrdCnt : 0
-        const adSpend     = (fetched.curSpend ?? []).reduce((s: number, r: any) => s + Number(r.spend), 0)
-        const prevAdSpend = (fetched.prevSpend ?? []).reduce((s: number, r: any) => s + Number(r.spend), 0)
-        console.log(`[overview] ${org.name}: adSpend=$${adSpend.toFixed(2)}, rows=${(fetched.curSpend ?? []).length}, range=${orgCurStart}→${orgCurEnd}`)
-        const roas        = adSpend > 0 ? revenue / adSpend : 0
-        const prevRoas    = prevAdSpend > 0 ? prevRevenue / prevAdSpend : 0
-        const cac         = adSpend > 0 && orders > 0 ? adSpend / orders : 0
-        const prevCac     = prevAdSpend > 0 && prevOrdCnt > 0 ? prevAdSpend / prevOrdCnt : 0
-        const shopifyRev  = cur.filter(o => o.source === 'shopify').reduce((s, o) => s + Number(o.total_price || 0), 0)
-        const amazonRev   = cur.filter(o => o.source === 'amazon').reduce((s, o) => s + Number(o.total_price || 0), 0)
-        const shopifyOrders = cur.filter(o => o.source === 'shopify' && o.status !== 'refunded').length
-        const prevShopifyOrders = prev.filter(o => o.source === 'shopify' && o.status !== 'refunded').length
-
-        // Fetch GA4 traffic for conv rate if org has GA configured
-        let convRate = 0
-        let prevConvRate = 0
-        const gaId = (org as any).ga_property_id
-        if (gaId && shopifyOrders > 0) {
-          try {
-            const [curTraffic, prevTraffic] = await Promise.all([
-              fetch('/api/analytics/traffic', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ org_id: org.id, startDate: orgCurStart, endDate: orgCurEnd }),
-              }).then(r => r.ok ? r.json() : null),
-              fetch('/api/analytics/traffic', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ org_id: org.id, startDate: prevStart, endDate: prevEnd }),
-              }).then(r => r.ok ? r.json() : null),
-            ])
-            if (curTraffic?.users > 0) convRate = (shopifyOrders / curTraffic.users) * 100
-            if (prevTraffic?.users > 0 && prevShopifyOrders > 0) prevConvRate = (prevShopifyOrders / prevTraffic.users) * 100
-          } catch {}
-        }
-
+        // Mark loading=false NOW so the row renders the moment KPIs land —
+        // the GA4 conv-rate fetch below is best-effort and must not block paint.
         if (!cancelled) setOrgs(prev => prev.map(o => o.id === org.id
-          ? { ...o, revenue, prevRevenue, orders, prevOrders: prevOrdCnt, aov, prevAov, adSpend, prevAdSpend, roas, prevRoas, cac, prevCac, shopifyRev, amazonRev, shopifyOrders, prevShopifyOrders, convRate, prevConvRate, loading: false }
+          ? { ...o, revenue, prevRevenue, orders, prevOrders: prevOrdCnt, aov, prevAov, adSpend, prevAdSpend, roas, prevRoas, cac, prevCac, shopifyRev, amazonRev, shopifyOrders, prevShopifyOrders, loading: false }
           : o
         ))
+
+        // Background-fill conv rate when GA is wired up. Updates in-place once it lands.
+        const gaId = (org as any).ga_property_id
+        if (gaId && shopifyOrders > 0) {
+          Promise.all([
+            fetch('/api/analytics/traffic', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ org_id: org.id, startDate: orgCurStart, endDate: orgCurEnd }),
+            }).then(r => r.ok ? r.json() : null),
+            fetch('/api/analytics/traffic', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ org_id: org.id, startDate: prevStart, endDate: prevEnd }),
+            }).then(r => r.ok ? r.json() : null),
+          ]).then(([curTraffic, prevTraffic]) => {
+            if (cancelled) return
+            const convRate = curTraffic?.users > 0 ? (shopifyOrders / curTraffic.users) * 100 : 0
+            const prevConvRate = (prevTraffic?.users > 0 && prevShopifyOrders > 0)
+              ? (prevShopifyOrders / prevTraffic.users) * 100 : 0
+            setOrgs(prev => prev.map(o => o.id === org.id ? { ...o, convRate, prevConvRate } : o))
+          }).catch(() => {})
+        }
       } catch {
         if (!cancelled) setOrgs(prev => prev.map(o => o.id === org.id ? { ...o, loading: false } : o))
       }
