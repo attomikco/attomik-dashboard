@@ -488,10 +488,19 @@ export async function POST(request: Request) {
     const { data: { user } } = await user_sb.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { org_id } = await request.json()
+    const { org_id, recipientOverride } = await request.json() as { org_id?: string; recipientOverride?: string }
     if (!org_id) return NextResponse.json({ error: 'org_id required' }, { status: 400 })
 
     const sb = createServiceClient()
+
+    // recipientOverride lets a superadmin redirect the entire send to a single
+    // address (used by /api/email/weekly/blast for test sends). Gate it.
+    if (recipientOverride) {
+      const { data: prof } = await user_sb.from('profiles').select('is_superadmin').eq('id', user.id).single()
+      if (!(prof as any)?.is_superadmin) {
+        return NextResponse.json({ error: 'Superadmin required for recipientOverride' }, { status: 403 })
+      }
+    }
 
     const { data: org, error: orgError } = await sb.from('organizations')
       .select('id, name, slug, timezone').eq('id', org_id).maybeSingle()
@@ -508,9 +517,18 @@ export async function POST(request: Request) {
       unsubList = (unsubRow as any).weekly_email_unsubscribed
     }
     const unsubscribed = new Set(unsubList.map(e => e.toLowerCase()))
-    const override = process.env.WEEKLY_EMAIL_OVERRIDE?.trim()
-    const memberRecipients = override ? [override] : await getRecipients(sb, org_id)
-    const recipients = memberRecipients.filter(e => !unsubscribed.has(e.toLowerCase()))
+    const envOverride = process.env.WEEKLY_EMAIL_OVERRIDE?.trim()
+    // Precedence: explicit body param (test blast) > env override > org members.
+    // Test blasts skip the unsubscribe filter — we want to see what every email
+    // looks like, even for unsubscribed recipients.
+    const memberRecipients = recipientOverride
+      ? [recipientOverride]
+      : envOverride
+        ? [envOverride]
+        : await getRecipients(sb, org_id)
+    const recipients = recipientOverride
+      ? memberRecipients
+      : memberRecipients.filter(e => !unsubscribed.has(e.toLowerCase()))
     if (recipients.length === 0) return NextResponse.json({ error: 'No recipients' }, { status: 400 })
 
     const { lastMonKey, lastSunKey, prevMonKey, prevSunKey } = computeLastWeekBoundsTz(tz)
