@@ -10,6 +10,7 @@ type Spend = { spend: number | string; date: string }
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const DAYS_LONG = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+const SUPERADMIN_EMAIL = 'pablo@attomik.co'
 
 const fmtMoney = (n: number) =>
   `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
@@ -475,7 +476,12 @@ function buildHtml(opts: {
 }
 
 async function getRecipients(sb: any, orgId: string): Promise<string[]> {
-  const { data: memberships } = await sb.from('org_memberships').select('user_id').eq('org_id', orgId)
+  // Only viewer-role members receive the weekly email; admins/members are skipped.
+  const { data: memberships } = await sb
+    .from('org_memberships')
+    .select('user_id')
+    .eq('org_id', orgId)
+    .eq('role', 'viewer')
   const userIds: string[] = (memberships ?? []).map((m: any) => m.user_id)
   if (userIds.length === 0) return []
   const byId = await getAuthEmailsByIds(sb, userIds)
@@ -536,9 +542,17 @@ export async function POST(request: Request) {
       : envOverride
         ? [envOverride]
         : await getRecipients(sb, org_id)
-    const recipients = recipientOverride
+    const filteredRecipients = recipientOverride
       ? memberRecipients
       : memberRecipients.filter(e => !unsubscribed.has(e.toLowerCase()))
+    // On real sends (no override), always include the superadmin — even if
+    // unsubscribed for this org. Test blasts and env overrides keep their own
+    // single-recipient redirect untouched.
+    const recipients = (recipientOverride || envOverride)
+      ? filteredRecipients
+      : (filteredRecipients.some(e => e.toLowerCase() === SUPERADMIN_EMAIL)
+          ? filteredRecipients
+          : [...filteredRecipients, SUPERADMIN_EMAIL])
     if (recipients.length === 0) return NextResponse.json({ error: 'No recipients' }, { status: 400 })
 
     const { lastMonKey, lastSunKey, prevMonKey, prevSunKey } = computeLastWeekBoundsTz(tz)

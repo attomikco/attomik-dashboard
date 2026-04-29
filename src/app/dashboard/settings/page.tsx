@@ -120,10 +120,12 @@ export default function SettingsPage() {
       const res = await fetch(`/api/members?org_id=${id}`)
       if (!res.ok) return
       const data = await res.json()
-      const members = (data.members ?? [])
-        .filter((m: any) => m.email)
+      const viewers = (data.members ?? [])
+        .filter((m: any) => m.email && m.role === 'viewer')
         .map((m: any) => ({ email: m.email, full_name: m.full_name }))
-      setWeeklyMembers(members)
+      const SUPERADMIN_EMAIL = 'pablo@attomik.co'
+      const hasSuperadmin = viewers.some((v: any) => v.email.toLowerCase() === SUPERADMIN_EMAIL)
+      setWeeklyMembers(hasSuperadmin ? viewers : [...viewers, { email: SUPERADMIN_EMAIL, full_name: null }])
     } catch {}
   }
 
@@ -876,7 +878,7 @@ export default function SettingsPage() {
               </div>
             )}
             <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 8, lineHeight: 1.5 }}>
-              All org members receive the weekly email automatically.
+              Viewers receive the weekly email when you click Send. pablo@attomik.co is always included.
             </p>
           </div>
 
