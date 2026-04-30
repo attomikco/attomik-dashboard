@@ -3,7 +3,7 @@
 import { useState, useEffect, Fragment } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { Building2, BarChart2, ChevronDown, ChevronRight, UserPlus, Trash2, CheckCircle, AlertCircle, X, Eye, Users, MessageCircle, Send } from 'lucide-react'
+import { Building2, BarChart2, ChevronDown, ChevronRight, UserPlus, Trash2, CheckCircle, AlertCircle, X, Eye, Users, MessageCircle, Send, Archive, ArchiveRestore } from 'lucide-react'
 
 const C = { ink: '#000', paper: '#fff', cream: '#f2f2f2', accent: '#00ff97', muted: '#666', border: '#e0e0e0' }
 
@@ -35,6 +35,7 @@ const TIMEZONES = [
 interface Org {
   id: string; name: string; slug: string; created_at: string
   shopify_domain: string | null; channels: Record<string, boolean> | null; timezone: string | null
+  archived_at?: string | null
 }
 interface Member {
   id: string; full_name: string | null; email: string | null
@@ -90,17 +91,22 @@ export default function ProjectsPage() {
   const [pageTab, setPageTab] = useState<'projects' | 'team' | 'logs'>('projects')
   const [logsPage, setLogsPage] = useState(0)
   const [expandedLog, setExpandedLog] = useState<string | null>(null)
+  const [showArchived, setShowArchived] = useState(false)
+  const [archivingId, setArchivingId] = useState<string | null>(null)
   const LOGS_PER_PAGE = 25
   const supabase = createClient()
   const router = useRouter()
 
-  useEffect(() => { fetchOrgs() }, [])
+  useEffect(() => { fetchOrgs() }, [showArchived])
 
   const fetchOrgs = async () => {
     setLoading(true)
-    const { data } = await supabase.from('organizations')
-      .select('id, name, slug, created_at, shopify_domain, channels, timezone, logo_url, header_url, ga_property_id')
-      .is('archived_at', null).order('name')
+    const baseQuery = supabase.from('organizations')
+      .select('id, name, slug, created_at, shopify_domain, channels, timezone, logo_url, header_url, ga_property_id, archived_at')
+    const { data } = await (showArchived
+      ? baseQuery.not('archived_at', 'is', null)
+      : baseQuery.is('archived_at', null)
+    ).order('name')
     setOrgs(data ?? [])
     const chMap: Record<string, Record<string, boolean>> = {}
     const sMap: Record<string, { name: string; timezone: string }> = {}
@@ -159,6 +165,32 @@ export default function ProjectsPage() {
     setSavingSettings(null)
     setSettingsSaved(orgId)
     setTimeout(() => setSettingsSaved(null), 2000)
+  }
+
+  const toggleArchive = async (org: Org) => {
+    const archive = !org.archived_at
+    const verb = archive ? 'Archive' : 'Unarchive'
+    const msg = archive
+      ? `Archive ${org.name}?\n\nThey will be hidden from the overview, sidebar, projects list, and weekly emails. Historical data is preserved and you can unarchive any time.`
+      : `Unarchive ${org.name}?\n\nThey will reappear in the overview, sidebar, and weekly emails.`
+    if (!confirm(msg)) return
+    setArchivingId(org.id)
+    try {
+      const res = await fetch('/api/admin/orgs', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: org.id, archived: archive }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(`${verb} failed: ${data.error ?? res.statusText}`)
+        return
+      }
+      if (expanded === org.id) setExpanded(null)
+      fetchOrgs()
+    } finally {
+      setArchivingId(null)
+    }
   }
 
   const uploadImage = async (orgId: string, file: File, type: 'logo' | 'header') => {
@@ -350,9 +382,12 @@ export default function ProjectsPage() {
         {/* ── PROJECTS TAB ── */}
         {pageTab === 'projects' && <>
 
-        <div style={{ marginBottom: 12 }}>
-          <button onClick={() => setShowNewForm(p => !p)} className={`btn ${showNewForm ? 'btn-secondary' : 'btn-dark'} btn-sm`} style={{ marginBottom: showNewForm ? 10 : 0 }}>
+        <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <button onClick={() => setShowNewForm(p => !p)} className={`btn ${showNewForm ? 'btn-secondary' : 'btn-dark'} btn-sm`}>
             <Building2 size={13} /> {showNewForm ? 'Cancel' : '+ New Project'}
+          </button>
+          <button onClick={() => setShowArchived(s => !s)} className="btn btn-secondary btn-sm" title={showArchived ? 'Back to active projects' : 'View archived projects'}>
+            {showArchived ? <><ArchiveRestore size={13} /> Back to active</> : <><Archive size={13} /> View archived</>}
           </button>
         </div>
 
@@ -691,7 +726,14 @@ export default function ProjectsPage() {
                       <Building2 size={15} color={C.accent} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: '0.95rem', fontFamily: 'Barlow, sans-serif' }}>{org.name}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.95rem', fontFamily: 'Barlow, sans-serif' }}>{org.name}</span>
+                        {org.archived_at && (
+                          <span style={{ fontSize: '0.62rem', fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: '#eee', color: C.muted, fontFamily: 'Barlow, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                            Archived
+                          </span>
+                        )}
+                      </div>
                       <div style={{ fontFamily: 'DM Mono, monospace', fontSize: '0.68rem', color: '#aaa' }}>{org.slug}</div>
                     </div>
                     <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -931,6 +973,25 @@ export default function ProjectsPage() {
                                   <p style={{ fontSize: '0.65rem', color: '#bbb', marginTop: 4, fontFamily: 'Barlow, sans-serif' }}>Wide, 1200×300px recommended</p>
                                 </div>
                               </div>
+                            </div>
+
+                            {/* Archive */}
+                            <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 16, marginTop: 4 }}>
+                              <div className="label" style={{ marginBottom: 6 }}>{org.archived_at ? 'Archived' : 'Archive project'}</div>
+                              <p style={{ fontSize: '0.8rem', color: C.muted, marginBottom: 10, fontFamily: 'Barlow, sans-serif' }}>
+                                {org.archived_at
+                                  ? `Archived ${new Date(org.archived_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}. Unarchive to restore them to the overview, sidebar, and weekly emails.`
+                                  : 'Hide this project from the overview, sidebar, project list, and weekly emails. Historical data is preserved and you can unarchive any time.'}
+                              </p>
+                              <button
+                                onClick={() => toggleArchive(org)}
+                                disabled={archivingId === org.id}
+                                className="btn btn-secondary btn-sm"
+                              >
+                                {org.archived_at
+                                  ? <><ArchiveRestore size={13} /> {archivingId === org.id ? 'Unarchiving…' : 'Unarchive project'}</>
+                                  : <><Archive size={13} /> {archivingId === org.id ? 'Archiving…' : 'Archive project'}</>}
+                              </button>
                             </div>
                           </div>
                         )}

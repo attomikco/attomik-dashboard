@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   Building2, UserPlus, ChevronDown, ChevronRight, CheckCircle, XCircle,
-  Copy, Settings as SettingsIcon, Users, Archive, ArchiveRestore,
+  Copy, Settings as SettingsIcon, Users,
 } from 'lucide-react'
 
 const TIMEZONES = [
@@ -96,8 +96,6 @@ export default function AdminPage() {
   const [expanded, setExpanded] = useState<string | null>(null)
   const [membersByOrg, setMembersByOrg] = useState<Record<string, Member[]>>({})
   const [loadingMembers, setLoadingMembers] = useState<Record<string, boolean>>({})
-  const [showArchived, setShowArchived] = useState(false)
-  const [archivingId, setArchivingId] = useState<string | null>(null)
 
   useEffect(() => {
     (async () => {
@@ -200,34 +198,10 @@ export default function AdminPage() {
     router.push('/dashboard/settings')
   }
 
-  const toggleArchive = async (org: AdminOrg) => {
-    const archive = !org.archived_at
-    const verb = archive ? 'Archive' : 'Unarchive'
-    if (!confirm(`${verb} ${org.name}?\n\n${archive
-      ? 'They will be hidden from the overview, sidebar, project settings, and weekly emails. Historical data is preserved and you can unarchive later.'
-      : 'They will reappear in the overview, sidebar, and weekly emails.'}`)) return
-    setArchivingId(org.id)
-    try {
-      const res = await fetch('/api/admin/orgs', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: org.id, archived: archive }),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        alert(`${verb} failed: ${data.error ?? res.statusText}`)
-        return
-      }
-      fetchOrgs()
-    } finally {
-      setArchivingId(null)
-    }
-  }
-
-  const visibleOrgs = useMemo(
-    () => orgs.filter(o => showArchived ? !!o.archived_at : !o.archived_at),
-    [orgs, showArchived],
-  )
+  // Archive lives on /dashboard/projects (per-project Settings tab). The admin
+  // page intentionally lists every org — including archived — for a complete
+  // overview, with a badge so superadmins can see which are inactive.
+  const visibleOrgs = orgs
   const archivedCount = useMemo(() => orgs.filter(o => !!o.archived_at).length, [orgs])
   const activeCount = orgs.length - archivedCount
 
@@ -380,26 +354,13 @@ export default function AdminPage() {
 
         {/* ── 3. All Orgs ───────────────────────────────────── */}
         <Section
-          title={showArchived ? 'Archived orgs' : 'Active orgs'}
-          subtitle={loadingOrgs ? 'Loading…' : `${visibleOrgs.length} ${showArchived ? 'archived' : 'active'}${archivedCount > 0 ? ` · ${activeCount} active / ${archivedCount} archived` : ''}`}
+          title="All orgs"
+          subtitle={loadingOrgs ? 'Loading…' : archivedCount > 0 ? `${orgs.length} total · ${activeCount} active / ${archivedCount} archived` : `${orgs.length} total`}
         >
-          {archivedCount > 0 && (
-            <div style={{ marginBottom: 12 }}>
-              <button
-                type="button"
-                className="btn btn-secondary btn-xs"
-                onClick={() => setShowArchived(s => !s)}
-              >
-                {showArchived ? `← Back to active (${activeCount})` : `View archived (${archivedCount})`}
-              </button>
-            </div>
-          )}
           {loadingOrgs ? (
             <div style={{ color: 'var(--muted)', fontSize: '0.85rem', padding: '20px 0', textAlign: 'center' }}>Loading…</div>
-          ) : visibleOrgs.length === 0 ? (
-            <div style={{ color: 'var(--muted)', fontSize: '0.85rem', padding: '20px 0', textAlign: 'center' }}>
-              {showArchived ? 'No archived orgs.' : 'No orgs yet.'}
-            </div>
+          ) : orgs.length === 0 ? (
+            <div style={{ color: 'var(--muted)', fontSize: '0.85rem', padding: '20px 0', textAlign: 'center' }}>No orgs yet.</div>
           ) : (
             <div className="table-wrapper" style={{ overflow: 'visible' }}>
               <div className="table-scroll">
@@ -453,26 +414,14 @@ export default function AdminPage() {
                               {new Date(org.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                             </td>
                             <td className="td-right" onClick={e => e.stopPropagation()}>
-                              <div style={{ display: 'inline-flex', gap: 6, justifyContent: 'flex-end' }}>
-                                <button
-                                  onClick={() => editCredentials(org.id)}
-                                  className="btn btn-secondary btn-xs"
-                                  title="Edit credentials in settings"
-                                  disabled={isArchived}
-                                >
-                                  <SettingsIcon size={11} /> Edit credentials
-                                </button>
-                                <button
-                                  onClick={() => toggleArchive(org)}
-                                  className="btn btn-secondary btn-xs"
-                                  title={isArchived ? 'Unarchive — restore to active list' : 'Archive — hide from overview, sidebar, and weekly emails'}
-                                  disabled={archivingId === org.id}
-                                >
-                                  {isArchived
-                                    ? <><ArchiveRestore size={11} /> Unarchive</>
-                                    : <><Archive size={11} /> Archive</>}
-                                </button>
-                              </div>
+                              <button
+                                onClick={() => editCredentials(org.id)}
+                                className="btn btn-secondary btn-xs"
+                                title="Edit credentials in settings"
+                                disabled={isArchived}
+                              >
+                                <SettingsIcon size={11} /> Edit credentials
+                              </button>
                             </td>
                           </tr>
                           {isOpen && (
