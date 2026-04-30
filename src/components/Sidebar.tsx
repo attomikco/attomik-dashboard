@@ -139,11 +139,12 @@ export default function Sidebar() {
       // Regular user: load their memberships
       const { data: memberships } = await supabase
         .from('org_memberships')
-        .select('org_id, role, organizations(id, name, slug)')
+        .select('org_id, role, organizations(id, name, slug, archived_at)')
         .eq('user_id', user.id)
       const memberOrgs = (memberships ?? [])
         .map((m: any) => m.organizations)
-        .filter(Boolean)
+        .filter((o: any) => o && o.archived_at == null)
+        .map(({ archived_at: _a, ...rest }: any) => rest)
         .sort((a: any, b: any) => a.name.localeCompare(b.name))
       setOrgs(memberOrgs)
       try { localStorage.setItem(ORGS_CACHE_KEY, JSON.stringify(memberOrgs)) } catch {}
