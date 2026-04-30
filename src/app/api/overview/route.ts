@@ -11,12 +11,15 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const viewAsUserId = searchParams.get('viewAs')
 
-    const { data: prof } = await supabase
-      .from('profiles')
-      .select('is_superadmin')
-      .eq('id', user.id)
-      .single()
-    const isSuperadmin = !!(prof as any)?.is_superadmin
+    const targetUserId = viewAsUserId ?? user.id
+    const [profRes, membershipRes] = await Promise.all([
+      supabase.from('profiles').select('is_superadmin').eq('id', user.id).single(),
+      serviceClient
+        .from('org_memberships')
+        .select('org_id, organizations(id, name, slug, timezone, channels, shopify_synced_at, ga_property_id, archived_at)')
+        .eq('user_id', targetUserId),
+    ])
+    const isSuperadmin = !!(profRes.data as any)?.is_superadmin
 
     if (viewAsUserId && !isSuperadmin) {
       return NextResponse.json({ error: 'Superadmin required for viewAs' }, { status: 403 })
@@ -25,15 +28,14 @@ export async function GET(request: Request) {
     let orgs: any[] = []
     if (isSuperadmin && !viewAsUserId) {
       const { data } = await serviceClient
-        .from('organizations').select('id, name, slug, timezone, channels, shopify_synced_at, ga_property_id').order('name')
-      orgs = data ?? []
+        .from('organizations').select('id, name, slug, timezone, channels, shopify_synced_at, ga_property_id, archived_at')
+        .is('archived_at', null).order('name')
+      orgs = (data ?? []).map(({ archived_at: _a, ...rest }: any) => rest)
     } else {
-      const targetUserId = viewAsUserId ?? user.id
-      const { data: memberships } = await serviceClient
-        .from('org_memberships')
-        .select('org_id, organizations(id, name, slug, timezone, channels, shopify_synced_at, ga_property_id)')
-        .eq('user_id', targetUserId)
-      orgs = (memberships ?? []).map((m: any) => m.organizations).filter(Boolean)
+      orgs = (membershipRes.data ?? [])
+        .map((m: any) => m.organizations)
+        .filter((o: any) => o && o.archived_at == null)
+        .map(({ archived_at: _a, ...rest }: any) => rest)
     }
 
     const res = NextResponse.json({ orgs })

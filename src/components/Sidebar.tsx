@@ -104,7 +104,7 @@ export default function Sidebar() {
 
     if (prof?.is_superadmin && !viewAsUserId) {
       // Superadmin sees all orgs
-      const { data: allOrgs } = await supabase.from('organizations').select('id, name, slug').order('name')
+      const { data: allOrgs } = await supabase.from('organizations').select('id, name, slug').is('archived_at', null).order('name')
       const list = allOrgs ?? []
       setOrgs(list)
       try { localStorage.setItem(ORGS_CACHE_KEY, JSON.stringify(list)) } catch {}

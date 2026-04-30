@@ -30,6 +30,7 @@ interface AdminOrg {
   slug: string
   timezone: string | null
   created_at: string
+  archived_at: string | null
   user_count: number
   shopify_connected: boolean
   meta_connected: boolean
@@ -197,6 +198,13 @@ export default function AdminPage() {
     router.push('/dashboard/settings')
   }
 
+  // Archive lives on /dashboard/projects (per-project Settings tab). The admin
+  // page intentionally lists every org — including archived — for a complete
+  // overview, with a badge so superadmins can see which are inactive.
+  const visibleOrgs = orgs
+  const archivedCount = useMemo(() => orgs.filter(o => !!o.archived_at).length, [orgs])
+  const activeCount = orgs.length - archivedCount
+
   const selectedOrg = useMemo(() => orgs.find(o => o.id === inviteOrg), [orgs, inviteOrg])
 
   if (!ready) {
@@ -316,7 +324,7 @@ export default function AdminPage() {
                 <select value={inviteOrg} required onChange={e => setInviteOrg(e.target.value)}
                   style={{ width: '100%', cursor: 'pointer' }}>
                   <option value="">Select an org…</option>
-                  {orgs.map(o => (
+                  {orgs.filter(o => !o.archived_at).map(o => (
                     <option key={o.id} value={o.id}>{o.name} ({o.slug})</option>
                   ))}
                 </select>
@@ -345,7 +353,10 @@ export default function AdminPage() {
         </Section>
 
         {/* ── 3. All Orgs ───────────────────────────────────── */}
-        <Section title="All orgs" subtitle={loadingOrgs ? 'Loading…' : `${orgs.length} total`}>
+        <Section
+          title="All orgs"
+          subtitle={loadingOrgs ? 'Loading…' : archivedCount > 0 ? `${orgs.length} total · ${activeCount} active / ${archivedCount} archived` : `${orgs.length} total`}
+        >
           {loadingOrgs ? (
             <div style={{ color: 'var(--muted)', fontSize: '0.85rem', padding: '20px 0', textAlign: 'center' }}>Loading…</div>
           ) : orgs.length === 0 ? (
@@ -366,17 +377,21 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {orgs.map(org => {
+                    {visibleOrgs.map(org => {
                       const isOpen = expanded === org.id
                       const members = membersByOrg[org.id] ?? []
+                      const isArchived = !!org.archived_at
                       return (
                         <Fragment key={org.id}>
-                          <tr style={{ cursor: 'pointer' }} onClick={() => toggleExpand(org.id)}>
+                          <tr style={{ cursor: 'pointer', opacity: isArchived ? 0.6 : 1 }} onClick={() => toggleExpand(org.id)}>
                             <td>
                               {isOpen ? <ChevronDown size={14} color="var(--muted)" /> : <ChevronRight size={14} color="var(--muted)" />}
                             </td>
                             <td>
-                              <div style={{ fontWeight: 700 }}>{org.name}</div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ fontWeight: 700 }}>{org.name}</span>
+                                {isArchived && <span className="badge badge-gray" title={`Archived ${new Date(org.archived_at!).toLocaleDateString()}`}>Archived</span>}
+                              </div>
                               <div className="td-mono td-muted">{org.slug}</div>
                             </td>
                             <td>
@@ -403,6 +418,7 @@ export default function AdminPage() {
                                 onClick={() => editCredentials(org.id)}
                                 className="btn btn-secondary btn-xs"
                                 title="Edit credentials in settings"
+                                disabled={isArchived}
                               >
                                 <SettingsIcon size={11} /> Edit credentials
                               </button>
