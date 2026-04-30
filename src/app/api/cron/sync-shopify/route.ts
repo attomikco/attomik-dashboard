@@ -151,6 +151,7 @@ export async function GET(request: Request) {
     .from('organizations')
     .select('id, name, shopify_domain, shopify_token, shopify_client_id, shopify_client_secret, shopify_synced_at')
     .not('shopify_domain', 'is', null)
+    .is('archived_at', null)
 
   if (!orgs || orgs.length === 0) {
     return NextResponse.json({ message: 'No orgs with Shopify connected', results: [] })

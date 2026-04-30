@@ -19,7 +19,7 @@ export async function GET() {
 
   const { data: orgs, error } = await serviceClient
     .from('organizations')
-    .select('id, name, slug, timezone, created_at, shopify_domain, shopify_token, shopify_client_id, meta_ad_account_id, meta_access_token')
+    .select('id, name, slug, timezone, created_at, archived_at, shopify_domain, shopify_token, shopify_client_id, meta_ad_account_id, meta_access_token')
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -39,6 +39,7 @@ export async function GET() {
     slug: o.slug,
     timezone: o.timezone,
     created_at: o.created_at,
+    archived_at: o.archived_at,
     user_count: counts[o.id] ?? 0,
     shopify_connected: !!(o.shopify_domain && (o.shopify_token || o.shopify_client_id)),
     meta_connected: !!(o.meta_ad_account_id && o.meta_access_token),
@@ -67,6 +68,27 @@ export async function POST(request: Request) {
     .from('organizations')
     .insert({ name: String(name).trim(), slug: cleanSlug, timezone: timezone || 'America/New_York' })
     .select('id, name, slug, timezone, created_at')
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ org })
+}
+
+export async function PATCH(request: Request) {
+  const check = await requireSuperadmin()
+  if ('error' in check) return NextResponse.json({ error: check.error }, { status: check.status })
+
+  const { id, archived } = await request.json() as { id?: string; archived?: boolean }
+  if (!id || typeof archived !== 'boolean') {
+    return NextResponse.json({ error: 'id and archived (boolean) are required' }, { status: 400 })
+  }
+
+  const serviceClient = createServiceClient()
+  const { data: org, error } = await serviceClient
+    .from('organizations')
+    .update({ archived_at: archived ? new Date().toISOString() : null })
+    .eq('id', id)
+    .select('id, name, archived_at')
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

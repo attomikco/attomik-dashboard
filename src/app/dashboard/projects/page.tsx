@@ -99,7 +99,8 @@ export default function ProjectsPage() {
   const fetchOrgs = async () => {
     setLoading(true)
     const { data } = await supabase.from('organizations')
-      .select('id, name, slug, created_at, shopify_domain, channels, timezone, logo_url, header_url, ga_property_id').order('name')
+      .select('id, name, slug, created_at, shopify_domain, channels, timezone, logo_url, header_url, ga_property_id')
+      .is('archived_at', null).order('name')
     setOrgs(data ?? [])
     const chMap: Record<string, Record<string, boolean>> = {}
     const sMap: Record<string, { name: string; timezone: string }> = {}

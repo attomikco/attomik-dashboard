@@ -25,7 +25,8 @@ async function blast(request: Request) {
   if (!to) return NextResponse.json({ error: '`to` query param required' }, { status: 400 })
 
   const sb = createServiceClient()
-  const { data: orgs } = await sb.from('organizations').select('id, name').order('name')
+  const { data: orgs } = await sb.from('organizations').select('id, name')
+    .is('archived_at', null).order('name')
   const orgList = (orgs ?? []) as Array<{ id: string; name: string }>
 
   const cookieHeader = request.headers.get('cookie') ?? ''

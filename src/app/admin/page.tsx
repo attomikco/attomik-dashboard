@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   Building2, UserPlus, ChevronDown, ChevronRight, CheckCircle, XCircle,
-  Copy, Settings as SettingsIcon, Users,
+  Copy, Settings as SettingsIcon, Users, Archive, ArchiveRestore,
 } from 'lucide-react'
 
 const TIMEZONES = [
@@ -30,6 +30,7 @@ interface AdminOrg {
   slug: string
   timezone: string | null
   created_at: string
+  archived_at: string | null
   user_count: number
   shopify_connected: boolean
   meta_connected: boolean
@@ -95,6 +96,8 @@ export default function AdminPage() {
   const [expanded, setExpanded] = useState<string | null>(null)
   const [membersByOrg, setMembersByOrg] = useState<Record<string, Member[]>>({})
   const [loadingMembers, setLoadingMembers] = useState<Record<string, boolean>>({})
+  const [showArchived, setShowArchived] = useState(false)
+  const [archivingId, setArchivingId] = useState<string | null>(null)
 
   useEffect(() => {
     (async () => {
@@ -196,6 +199,37 @@ export default function AdminPage() {
     localStorage.setItem('activeOrgId', orgId)
     router.push('/dashboard/settings')
   }
+
+  const toggleArchive = async (org: AdminOrg) => {
+    const archive = !org.archived_at
+    const verb = archive ? 'Archive' : 'Unarchive'
+    if (!confirm(`${verb} ${org.name}?\n\n${archive
+      ? 'They will be hidden from the overview, sidebar, project settings, and weekly emails. Historical data is preserved and you can unarchive later.'
+      : 'They will reappear in the overview, sidebar, and weekly emails.'}`)) return
+    setArchivingId(org.id)
+    try {
+      const res = await fetch('/api/admin/orgs', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: org.id, archived: archive }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(`${verb} failed: ${data.error ?? res.statusText}`)
+        return
+      }
+      fetchOrgs()
+    } finally {
+      setArchivingId(null)
+    }
+  }
+
+  const visibleOrgs = useMemo(
+    () => orgs.filter(o => showArchived ? !!o.archived_at : !o.archived_at),
+    [orgs, showArchived],
+  )
+  const archivedCount = useMemo(() => orgs.filter(o => !!o.archived_at).length, [orgs])
+  const activeCount = orgs.length - archivedCount
 
   const selectedOrg = useMemo(() => orgs.find(o => o.id === inviteOrg), [orgs, inviteOrg])
 
@@ -316,7 +350,7 @@ export default function AdminPage() {
                 <select value={inviteOrg} required onChange={e => setInviteOrg(e.target.value)}
                   style={{ width: '100%', cursor: 'pointer' }}>
                   <option value="">Select an org…</option>
-                  {orgs.map(o => (
+                  {orgs.filter(o => !o.archived_at).map(o => (
                     <option key={o.id} value={o.id}>{o.name} ({o.slug})</option>
                   ))}
                 </select>
@@ -345,11 +379,27 @@ export default function AdminPage() {
         </Section>
 
         {/* ── 3. All Orgs ───────────────────────────────────── */}
-        <Section title="All orgs" subtitle={loadingOrgs ? 'Loading…' : `${orgs.length} total`}>
+        <Section
+          title={showArchived ? 'Archived orgs' : 'Active orgs'}
+          subtitle={loadingOrgs ? 'Loading…' : `${visibleOrgs.length} ${showArchived ? 'archived' : 'active'}${archivedCount > 0 ? ` · ${activeCount} active / ${archivedCount} archived` : ''}`}
+        >
+          {archivedCount > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-xs"
+                onClick={() => setShowArchived(s => !s)}
+              >
+                {showArchived ? `← Back to active (${activeCount})` : `View archived (${archivedCount})`}
+              </button>
+            </div>
+          )}
           {loadingOrgs ? (
             <div style={{ color: 'var(--muted)', fontSize: '0.85rem', padding: '20px 0', textAlign: 'center' }}>Loading…</div>
-          ) : orgs.length === 0 ? (
-            <div style={{ color: 'var(--muted)', fontSize: '0.85rem', padding: '20px 0', textAlign: 'center' }}>No orgs yet.</div>
+          ) : visibleOrgs.length === 0 ? (
+            <div style={{ color: 'var(--muted)', fontSize: '0.85rem', padding: '20px 0', textAlign: 'center' }}>
+              {showArchived ? 'No archived orgs.' : 'No orgs yet.'}
+            </div>
           ) : (
             <div className="table-wrapper" style={{ overflow: 'visible' }}>
               <div className="table-scroll">
@@ -366,17 +416,21 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {orgs.map(org => {
+                    {visibleOrgs.map(org => {
                       const isOpen = expanded === org.id
                       const members = membersByOrg[org.id] ?? []
+                      const isArchived = !!org.archived_at
                       return (
                         <Fragment key={org.id}>
-                          <tr style={{ cursor: 'pointer' }} onClick={() => toggleExpand(org.id)}>
+                          <tr style={{ cursor: 'pointer', opacity: isArchived ? 0.6 : 1 }} onClick={() => toggleExpand(org.id)}>
                             <td>
                               {isOpen ? <ChevronDown size={14} color="var(--muted)" /> : <ChevronRight size={14} color="var(--muted)" />}
                             </td>
                             <td>
-                              <div style={{ fontWeight: 700 }}>{org.name}</div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ fontWeight: 700 }}>{org.name}</span>
+                                {isArchived && <span className="badge badge-gray" title={`Archived ${new Date(org.archived_at!).toLocaleDateString()}`}>Archived</span>}
+                              </div>
                               <div className="td-mono td-muted">{org.slug}</div>
                             </td>
                             <td>
@@ -399,13 +453,26 @@ export default function AdminPage() {
                               {new Date(org.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                             </td>
                             <td className="td-right" onClick={e => e.stopPropagation()}>
-                              <button
-                                onClick={() => editCredentials(org.id)}
-                                className="btn btn-secondary btn-xs"
-                                title="Edit credentials in settings"
-                              >
-                                <SettingsIcon size={11} /> Edit credentials
-                              </button>
+                              <div style={{ display: 'inline-flex', gap: 6, justifyContent: 'flex-end' }}>
+                                <button
+                                  onClick={() => editCredentials(org.id)}
+                                  className="btn btn-secondary btn-xs"
+                                  title="Edit credentials in settings"
+                                  disabled={isArchived}
+                                >
+                                  <SettingsIcon size={11} /> Edit credentials
+                                </button>
+                                <button
+                                  onClick={() => toggleArchive(org)}
+                                  className="btn btn-secondary btn-xs"
+                                  title={isArchived ? 'Unarchive — restore to active list' : 'Archive — hide from overview, sidebar, and weekly emails'}
+                                  disabled={archivingId === org.id}
+                                >
+                                  {isArchived
+                                    ? <><ArchiveRestore size={11} /> Unarchive</>
+                                    : <><Archive size={11} /> Archive</>}
+                                </button>
+                              </div>
                             </td>
                           </tr>
                           {isOpen && (
