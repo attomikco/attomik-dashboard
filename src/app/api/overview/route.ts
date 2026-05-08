@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { timed, timeBlock } from '@/lib/timing'
 
 export async function GET(request: Request) {
+  return timed('api.overview.GET', async () => {
   try {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -46,6 +48,7 @@ export async function GET(request: Request) {
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
+  })
 }
 
 type OverviewKpiRequest = {
@@ -118,36 +121,46 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 })
     }
 
-    const serviceClient = createServiceClient()
-    const { data: prof } = await supabase
-      .from('profiles')
-      .select('is_superadmin')
-      .eq('id', user.id)
-      .single()
-    const isSuperadmin = !!(prof as any)?.is_superadmin
     const orgIds = Array.from(new Set(items.map(item => item.org_id!).filter(Boolean)))
 
-    if (!isSuperadmin) {
-      const { data: memberships } = await serviceClient
-        .from('org_memberships')
-        .select('org_id')
-        .eq('user_id', user.id)
-        .in('org_id', orgIds)
-      const allowed = new Set((memberships ?? []).map((m: any) => m.org_id))
-      if (orgIds.some(id => !allowed.has(id))) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return await timed('api.overview.POST', async () => {
+      const serviceClient = createServiceClient()
+      const t1 = timeBlock('api.overview.POST.fetchOrders', { org_id: orgIds.join(',') })
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('is_superadmin')
+        .eq('id', user.id)
+        .single()
+      const isSuperadmin = !!(prof as any)?.is_superadmin
+
+      if (!isSuperadmin) {
+        const { data: memberships } = await serviceClient
+          .from('org_memberships')
+          .select('org_id')
+          .eq('user_id', user.id)
+          .in('org_id', orgIds)
+        const allowed = new Set((memberships ?? []).map((m: any) => m.org_id))
+        if (orgIds.some(id => !allowed.has(id))) {
+          t1.end({ rows: 0 })
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        }
       }
-    }
+      t1.end()
 
-    const ranges = items.map(toRpcRange)
-    const { data, error } = await (serviceClient as any).rpc('overview_kpis_batch', { _ranges: ranges })
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      const t2 = timeBlock('api.overview.POST.fetchAdSpend', { org_id: orgIds.join(',') })
+      const ranges = items.map(toRpcRange)
+      const { data, error } = await (serviceClient as any).rpc('overview_kpis_batch', { _ranges: ranges })
+      t2.end({ rows: (data ?? []).length })
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    const rows = (data ?? []).map(normalizeKpiRow)
-    if (isBatch) return NextResponse.json({ orgs: rows })
-    const row = rows[0]
-    if (!row) return NextResponse.json({ error: 'No overview data returned' }, { status: 404 })
-    return NextResponse.json(row)
+      const t3 = timeBlock('api.overview.POST.aggregation', { org_id: orgIds.join(',') })
+      const rows = (data ?? []).map(normalizeKpiRow)
+      t3.end({ rows: rows.length })
+      if (isBatch) return NextResponse.json({ orgs: rows })
+      const row = rows[0]
+      if (!row) return NextResponse.json({ error: 'No overview data returned' }, { status: 404 })
+      return NextResponse.json(row)
+    }, { org_id: orgIds.join(','), batch: isBatch, items: items.length })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }

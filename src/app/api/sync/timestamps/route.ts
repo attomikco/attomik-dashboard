@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { timed } from '@/lib/timing'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -18,6 +19,7 @@ export async function GET(request: Request) {
   const orgId = searchParams.get('org_id')
   if (!orgId) return NextResponse.json({ error: 'org_id required' }, { status: 400 })
 
+  return await timed('api.sync.timestamps.GET', async () => {
   const supabase = createServiceClient()
 
   // Debug: test if we can write to sync_timestamps at all
@@ -46,4 +48,5 @@ export async function GET(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(debug ? { rows: data ?? [], debug: debugInfo } : data ?? [], { headers: NO_CACHE })
+  }, { org_id: orgId })
 }

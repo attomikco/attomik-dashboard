@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { unstable_cache } from 'next/cache'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { timed } from '@/lib/timing'
 
 export const dynamic = 'force-dynamic'
 
@@ -106,24 +107,26 @@ export async function GET(request: Request) {
   const orgId = searchParams.get('org_id')
   if (!orgId) return NextResponse.json({ error: 'org_id required' }, { status: 400 })
 
-  const service = createServiceClient()
-  const { data: prof } = await supabase
-    .from('profiles')
-    .select('is_superadmin')
-    .eq('id', user.id)
-    .single()
-  const isSuperadmin = !!(prof as any)?.is_superadmin
+  return await timed('api.insights.yesterday.GET', async () => {
+    const service = createServiceClient()
+    const { data: prof } = await supabase
+      .from('profiles')
+      .select('is_superadmin')
+      .eq('id', user.id)
+      .single()
+    const isSuperadmin = !!(prof as any)?.is_superadmin
 
-  if (!isSuperadmin) {
-    const { data: membership } = await service
-      .from('org_memberships')
-      .select('org_id')
-      .eq('user_id', user.id)
-      .eq('org_id', orgId)
-      .maybeSingle()
-    if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+    if (!isSuperadmin) {
+      const { data: membership } = await service
+        .from('org_memberships')
+        .select('org_id')
+        .eq('user_id', user.id)
+        .eq('org_id', orgId)
+        .maybeSingle()
+      if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
-  const data = await computeYesterday(orgId)
-  return NextResponse.json({ data }, { headers: NO_CACHE })
+    const data = await computeYesterday(orgId)
+    return NextResponse.json({ data }, { headers: NO_CACHE })
+  }, { org_id: orgId })
 }

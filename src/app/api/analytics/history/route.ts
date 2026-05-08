@@ -177,7 +177,8 @@ async function fetchPriorEmailHits(service: any, orgId: string, cutoffISO: strin
 }
 
 async function fetchOrders(service: any, orgId: string, cols: string, gteISO: string, lteISO: string) {
-  return fetchPaged<OrderLite>((from, to) =>
+  const startedAt = performance.now()
+  const rows = await fetchPaged<OrderLite>((from, to) =>
     service
       .from('orders')
       .select(cols)
@@ -187,10 +188,13 @@ async function fetchOrders(service: any, orgId: string, cols: string, gteISO: st
       .order('created_at', { ascending: true })
       .range(from, to)
   )
+  console.log(JSON.stringify({ kind: 'timing', label: 'fetchAllOrders.complete', org_id: orgId, rows: rows.length, pages: Math.ceil(rows.length / PAGE_SIZE), gte: gteISO, lte: lteISO, ms: Math.round(performance.now() - startedAt) }))
+  return rows
 }
 
 async function fetchSpend(service: any, orgId: string, cols: string, gteDate: string, lteDate: string) {
-  return fetchPaged<SpendLite>((from, to) =>
+  const startedAt = performance.now()
+  const rows = await fetchPaged<SpendLite>((from, to) =>
     service
       .from('ad_spend')
       .select(cols)
@@ -200,6 +204,8 @@ async function fetchSpend(service: any, orgId: string, cols: string, gteDate: st
       .order('date', { ascending: true })
       .range(from, to)
   )
+  console.log(JSON.stringify({ kind: 'timing', label: 'fetchAllAdSpend.complete', org_id: orgId, rows: rows.length, pages: Math.ceil(rows.length / PAGE_SIZE), gte: gteDate, lte: lteDate, ms: Math.round(performance.now() - startedAt) }))
+  return rows
 }
 
 export async function POST(request: Request) {

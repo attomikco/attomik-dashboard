@@ -18,6 +18,7 @@ import EmailInsights from '@/components/EmailInsights'
 import AskAttomik from '@/components/AskAttomik'
 import ChannelSalesChart from '@/components/ChannelSalesChart'
 import { Sparkles } from 'lucide-react'
+import { timeBlock } from '@/lib/timing-client'
 
 function pct(current: number, prev: number) {
   if (prev === 0) return current > 0 ? 100 : 0
@@ -424,6 +425,7 @@ export default function AnalyticsPage() {
       if (inFlightFetchKey.current === fetchKey) inFlightFetchKey.current = null
     }
     const startedAt = performance.now()
+    const tFetchData = timeBlock('client.analytics.fetchData', { range_label: range.label, range_start: range.start, range_end: range.end })
     if (hasLoadedOnce.current) setIsRefetching(true)
     else setLoading(true)
     let orgId = localStorage.getItem('activeOrgId')
@@ -439,7 +441,7 @@ export default function AnalyticsPage() {
         }
       }
     }
-    if (!orgId) { setLoading(false); setIsRefetching(false); clearInFlightFetch(); return }
+    if (!orgId) { setLoading(false); setIsRefetching(false); clearInFlightFetch(); tFetchData.end({ ok: false, reason: 'no_org' }); return }
     setActiveOrgId(orgId)
 
     // Fetch user name for personalized greeting (use view-as name if active)
@@ -456,8 +458,10 @@ export default function AnalyticsPage() {
     }
 
     // Fetch org config (channels + timezone)
+    const tOrgConfig = timeBlock('client.analytics.orgConfigFetch', { org_id: orgId })
     const { data: orgData } = await supabase
       .from('organizations').select('channels, timezone, name, shopify_synced_at, ga_property_id').eq('id', orgId).single()
+    tOrgConfig.end({ ok: !!orgData })
     if (orgData?.name) { setOrgName(orgData.name); document.title = `${orgData.name} Analytics | Attomik` }
     if (orgData?.shopify_synced_at) setLastSynced(orgData.shopify_synced_at)
 
@@ -508,15 +512,17 @@ export default function AnalyticsPage() {
           body: JSON.stringify({ org_id: orgId, startDate: start, endDate: end }),
         }).then(r => r.ok ? r.json() : null)
 
+      const tTraffic = timeBlock('client.analytics.trafficFetch', { org_id: orgId })
       Promise.all([
         fetchTraffic(resolvedRange.start, resolvedRange.end),
         fetchTraffic(gaPrev.prevStart, gaPrev.prevEnd),
       ]).then(([cur, prev]) => {
+        tTraffic.end({ ok: !!cur })
         if (cur) setTrafficData({
           sessions: cur.sessions, users: cur.users, newUsers: cur.newUsers,
           sessionsP: prev?.sessions ?? 0, usersP: prev?.users ?? 0, newUsersP: prev?.newUsers ?? 0,
         })
-      }).catch(() => setTrafficData(null))
+      }).catch(() => { tTraffic.end({ ok: false }); setTrafficData(null) })
     } else {
       setTrafficData(null)
     }
@@ -582,6 +588,7 @@ export default function AnalyticsPage() {
         pages,
         durationMs: Math.round(performance.now() - queryStartedAt),
       })
+      console.log(JSON.stringify({ kind: 'timing', label: 'fetchAllOrders.complete', org_id: orgId, rows: all.length, pages: Math.ceil(all.length / size), gte: gteDate, lte: lteDate, ms: Math.round(performance.now() - queryStartedAt) }))
       return all
     }
 
@@ -624,6 +631,7 @@ export default function AnalyticsPage() {
     // Fetch ad_spend via API route (uses service client to bypass RLS)
     const fetchAllAdSpend = async (cols: string, gteDate: string, lteDate: string) => {
       console.log('[fetchAllAdSpend] v2 — calling /api/ad-spend/query', { orgId, cols, gteDate, lteDate })
+      const queryStartedAt = performance.now()
       try {
         const res = await fetch('/api/ad-spend/query', {
           method: 'POST',
@@ -633,12 +641,16 @@ export default function AnalyticsPage() {
         const json = await res.json()
         if (!res.ok) {
           console.error('[fetchAllAdSpend] API error:', res.status, json)
+          console.log(JSON.stringify({ kind: 'timing', label: 'fetchAllAdSpend.complete', org_id: orgId, rows: 0, pages: 0, gte: gteDate, lte: lteDate, ok: false, ms: Math.round(performance.now() - queryStartedAt) }))
           return { data: [] }
         }
-        console.log('[fetchAllAdSpend] got', json.data?.length ?? 0, 'rows')
+        const rowsLen = json.data?.length ?? 0
+        console.log('[fetchAllAdSpend] got', rowsLen, 'rows')
+        console.log(JSON.stringify({ kind: 'timing', label: 'fetchAllAdSpend.complete', org_id: orgId, rows: rowsLen, pages: Math.ceil(rowsLen / 1000), gte: gteDate, lte: lteDate, ms: Math.round(performance.now() - queryStartedAt) }))
         return json
       } catch (err) {
         console.error('[fetchAllAdSpend] fetch error:', err)
+        console.log(JSON.stringify({ kind: 'timing', label: 'fetchAllAdSpend.complete', org_id: orgId, rows: 0, pages: 0, gte: gteDate, lte: lteDate, ok: false, ms: Math.round(performance.now() - queryStartedAt) }))
         return { data: [] }
       }
     }
@@ -658,13 +670,25 @@ export default function AnalyticsPage() {
       return json
     }
 
-    const [cur, prev, curS, prevS] = await Promise.all([
+    const tOrdersFetch = timeBlock('client.analytics.ordersFetch', { org_id: orgId })
+    const tAdSpendFetch = timeBlock('client.analytics.adSpendFetch', { org_id: orgId })
+    const ordersPromise = Promise.all([
       fetchPeriodOrders(thisStart, thisEnd, amazonCurStart, amazonCurEnd, orderCols),
       fetchPeriodOrders(prevStartISO, prevEndISO, amazonPrevStart, amazonPrevEnd, orderCols),
+    ]).then(([curRows, prevRows]) => {
+      tOrdersFetch.end({ curRows: curRows.length, prevRows: prevRows.length })
+      return [curRows, prevRows] as const
+    })
+    const adSpendPromise = Promise.all([
       fetchAllAdSpend('spend,platform,impressions,clicks,conversions,date', resolvedRange.start, resolvedRange.end),
       fetchAllAdSpend('spend,platform,impressions,clicks,conversions', prevStart, prevEnd),
-    ])
+    ]).then(([curS, prevS]) => {
+      tAdSpendFetch.end({ curRows: (curS.data ?? []).length, prevRows: (prevS.data ?? []).length })
+      return [curS, prevS] as const
+    })
+    const [[cur, prev], [curS, prevS]] = await Promise.all([ordersPromise, adSpendPromise])
 
+    const tAggregation = timeBlock('client.analytics.aggregation', { org_id: orgId })
     const cSpend = curS.data ?? [], pSpend = prevS.data ?? []
     console.log('[analytics] data fetch summary', {
       durationMs: Math.round(performance.now() - startedAt),
@@ -1043,6 +1067,8 @@ export default function AnalyticsPage() {
       subRevC, subRevP, subCountC, subCountP, subCustsC, subCustsP, subPctRevC, subPctRevP,
       subAovC, subAovP, subRevPerCustC, subRevPerCustP, subLtvC, subLtvP, monthlySubscribers,
     })
+    tAggregation.end({ curOrders: cur.length, prevOrders: prev.length, curAdSpend: cSpend.length, prevAdSpend: pSpend.length })
+    tFetchData.end({ ok: true, curOrders: cur.length, prevOrders: prev.length, curAdSpend: cSpend.length, prevAdSpend: pSpend.length })
     setLoading(false)
     setIsRefetching(false)
     clearInFlightFetch()

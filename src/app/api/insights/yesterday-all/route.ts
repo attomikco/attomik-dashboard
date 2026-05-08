@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { unstable_cache } from 'next/cache'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { timed } from '@/lib/timing'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
@@ -83,6 +84,7 @@ const computeOrgYesterday = unstable_cache(
 
 export async function GET(request: Request) {
   try {
+    return await timed('api.insights.yesterday-all.GET', async () => {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -131,6 +133,7 @@ export async function GET(request: Request) {
     }))
 
     return NextResponse.json({ data: rows, date: headerDate }, { headers: NO_CACHE })
+    })
   } catch (err: any) {
     console.error('[insights/yesterday-all] error:', err)
     return NextResponse.json({ error: err.message ?? 'Failed to load yesterday summary' }, { status: 500 })

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowRight, ChevronRight, Building2, TrendingUp, TrendingDown, RefreshCw, Sparkles } from 'lucide-react'
 import DateRangePicker, { DateRange, getComparisonPeriod } from '@/components/DateRangePicker'
 import { Skeleton, SkeletonKpiCard } from '@/components/Skeleton'
+import { timeBlock } from '@/lib/timing-client'
 
 // ── helpers ──────────────────────────────────────────────────────────
 const C = {
@@ -143,8 +144,10 @@ export default function OverviewPage() {
       let orgList: any[]
       if (isFirstLoad) {
         const viewAsUserId = localStorage.getItem('viewAsUserId')
+        const tOrgFetch = timeBlock('client.overview.initialOrgsFetch')
         const orgRes = await fetch(`/api/overview${viewAsUserId ? `?viewAs=${viewAsUserId}` : ''}`)
         const orgData = await orgRes.json()
+        tOrgFetch.end({ ok: orgRes.ok, orgCount: (orgData?.orgs ?? []).length })
         if (!orgRes.ok) { setLoadingOrgs(false); return }
         orgList = orgData.orgs ?? []
       } else {
@@ -181,6 +184,8 @@ export default function OverviewPage() {
 
   const fetchAllKpis = async (orgList: OrgKpi[], currentRange: DateRange, cancelled: boolean) => {
     if (cancelled) return
+
+    const tFetchAll = timeBlock('client.overview.fetchAllKpis', { orgCount: orgList.length, range: currentRange.label, range_start: currentRange.start, range_end: currentRange.end })
 
     const resolveOrgRange = (tz: string) => {
       const today = dateInTz(tz)
@@ -241,14 +246,16 @@ export default function OverviewPage() {
         }
       })
 
-      if (requests.length === 0) return
+      if (requests.length === 0) { tFetchAll.end({ orgCount: 0 }); return }
 
+      const tBatch = timeBlock('client.overview.kpisBatchFetch', { orgCount: requests.length })
       const res = await fetch('/api/overview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items: requests.map(r => r.payload) }),
       })
       const payload = await res.json()
+      tBatch.end({ ok: res.ok, rows: (payload?.orgs ?? []).length })
       if (!res.ok) throw new Error(payload.error)
 
       const byOrgId = new Map<string, any>((payload.orgs ?? []).map((k: any) => [k.org_id, k]))
@@ -303,6 +310,7 @@ export default function OverviewPage() {
         const shopifyOrders = k?.shopifyOrders ?? 0
         const prevShopifyOrders = k?.prevShopifyOrders ?? 0
         if (gaId && shopifyOrders > 0) {
+          const tOrgKpis = timeBlock('client.overview.fetchOrgKpis', { org_id: org.id })
           Promise.all([
             fetch('/api/analytics/traffic', {
               method: 'POST',
@@ -315,15 +323,18 @@ export default function OverviewPage() {
               body: JSON.stringify({ org_id: org.id, startDate: prevStart, endDate: prevEnd }),
             }).then(r => r.ok ? r.json() : null),
           ]).then(([curTraffic, prevTraffic]) => {
+            tOrgKpis.end()
             if (cancelled) return
             const convRate = curTraffic?.users > 0 ? (shopifyOrders / curTraffic.users) * 100 : 0
             const prevConvRate = (prevTraffic?.users > 0 && prevShopifyOrders > 0)
               ? (prevShopifyOrders / prevTraffic.users) * 100 : 0
             setOrgs(prev => prev.map(o => o.id === org.id ? { ...o, convRate, prevConvRate } : o))
-          }).catch(() => {})
+          }).catch(() => { tOrgKpis.end({ ok: false }) })
         }
       })
-    } catch {
+      tFetchAll.end({ orgCount: orgList.length })
+    } catch (err: any) {
+      tFetchAll.end({ ok: false, error: err?.message })
       if (!cancelled) setOrgs(prev => prev.map(o => ({ ...o, loading: false })))
     }
   }

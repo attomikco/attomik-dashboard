@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { timed, timeBlock } from '@/lib/timing'
 
 export const maxDuration = 300
 
@@ -11,6 +12,7 @@ export async function POST(request: Request) {
     const { org_id } = await request.json()
     if (!org_id) return NextResponse.json({ error: 'org_id required' }, { status: 400 })
 
+    return await timed('api.sync.meta.POST', async () => {
     const supabase = createServiceClient()
 
     // Fetch org credentials
@@ -58,6 +60,7 @@ export async function POST(request: Request) {
     }
 
     // Paginate through Meta Insights API
+    const tMetaApi = timeBlock('api.sync.meta.POST.metaApiCall', { org_id })
     const allRows: any[] = []
     const requestUrl = `${GRAPH_API}/act_${adAccountId}/insights?` + new URLSearchParams({
       access_token: accessToken,
@@ -87,6 +90,7 @@ export async function POST(request: Request) {
 
       // Check for error inside 200 response (Meta does this with expired tokens)
       if (apiJson.error) {
+        tMetaApi.end({ rows: allRows.length, error: apiJson.error.message })
         return NextResponse.json({
           error: apiJson.error.message ?? 'Unknown Meta error',
           meta_error: apiJson.error,
@@ -97,6 +101,7 @@ export async function POST(request: Request) {
       allRows.push(...(apiJson.data ?? []))
       nextUrl = apiJson.paging?.next ?? null
     }
+    tMetaApi.end({ rows: allRows.length })
 
     if (allRows.length === 0) {
       await supabase.from('sync_timestamps').delete().eq('org_id', org_id).eq('source', 'meta')
@@ -155,6 +160,7 @@ export async function POST(request: Request) {
     const dates = Array.from(new Set(records.map(r => r.date)))
     console.log('[meta-sync] unique dates:', dates.length, 'range:', dates[0], '→', dates[dates.length - 1])
 
+    const tUpsert = timeBlock('api.sync.meta.POST.supabaseUpsert', { org_id })
     if (dates.length > 0) {
       const { error: delError, count: delCount } = await supabase.from('ad_spend').delete({ count: 'exact' }).eq('org_id', org_id).eq('platform', 'meta').in('date', dates)
       console.log('[meta-sync] deleted existing rows:', delCount, 'error:', delError)
@@ -173,6 +179,7 @@ export async function POST(request: Request) {
       if (dbError) throw dbError
       insertedCount += data?.length ?? 0
     }
+    tUpsert.end({ rows: records.length, inserted: insertedCount })
 
     console.log('[meta-sync] total inserted:', insertedCount)
 
@@ -223,6 +230,7 @@ export async function POST(request: Request) {
         ? `Initial sync — ${insertedCount} records across ${dates.length} days · $${totalSpend.toFixed(2)} total · $${latestDaySpend.toFixed(2)} on ${latestDate}`
         : `Synced ${dates.length} days — ${insertedCount} records · $${totalSpend.toFixed(2)} total · $${latestDaySpend.toFixed(2)} on ${latestDate}`,
     })
+    }, { org_id })
 
   } catch (err: any) {
     console.error('Meta sync error:', err)

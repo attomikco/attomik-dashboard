@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { timed } from '@/lib/timing'
 import * as crypto from 'crypto'
 
 // Create a JWT signed with RS256 using Node.js crypto
@@ -64,6 +65,8 @@ export async function POST(request: Request) {
     if (!org_id || !startDate || !endDate) {
       return NextResponse.json({ error: 'Missing org_id, startDate, or endDate' }, { status: 400 })
     }
+
+    return await timed('api.analytics.traffic.POST', async () => {
 
     // Look up ga_property_id
     const serviceClient = createServiceClient()
@@ -148,6 +151,7 @@ export async function POST(request: Request) {
       newUsers: totalNewUsers,
       daily,
     })
+    }, { org_id, startDate, endDate })
   } catch (err: any) {
     console.error('Traffic API error:', err)
     return NextResponse.json({ error: err.message }, { status: 500 })

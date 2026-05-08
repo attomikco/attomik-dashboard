@@ -6,6 +6,7 @@ import DateRangePicker, { DateRange, getComparisonPeriod } from '@/components/Da
 import { ChevronDown, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import AIInsights from '@/components/AIInsights'
+import { timeBlock } from '@/lib/timing-client'
 
 function pct(cur: number, prev: number) {
   if (prev === 0) return cur > 0 ? 100 : 0
@@ -198,6 +199,8 @@ export default function MetaAdsPage() {
     const orgId = localStorage.getItem('activeOrgId')
     if (!orgId) { setLoading(false); return }
 
+    const tFetchData = timeBlock('client.meta.fetchData', { org_id: orgId, range_label: range.label, range_start: range.start, range_end: range.end })
+
     const { data: orgData } = await supabase.from('organizations').select('name').eq('id', orgId).single()
     if (orgData?.name) { setOrgName(orgData.name); document.title = `${orgData.name} Meta Ads | Attomik` }
 
@@ -206,16 +209,25 @@ export default function MetaAdsPage() {
 
     // Fetch ad_spend via API route (uses service client to bypass RLS)
     const fetchAllAdSpend = async (cols: string, gteDate: string, lteDate: string, platform?: string) => {
+      const queryStartedAt = performance.now()
       try {
         const res = await fetch('/api/ad-spend/query', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ org_id: orgId, cols, gte_date: gteDate, lte_date: lteDate, platform }),
         })
-        if (!res.ok) return []
+        if (!res.ok) {
+          console.log(JSON.stringify({ kind: 'timing', label: 'fetchAllAdSpend.complete', org_id: orgId, rows: 0, pages: 0, gte: gteDate, lte: lteDate, platform: platform ?? null, ok: false, ms: Math.round(performance.now() - queryStartedAt) }))
+          return []
+        }
         const json = await res.json()
-        return json.data ?? []
-      } catch { return [] }
+        const rows = json.data ?? []
+        console.log(JSON.stringify({ kind: 'timing', label: 'fetchAllAdSpend.complete', org_id: orgId, rows: rows.length, pages: Math.ceil(rows.length / 1000), gte: gteDate, lte: lteDate, platform: platform ?? null, ms: Math.round(performance.now() - queryStartedAt) }))
+        return rows
+      } catch {
+        console.log(JSON.stringify({ kind: 'timing', label: 'fetchAllAdSpend.complete', org_id: orgId, rows: 0, pages: 0, gte: gteDate, lte: lteDate, platform: platform ?? null, ok: false, ms: Math.round(performance.now() - queryStartedAt) }))
+        return []
+      }
     }
 
     const [data, prevData] = await Promise.all([
@@ -262,6 +274,7 @@ export default function MetaAdsPage() {
       roas: v.spend > 0 ? Math.round((v.convVal / v.spend) * 100) / 100 : 0,
     }))
     setDailyData(daily)
+    tFetchData.end({ rows: rows.length, prevRows: prevRows.length })
     setLoading(false)
   }
 

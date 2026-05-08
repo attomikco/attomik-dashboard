@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { timed, timeBlock } from '@/lib/timing'
 
 export const maxDuration = 300 // 5 minutes — requires Vercel Pro, falls back to 60s on hobby
 
@@ -32,6 +33,7 @@ export async function POST(request: Request) {
     const { org_id, full_sync, sync_start, sync_end } = await request.json()
     if (!org_id) return NextResponse.json({ error: 'org_id required' }, { status: 400 })
 
+    return await timed('api.sync.shopify.POST', async () => {
     const supabase = createServiceClient()
 
     const { data: org } = await supabase
@@ -64,6 +66,7 @@ export async function POST(request: Request) {
     const updatedAtMin = isFirstSync ? null : new Date(lastSynced).toISOString()
 
     // Paginate through all orders
+    const tPagination = timeBlock('api.sync.shopify.POST.shopifyApiPagination', { org_id })
     const allOrders: any[] = []
     if (sync_start && sync_end) {
       // Batch sync: specific date range (called repeatedly by frontend)
@@ -102,6 +105,7 @@ export async function POST(request: Request) {
         url = nextMatch ? nextMatch[1] : null
       }
     }
+    tPagination.end({ rows: allOrders.length })
 
     if (allOrders.length === 0) {
       await supabase.from('organizations')
@@ -154,10 +158,12 @@ export async function POST(request: Request) {
       }
     })
 
+    const tUpsert = timeBlock('api.sync.shopify.POST.supabaseUpsert', { org_id })
     const { data, error } = await supabase
       .from('orders')
       .upsert(rows, { onConflict: 'org_id,external_id', ignoreDuplicates: false })
       .select()
+    tUpsert.end({ rows: rows.length })
 
     if (error) throw error
 
@@ -176,6 +182,7 @@ export async function POST(request: Request) {
     )
 
     if (lineItems.length > 0) {
+      const tLineItems = timeBlock('api.sync.shopify.POST.lineItemsInsert', { org_id })
       // Delete existing line items for these orders to avoid duplicates on re-sync
       const externalIds = [...new Set(lineItems.map(li => li.order_external_id))]
       for (let i = 0; i < externalIds.length; i += 500) {
@@ -185,6 +192,7 @@ export async function POST(request: Request) {
       for (let i = 0; i < lineItems.length; i += 500) {
         await supabase.from('order_items').insert(lineItems.slice(i, i + 500))
       }
+      tLineItems.end({ rows: lineItems.length })
     }
 
     await supabase.from('organizations')
@@ -207,6 +215,7 @@ export async function POST(request: Request) {
         ? `Full sync complete — ${rows.length} orders imported`
         : `Incremental sync — ${rows.length} new/updated orders`,
     })
+    }, { org_id })
 
   } catch (err: any) {
     console.error('Shopify sync error:', err)
